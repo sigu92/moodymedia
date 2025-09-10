@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Harmonisk naturpalett - Moody Media */
+    --background: 95 25% 96%;
+    --foreground: 194 35% 15%;
+
+    /* Glasmorf kortnyanser med bättre kontrast */
+    --card: 0 0% 100%;
+    --card-foreground: 194 35% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 194 35% 15%;
+
+    /* Primär: Cerulean med bättre balans */
+    --primary: 195 40% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 195 40% 38%;
+    --primary-light: 195 40% 95%;
+
+    /* Sekundär: Verdigris tonad */
+    --secondary: 172 28% 52%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 172 28% 48%;
+    --secondary-light: 172 28% 95%;
+
+    /* Framgång: Cambridge Blue */
+    --success: 129 25% 65%;
+    --success-foreground: 194 35% 15%;
+    --success-light: 129 25% 95%;
+
+    /* Accent: Tea Green som accent */
+    --accent: 95 30% 88%;
+    --accent-foreground: 194 35% 15%;
+
+    /* Muted: Subtil gråton */
+    --muted: 95 15% 92%;
+    --muted-foreground: 194 20% 45%;
+
+    /* Warning & Destructive */
+    --warning: 38 75% 55%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 75% 96%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* UI Elements med naturlig ton */
+    --border: 172 20% 85%;
+    --input: 95 15% 94%;
+    --ring: 195 40% 42%;
+
+    /* Professionella gradienter */
+    --gradient-primary: linear-gradient(135deg, hsl(195 40% 42%), hsl(172 28% 52%));
+    --gradient-subtle: linear-gradient(135deg, hsl(0 0% 100% / 0.95), hsl(95 15% 97%));
+    --gradient-nature: linear-gradient(135deg, hsl(172 28% 52%), hsl(129 25% 65%));
+    --gradient-header: linear-gradient(135deg, hsl(195 40% 42%), hsl(195 40% 50%));
+    
+    /* Professionella skuggor */
+    --shadow-soft: 0 2px 8px 0 hsl(194 35% 15% / 0.06);
+    --shadow-medium: 0 4px 16px 0 hsl(194 35% 15% / 0.08);
+    --shadow-strong: 0 8px 24px 0 hsl(194 35% 15% / 0.12);
+    --shadow-glass: 0 8px 32px 0 hsl(195 40% 42% / 0.15);
+    
+    /* Förbättrade radier */
+    --radius: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* Standard skuggor */
+    --shadow-sm: 0 1px 3px 0 hsl(194 35% 15% / 0.08);
+    --shadow-md: 0 4px 12px 0 hsl(194 35% 15% / 0.1);
+    --shadow-lg: 0 12px 24px 0 hsl(194 35% 15% / 0.12);
+    --shadow-xl: 0 20px 40px 0 hsl(194 35% 15% / 0.16);
+
+    /* Tabell & metrik färger */
+    --table-header: 95 15% 97%;
+    --table-row-even: 95 15% 98%;
+    --table-row-hover: 195 40% 97%;
+
+    --metric-excellent: 129 40% 50%;
+    --metric-good: 172 35% 45%;
+    --metric-fair: 195 40% 55%;
+    --metric-poor: 0 65% 60%;
+
+    /* Sidebar med naturlig ton */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 194 35% 20%;
+    --sidebar-primary: 195 40% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 95 15% 95%;
+    --sidebar-accent-foreground: 194 35% 20%;
+    --sidebar-border: 172 20% 90%;
+    --sidebar-ring: 195 40% 42%;
+  }
+
+  .dark {
+    /* Dark mode with gunmetal base */
+    --background: 194 33% 12%;
+    --foreground: 95 32% 92%;
+
+    --card: 194 33% 15%;
+    --card-foreground: 95 32% 92%;
+
+    --popover: 194 33% 15%;
+    --popover-foreground: 95 32% 92%;
+
+    --primary: 172 25% 55%;
+    --primary-foreground: 194 33% 18%;
+
+    --secondary: 194 33% 25%;
+    --secondary-foreground: 95 32% 92%;
+
+    --muted: 194 33% 20%;
+    --muted-foreground: 172 25% 70%;
+
+    --accent: 194 33% 20%;
+    --accent-foreground: 95 32% 92%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 95 32% 92%;
+
+    --border: 194 33% 25%;
+    --input: 194 33% 25%;
+    --ring: 172 25% 55%;
+    
+    --sidebar-background: 194 33% 15%;
+    --sidebar-foreground: 95 32% 90%;
+    --sidebar-primary: 172 25% 55%;
+    --sidebar-primary-foreground: 194 33% 18%;
+    --sidebar-accent: 194 33% 22%;
+    --sidebar-accent-foreground: 95 32% 90%;
+    --sidebar-border: 194 33% 22%;
+    --sidebar-ring: 172 25% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* Professionella glasmorf-effekter med bättre läsbarhet */
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-sm border border-white/40 shadow-soft rounded-lg;
+  }
+  
+  .glass-card-primary {
+    @apply bg-primary-light/80 backdrop-blur-sm border border-primary/20 shadow-medium rounded-lg;
+  }
+  
+  .glass-card-secondary {
+    @apply bg-secondary-light/80 backdrop-blur-sm border border-secondary/20 shadow-medium rounded-lg;
+  }
+  
+  .glass-card-clean {
+    @apply bg-white/90 backdrop-blur-sm border border-border/30 shadow-soft rounded-lg;
+  }
+  
+  .glass-button {
+    @apply bg-white/80 backdrop-blur-sm border border-border/40 hover:bg-white/90 hover:shadow-medium transition-all duration-300 rounded-lg;
+  }
+  
+  .glass-button-primary {
+    @apply bg-primary hover:bg-primary-hover text-primary-foreground shadow-medium hover:shadow-strong transition-all duration-300 rounded-lg;
+  }
+  
+  .glass-button-secondary {
+    @apply bg-secondary hover:bg-secondary-hover text-secondary-foreground shadow-medium hover:shadow-strong transition-all duration-300 rounded-lg;
+  }
+  
+  .glass-input {
+    @apply bg-white/90 backdrop-blur-sm border border-border/40 focus:border-primary/60 focus:shadow-medium transition-all duration-300 rounded-lg;
+  }
+  
+  .glass-nav {
+    @apply bg-white/95 backdrop-blur-md border-b border-border/30;
+  }
+  
+  .glass-sidebar {
+    @apply bg-white/95 backdrop-blur-md border-r border-border/30;
+  }
+  
+  /* Harmoniska gradienter */
+  .gradient-header {
+    background: var(--gradient-header);
+  }
+  
+  .gradient-subtle {
+    background: var(--gradient-subtle);
+  }
+  
+  .gradient-nature {
+    background: var(--gradient-nature);
+  }
+}

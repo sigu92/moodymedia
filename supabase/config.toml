@@ -1,0 +1,16 @@
+project_id = "fylrytiilgkjhqlyetde"
+
+[functions.admin-analytics]
+verify_jwt = true
+
+[functions.admin-websites-bulk-update]
+verify_jwt = true
+
+[functions.admin-accounts]
+verify_jwt = true
+
+[functions.admin-payouts]
+verify_jwt = true
+
+[functions.admin-import-batch]
+verify_jwt = true
