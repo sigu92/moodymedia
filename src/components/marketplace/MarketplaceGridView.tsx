@@ -1,6 +1,6 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Heart, ShoppingCart, ExternalLink, Info } from "lucide-react";
 import { MediaWithMetrics } from "@/types";
 import { Link } from "react-router-dom";
@@ -18,7 +18,7 @@ export const MarketplaceGridView = ({
   onToggleFavorite 
 }: MarketplaceGridViewProps) => {
   
-  const getMetricBadgeVariant = (value: number, type: 'dr' | 'traffic' | 'domains' | 'spam') => {
+  const getMetricBadgeVariant = (value: number, type: 'dr' | 'traffic' | 'domains' | 'spam'): NonNullable<BadgeProps['variant']> => {
     switch (type) {
       case 'dr':
         if (value >= 50) return 'excellent';
@@ -103,7 +103,7 @@ export const MarketplaceGridView = ({
               <div className="text-center">
                 <div className="text-xs text-muted-foreground mb-1">Ahrefs DR</div>
                 <Badge 
-                  variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr') as any}
+                  variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr')}
                   className="w-full justify-center"
                 >
                   {item.metrics.ahrefsDR}
@@ -112,7 +112,7 @@ export const MarketplaceGridView = ({
               <div className="text-center">
                 <div className="text-xs text-muted-foreground mb-1">Traffic</div>
                 <Badge 
-                  variant={getMetricBadgeVariant(item.metrics.organicTraffic, 'traffic') as any}
+                  variant={getMetricBadgeVariant(item.metrics.organicTraffic, 'traffic')}
                   className="w-full justify-center text-xs"
                 >
                   {item.metrics.organicTraffic.toLocaleString()}
@@ -121,7 +121,7 @@ export const MarketplaceGridView = ({
               <div className="text-center">
                 <div className="text-xs text-muted-foreground mb-1">Spam Score</div>
                 <Badge 
-                  variant={getMetricBadgeVariant(item.metrics.spamScore, 'spam') as any}
+                  variant={getMetricBadgeVariant(item.metrics.spamScore, 'spam')}
                   className="w-full justify-center"
                 >
                   {item.metrics.spamScore}

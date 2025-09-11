@@ -15,6 +15,8 @@ import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { PublisherOrderActions } from "@/components/orders/PublisherOrderActions";
 import { CompletionGuard } from "@/components/settings/CompletionGuard";
 
+type OrderStatus = 'requested' | 'accepted' | 'content_received' | 'published' | 'verified';
+
 const Orders = () => {
   const { orders, loading, updateOrderStatus, updateOrderContent } = useOrders();
   const { userRole, user } = useAuth();
@@ -28,8 +30,8 @@ const Orders = () => {
   });
   const [publicationUrl, setPublicationUrl] = useState('');
 
-  const handleStatusUpdate = async (orderId: string, newStatus: string, publicationUrl?: string) => {
-    await updateOrderStatus(orderId, newStatus as any, publicationUrl);
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus, publicationUrl?: string) => {
+    await updateOrderStatus(orderId, newStatus, publicationUrl);
   };
 
   const handleContentUpdate = async () => {

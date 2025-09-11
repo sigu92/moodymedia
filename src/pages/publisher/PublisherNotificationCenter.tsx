@@ -39,6 +39,74 @@ interface RealtimeNotification {
   metadata?: any;
 }
 
+interface NotificationData {
+  priority?: 'high' | 'medium' | 'low';
+  actionUrl?: string;
+  [key: string]: unknown;
+}
+
+interface NotificationRow {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  created_at: string;
+  read: boolean;
+  data?: NotificationData | null;
+}
+
+interface OrderWithDetails {
+  id: string;
+  status: string;
+  price: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+  briefing: string;
+  anchor: string;
+  target_url: string;
+  publication_url: string;
+  publication_date: string;
+  buyer_id: string;
+  publisher_id: string;
+  media_outlet_id: string;
+  media_outlets: {
+    domain: string;
+    category: string;
+    guidelines: string;
+    lead_time_days: number;
+  };
+  buyer_profile?: {
+    email: string;
+    company?: string;
+  };
+}
+
+interface OrderMessage {
+  id: string;
+  order_id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+  updated_at: string;
+  sender_type: 'buyer' | 'publisher' | 'system';
+  is_read: boolean;
+}
+
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  steps: {
+    id: string;
+    name: string;
+    description: string;
+    estimatedDays: number;
+    required: boolean;
+    autoComplete?: boolean;
+  }[];
+}
+
 export default function PublisherNotificationCenter() {
   const { user, userRole } = useAuth();
   const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
@@ -144,16 +212,19 @@ export default function PublisherNotificationCenter() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
+          const row = payload.new as NotificationRow;
+          const data: NotificationData | undefined = row.data ?? undefined;
+
           const newNotification: RealtimeNotification = {
-            id: payload.new.id,
-            type: payload.new.type,
-            title: payload.new.title,
-            message: payload.new.message,
-            priority: payload.new.data?.priority || 'medium',
-            timestamp: payload.new.created_at,
+            id: row.id,
+            type: row.type,
+            title: row.title,
+            message: row.message,
+            priority: data?.priority || 'medium',
+            timestamp: row.created_at,
             read: false,
-            actionUrl: payload.new.data?.actionUrl,
-            metadata: payload.new.data
+            actionUrl: data?.actionUrl,
+            metadata: data
           };
 
           setRealtimeNotifications(prev => [newNotification, ...prev]);
@@ -185,17 +256,20 @@ export default function PublisherNotificationCenter() {
 
       if (error) throw error;
 
-      const notifications: RealtimeNotification[] = data?.map(notif => ({
-        id: notif.id,
-        type: notif.type,
-        title: notif.title,
-        message: notif.message,
-        priority: (notif.data as any)?.priority || 'medium',
-        timestamp: notif.created_at,
-        read: notif.read,
-        actionUrl: (notif.data as any)?.actionUrl,
-        metadata: notif.data
-      })) || [];
+      const notifications: RealtimeNotification[] = (data as NotificationRow[] | null)?.map(notif => {
+        const payload = notif.data ?? {};
+        return {
+          id: notif.id,
+          type: notif.type,
+          title: notif.title,
+          message: notif.message,
+          priority: payload.priority || 'medium',
+          timestamp: notif.created_at,
+          read: notif.read,
+          actionUrl: payload.actionUrl,
+          metadata: payload,
+        };
+      }) || [];
 
       setRealtimeNotifications(notifications);
     } catch (error) {

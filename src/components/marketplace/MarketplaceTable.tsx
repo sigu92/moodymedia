@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Heart, ShoppingCart, ExternalLink, Info, Copy, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -57,7 +57,7 @@ export const MarketplaceTable = ({
     toast.success(`${type} copied to clipboard`);
   };
 
-  const getMetricBadgeVariant = (value: number, type: 'dr' | 'traffic' | 'domains' | 'spam') => {
+  const getMetricBadgeVariant = (value: number, type: 'dr' | 'traffic' | 'domains' | 'spam'): NonNullable<BadgeProps['variant']> => {
     switch (type) {
       case 'dr':
         if (value >= 50) return 'excellent';
@@ -274,7 +274,7 @@ export const MarketplaceTable = ({
                   {/* DR */}
                   <TableCell className="text-center">
                   <Badge 
-                    variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr') as any}
+                    variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr')}
                     className="font-medium transition-colors"
                   >
                     {item.metrics.ahrefsDR}

@@ -10,7 +10,7 @@ export interface Column<T> {
   key: keyof T;
   header: string;
   sortable?: boolean;
-  render?: (value: any, row: T) => React.ReactNode;
+  render?: (value: unknown, row: T) => React.ReactNode;
 }
 
 export interface DataTableProps<T> {
@@ -35,7 +35,7 @@ export interface DataTableProps<T> {
   emptyMessage?: string;
 }
 
-export function DataTable<T>({
+export function DataTable<T extends { id?: string } & Record<string, unknown>>({
   data,
   columns,
   loading = false,
@@ -63,7 +63,7 @@ export function DataTable<T>({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange?.(data.map((row: any) => row.id || String(Math.random())));
+      onSelectionChange?.(data.map((row) => String(row.id ?? Math.random())));
     } else {
       onSelectionChange?.([]);
     }
@@ -161,19 +161,22 @@ export function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row: any, index) => (
+              data.map((row, index) => (
                 <TableRow key={row.id || index}>
                   {selectable && (
                     <TableCell>
                       <Checkbox
-                        checked={selectedRows.includes((row as any).id || String(index))}
-                        onCheckedChange={(checked) => handleSelectRow((row as any).id || String(index), !!checked)}
+                        checked={selectedRows.includes(String(row.id ?? index))}
+                        onCheckedChange={(checked) => handleSelectRow(String(row.id ?? index), !!checked)}
                       />
                     </TableCell>
                   )}
                   {columns.map((column) => (
                     <TableCell key={String(column.key)}>
-                      {column.render ? column.render((row as any)[column.key], row) : String((row as any)[column.key] || '')}
+                      {(() => {
+                        const cellValue = row[column.key as string];
+                        return column.render ? column.render(cellValue, row) : String((cellValue as unknown as string) ?? '');
+                      })()}
                     </TableCell>
                   ))}
                 </TableRow>

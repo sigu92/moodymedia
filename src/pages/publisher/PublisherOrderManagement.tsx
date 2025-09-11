@@ -298,9 +298,11 @@ export default function PublisherOrderManagement() {
     }
   }, [selectedOrder]);
 
-  const handleStatusUpdate = async (orderId: string, newStatus: string, publicationUrl?: string) => {
+  type OrderStatus = 'requested' | 'accepted' | 'content_received' | 'published' | 'verified';
+
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus, publicationUrl?: string) => {
     try {
-      await updateOrderStatus(orderId, newStatus as any, publicationUrl);
+      await updateOrderStatus(orderId, newStatus, publicationUrl);
       loadOrders();
       
       // Auto-send status update message (mock for now)

@@ -3,11 +3,13 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+type AssignableRole = 'buyer' | 'publisher' | 'admin' | 'system_admin';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, role?: string, referralCode?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, role?: AssignableRole, referralCode?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   userRoles: string[];
@@ -96,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserRoles(roles);
       
       // Set default current role based on priority: system_admin > admin > publisher > buyer
-      let defaultRole = 'buyer';
+      let defaultRole: AssignableRole = 'buyer';
       if (roles.includes('system_admin')) defaultRole = 'system_admin';
       else if (roles.includes('admin')) defaultRole = 'admin';
       else if (roles.includes('publisher')) defaultRole = 'publisher';
@@ -124,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isSystemAdmin = userRoles.includes('system_admin') || userRoles.includes('admin');
 
-  const signUp = async (email: string, password: string, role: string = 'buyer', referralCode?: string) => {
+  const signUp = async (email: string, password: string, role: AssignableRole = 'buyer', referralCode?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { data, error } = await supabase.auth.signUp({
@@ -148,9 +150,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (data.user && !error) {
       try {
         // Create role assignments (buyer by default, plus any specified role)
-        const roleAssignments = [
+        const roleAssignments: { user_id: string; role: AssignableRole }[] = [
           { user_id: data.user.id, role: 'buyer' },
-          ...(role !== 'buyer' ? [{ user_id: data.user.id, role: role as any }] : [])
+          ...(role !== 'buyer' ? [{ user_id: data.user.id, role }] : [])
         ];
         
         await supabase
