@@ -146,54 +146,54 @@ const Marketplace = () => {
       }
 
       // Price filter
-      if (filters.maxPrice && media.price > filters.maxPrice) {
+      if (filters.maxPrice !== undefined && media.price > filters.maxPrice) {
         return false;
       }
-      if (filters.priceMin && media.price < filters.priceMin) {
+      if (filters.priceMin !== undefined && media.price < filters.priceMin) {
         return false;
       }
-      if (filters.priceMax && media.price > filters.priceMax) {
+      if (filters.priceMax !== undefined && media.price > filters.priceMax) {
         return false;
       }
 
       // DR filter
-      if (filters.minDR && media.metrics.ahrefsDR < filters.minDR) {
+      if (filters.minDR !== undefined && media.metrics.ahrefsDR < filters.minDR) {
         return false;
       }
-      if (filters.ahrefsDrMin && media.metrics.ahrefsDR < filters.ahrefsDrMin) {
+      if (filters.ahrefsDrMin !== undefined && media.metrics.ahrefsDR < filters.ahrefsDrMin) {
         return false;
       }
-      if (filters.ahrefsDrMax && media.metrics.ahrefsDR > filters.ahrefsDrMax) {
+      if (filters.ahrefsDrMax !== undefined && media.metrics.ahrefsDR > filters.ahrefsDrMax) {
         return false;
       }
 
       // Moz DA filter
-      if (filters.mozDaMin && media.metrics.mozDA < filters.mozDaMin) {
+      if (filters.mozDaMin !== undefined && media.metrics.mozDA < filters.mozDaMin) {
         return false;
       }
-      if (filters.mozDaMax && media.metrics.mozDA > filters.mozDaMax) {
+      if (filters.mozDaMax !== undefined && media.metrics.mozDA > filters.mozDaMax) {
         return false;
       }
 
       // Organic traffic filter
-      if (filters.minOrganicTraffic && media.metrics.organicTraffic < filters.minOrganicTraffic) {
+      if (filters.minOrganicTraffic !== undefined && media.metrics.organicTraffic < filters.minOrganicTraffic) {
         return false;
       }
-      if (filters.organicTrafficMin && media.metrics.organicTraffic < filters.organicTrafficMin) {
+      if (filters.organicTrafficMin !== undefined && media.metrics.organicTraffic < filters.organicTrafficMin) {
         return false;
       }
-      if (filters.organicTrafficMax && media.metrics.organicTraffic > filters.organicTrafficMax) {
+      if (filters.organicTrafficMax !== undefined && media.metrics.organicTraffic > filters.organicTrafficMax) {
         return false;
       }
 
       // Spam score filter
-      if (filters.maxSpamScore && media.metrics.spamScore > filters.maxSpamScore) {
+      if (filters.maxSpamScore !== undefined && media.metrics.spamScore > filters.maxSpamScore) {
         return false;
       }
-      if (filters.spamScoreMin && media.metrics.spamScore < filters.spamScoreMin) {
+      if (filters.spamScoreMin !== undefined && media.metrics.spamScore < filters.spamScoreMin) {
         return false;
       }
-      if (filters.spamScoreMax && media.metrics.spamScore > filters.spamScoreMax) {
+      if (filters.spamScoreMax !== undefined && media.metrics.spamScore > filters.spamScoreMax) {
         return false;
       }
 
@@ -203,10 +203,10 @@ const Marketplace = () => {
       }
 
       // Lead time filter
-      if (filters.leadTimeMin && media.leadTimeDays < filters.leadTimeMin) {
+      if (filters.leadTimeMin !== undefined && media.leadTimeDays < filters.leadTimeMin) {
         return false;
       }
-      if (filters.leadTimeMax && media.leadTimeDays > filters.leadTimeMax) {
+      if (filters.leadTimeMax !== undefined && media.leadTimeDays > filters.leadTimeMax) {
         return false;
       }
 

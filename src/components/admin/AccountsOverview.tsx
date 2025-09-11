@@ -127,8 +127,7 @@ export function AccountsOverview() {
         ...Object.fromEntries(Object.entries(filters).filter(([_, value]) => value && value !== 'all')),
       });
 
-      const { data, error } = await supabase.functions.invoke('admin-accounts', {
-        body: null,
+      const { data, error } = await supabase.functions.invoke(`admin-accounts?${params.toString()}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -158,8 +157,7 @@ export function AccountsOverview() {
         export: 'csv',
       });
 
-      const { data, error } = await supabase.functions.invoke('admin-accounts', {
-        body: null,
+      const { data, error } = await supabase.functions.invoke(`admin-accounts?${params.toString()}`, {
         headers: {
           'Content-Type': 'application/json',
         },

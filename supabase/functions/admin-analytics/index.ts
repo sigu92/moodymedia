@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -89,7 +90,7 @@ serve(async (req) => {
     
     const totalRevenue = paidOrders.reduce((sum, order) => sum + Number(order.price), 0);
     const pendingRevenue = pendingOrders.reduce((sum, order) => sum + Number(order.price), 0);
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / paidOrders.length : 0;
+    const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
 
     // Get top buyers
     const { data: topBuyers, error: buyersError } = await supabase

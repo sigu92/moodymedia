@@ -109,11 +109,10 @@ export function EconomyAnalytics() {
         currency
       });
 
-      const response = await supabase.functions.invoke('admin-analytics', {
-        body: {},
+      const response = await supabase.functions.invoke(`admin-analytics?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
-        }
+        },
       });
 
       if (response.error) {
