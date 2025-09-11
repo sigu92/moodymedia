@@ -74,14 +74,16 @@ export function EconomyAnalytics() {
       case '30d':
         setDateRange({ from: subDays(now, 30), to: now });
         break;
-      case 'qtd':
+      case 'qtd': {
         const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
         setDateRange({ from: quarterStart, to: now });
         break;
-      case 'ytd':
+      }
+      case 'ytd': {
         const yearStart = new Date(now.getFullYear(), 0, 1);
         setDateRange({ from: yearStart, to: now });
         break;
+      }
     }
   };
 

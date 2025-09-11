@@ -119,7 +119,7 @@ const Marketplace = () => {
   }, [allMedia]);
 
   const filteredAndSortedMedia = useMemo(() => {
-    let filtered = mediaWithFavorites.filter(media => {
+    const filtered = mediaWithFavorites.filter(media => {
       // Search filter
       if (filters.search && !media.domain.toLowerCase().includes(filters.search.toLowerCase())) {
         return false;
