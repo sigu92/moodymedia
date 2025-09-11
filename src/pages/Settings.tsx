@@ -33,6 +33,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSettingsStatus, updateSettings, type OrgSettings } from '@/hooks/useSettings';
 import { toast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DebugRoleStatus } from '@/components/DebugRoleStatus';
 
 // Form validation schema
 const settingsSchema = z.object({
@@ -425,6 +426,11 @@ const Settings: React.FC = () => {
               </form>
             </Form>
           </div>
+        </div>
+
+        {/* Debug Section - Only show if user has issues with roles */}
+        <div className="mt-8">
+          <DebugRoleStatus />
         </div>
       </main>
     </div>

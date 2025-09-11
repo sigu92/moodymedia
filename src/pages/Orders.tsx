@@ -13,11 +13,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { PublisherOrderActions } from "@/components/orders/PublisherOrderActions";
-import { CompletionGuard } from "@/components/settings/CompletionGuard";
 
 const Orders = () => {
   const { orders, loading, updateOrderStatus, updateOrderContent } = useOrders();
-  const { userRole, user } = useAuth();
+  const { userRoles, user } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [editingContent, setEditingContent] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -55,34 +54,41 @@ const Orders = () => {
   };
 
   const canEditStatus = (order: any) => {
-    if (userRole === 'admin') return true;
-    if (userRole === 'publisher' && order.publisher_id) return true;
+    if (userRoles?.includes('admin') || userRoles?.includes('system_admin')) return true;
+    if (userRoles?.includes('publisher') && order.publisher_id) return true;
     return false;
   };
 
   const canEditContent = (order: any) => {
-    if (userRole === 'admin') return true;
-    if (userRole === 'buyer') return true;
+    if (userRoles?.includes('admin') || userRoles?.includes('system_admin')) return true;
+    if (userRoles?.includes('buyer')) return true;
     return false;
   };
 
   const filteredOrders = orders.filter(order => {
     let roleFilter = false;
-    if (userRole === 'publisher') {
+    if (userRoles?.includes('publisher')) {
       roleFilter = order.publisher_id === user?.id;
+    } else if (userRoles?.includes('admin') || userRoles?.includes('system_admin')) {
+      roleFilter = true; // Admins can see all
     } else {
       roleFilter = order.buyer_id === user?.id;
     }
-    
+
     if (statusFilter === 'all') return roleFilter;
     return roleFilter && order.status === statusFilter;
   });
 
   const getOrdersByStatus = (status?: string) => {
     return orders.filter(order => {
-      const roleMatch = userRole === 'publisher' 
-        ? order.publisher_id === user?.id 
-        : order.buyer_id === user?.id;
+      let roleMatch = false;
+      if (userRoles?.includes('publisher')) {
+        roleMatch = order.publisher_id === user?.id;
+      } else if (userRoles?.includes('admin') || userRoles?.includes('system_admin')) {
+        roleMatch = true; // Admins can see all
+      } else {
+        roleMatch = order.buyer_id === user?.id;
+      }
       return status ? roleMatch && order.status === status : roleMatch;
     });
   };

@@ -10,7 +10,6 @@ import SystemAdminRoute from "./components/admin/SystemAdminRoute";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./components/AppSidebar";
 import { TopNav } from "./components/TopNav";
-import { GlobalSettingsWarning } from "./components/settings/GlobalSettingsWarning";
 import SEOHead from "./components/SEOHead";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -43,19 +42,64 @@ const queryClient = new QueryClient();
 // Layout component to handle conditional rendering
 const AppLayout = () => {
   const location = useLocation();
-  const isMarketplace = location.pathname === '/marketplace';
+
+  // Define routes that should use marketplace mode (TopNav instead of sidebar)
+  const marketplaceRoutes = [
+    '/marketplace',
+    '/dashboard/marketplace',
+    '/cart',
+    '/orders',
+    '/price-analytics',
+    '/link-monitoring',
+    '/referral'  // Referral can be accessed by both buyers and publishers
+  ];
+
+  // Define routes that should ALWAYS show sidebar (never marketplace mode)
+  const sidebarOnlyRoutes = [
+    '/dashboard',  // Main dashboard - always show sidebar
+    '/dashboard/publisher',
+    '/publisher/',
+    '/admin',
+    '/profile',
+    '/settings',
+    '/notifications'
+  ];
+
+  // Publisher routes that should NOT use marketplace mode
+  const publisherRoutes = [
+    '/publisher/',
+    '/dashboard/publisher'
+  ];
+
+  // Check if current path is marketplace mode
+  const isMarketplace = marketplaceRoutes.some(route =>
+    location.pathname === route || location.pathname.startsWith(route + '/')
+  );
+
+  // Check if current path is publisher route
+  const isPublisherRoute = publisherRoutes.some(route =>
+    location.pathname === route || location.pathname.startsWith(route + '/')
+  );
+
+  // Check if current path should ALWAYS show sidebar
+  const isSidebarOnlyRoute = sidebarOnlyRoutes.some(route =>
+    location.pathname === route || location.pathname.startsWith(route + '/')
+  );
+
+  // Use marketplace mode for buyer routes, but NOT for publisher routes or sidebar-only routes
+  const shouldUseMarketplaceMode = isMarketplace && !isPublisherRoute && !isSidebarOnlyRoute;
   
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         {/* Conditionally render sidebar with smooth transition - Fixed positioning */}
-        <div className={`fixed left-0 top-0 z-40 h-full transition-all duration-500 ease-in-out ${isMarketplace ? 'w-0 opacity-0 -translate-x-full' : 'w-auto opacity-100 translate-x-0'} overflow-hidden`}>
+        <div className={`fixed left-0 top-0 z-40 h-full transition-all duration-500 ease-in-out ${shouldUseMarketplaceMode ? 'w-0 opacity-0 -translate-x-full' : 'w-auto opacity-100 translate-x-0'} overflow-hidden`}>
           <AppSidebar />
         </div>
-        
-        <div className={`flex-1 flex flex-col transition-all duration-500 ease-in-out ${isMarketplace ? 'ml-0' : 'ml-64'}`}>
+
+        <div className={`flex-1 flex flex-col transition-all duration-500 ease-in-out ${shouldUseMarketplaceMode ? 'ml-0' : 'ml-64'}`}>
           {/* Conditionally render header content */}
-          {isMarketplace ? (
+          {shouldUseMarketplaceMode ? (
             <TopNav />
           ) : (
             <header className="h-12 flex items-center border-b border-border bg-background px-4 transition-all duration-500 ease-in-out">
@@ -63,17 +107,13 @@ const AppLayout = () => {
               <h1 className="ml-4 font-semibold">Moody Media</h1>
             </header>
           )}
-          
-          <GlobalSettingsWarning />
-          
+
           <main className="flex-1">
             <Routes>
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/dashboard/marketplace" element={
                 <ProtectedRoute>
-                  <ProtectedPublisherRoute restrictBuyerRoutes={true}>
-                    <MarketplaceDashboard />
-                  </ProtectedPublisherRoute>
+                  <MarketplaceDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/dashboard/publisher" element={<ProtectedRoute requiredRole="publisher"><PublisherDashboard /></ProtectedRoute>} />
@@ -86,41 +126,31 @@ const AppLayout = () => {
               <Route path="/dashboard/admin" element={<ProtectedRoute requiredRole="admin"><Dashboard /></ProtectedRoute>} />
               <Route path="/marketplace" element={
                 <ProtectedRoute>
-                  <ProtectedPublisherRoute restrictBuyerRoutes={true}>
-                    <Marketplace />
-                  </ProtectedPublisherRoute>
+                  <Marketplace />
                 </ProtectedRoute>
               } />
               <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
               <Route path="/referral" element={
                 <ProtectedRoute>
-                  <ProtectedPublisherRoute restrictBuyerRoutes={false}>
-                    <Referral />
-                  </ProtectedPublisherRoute>
+                  <Referral />
                 </ProtectedRoute>
               } />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/about" element={<About />} />
               <Route path="/cart" element={
                 <ProtectedRoute>
-                  <ProtectedPublisherRoute restrictBuyerRoutes={true}>
-                    <Cart />
-                  </ProtectedPublisherRoute>
+                  <Cart />
                 </ProtectedRoute>
               } />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
               <Route path="/price-analytics" element={
                 <ProtectedRoute>
-                  <ProtectedPublisherRoute restrictBuyerRoutes={true}>
-                    <PriceAnalytics />
-                  </ProtectedPublisherRoute>
+                  <PriceAnalytics />
                 </ProtectedRoute>
               } />
               <Route path="/link-monitoring" element={
                 <ProtectedRoute>
-                  <ProtectedPublisherRoute restrictBuyerRoutes={true}>
-                    <LinkMonitoring />
-                  </ProtectedPublisherRoute>
+                  <LinkMonitoring />
                 </ProtectedRoute>
               } />
               <Route path="/admin" element={<SystemAdminRoute><AdminSystem /></SystemAdminRoute>} />

@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
-  const { user, loading, userRole } = useAuth();
+  const { user, loading, userRoles } = useAuth();
 
   if (loading) {
     return (
@@ -28,7 +28,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
   }
 
   // Check if user has required role (admin and system_admin have elevated access)
-  if (requiredRole && userRole !== requiredRole && userRole !== 'admin' && userRole !== 'system_admin') {
+  if (requiredRole && !userRoles?.includes(requiredRole) &&
+      !userRoles?.includes('admin') && !userRoles?.includes('system_admin')) {
     return <Navigate to="/dashboard" replace />;
   }
 

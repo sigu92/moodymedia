@@ -1119,6 +1119,43 @@ export type Database = {
         }
         Returns: string
       }
+      handle_secure_user_signup: {
+        Args: {
+          p_email: string
+          p_referral_code?: string
+          p_role?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      add_publisher_role: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      update_onboarding_profile: {
+        Args: {
+          p_user_id: string
+          p_display_name: string
+          p_bio?: string
+          p_company?: string
+          p_country?: string
+          p_vat_number?: string
+        }
+        Returns: Json
+      }
+      create_onboarding_media_outlet: {
+        Args: {
+          p_user_id: string
+          p_domain: string
+          p_category: string
+          p_price: number
+          p_niches?: string[]
+          p_country?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "publisher" | "buyer" | "system_admin"

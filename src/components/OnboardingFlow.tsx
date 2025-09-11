@@ -17,7 +17,10 @@ import {
   Sparkles,
   Target,
   Users,
-  Package
+  Package,
+  CreditCard,
+  Plus,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,11 +31,28 @@ interface OnboardingFlowProps {
 }
 
 const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
-  const { user, userRole } = useAuth();
+  const { user, userRoles, completeOnboardingWithServerSync } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setSaving] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
   
-  const totalSteps = userRole === 'publisher' ? 4 : 3;
+  // Determine user's primary role (buyer by default)
+  const primaryRole = userRoles?.includes('publisher') ? 'publisher' : 'buyer';
+  
+  // Publisher upsell state
+  const [isAlsoPublisher, setIsAlsoPublisher] = useState<boolean | null>(null);
+  
+  // Calculate total steps - simplified flow
+  const getTotalSteps = () => {
+    if (primaryRole === 'publisher') {
+      return 4; // Welcome + Profile + Organization + Media Outlet
+    } else {
+      return 4; // Welcome + Profile + Publisher Question + Completion
+    }
+  };
+  
+  const totalSteps = getTotalSteps();
   
   const [profileData, setProfileData] = useState({
     displayName: '',
@@ -47,6 +67,8 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     mediaOutletNiches: [] as string[],
     mediaOutletPrice: ''
   });
+
+  // Banking information removed - no longer required for onboarding
 
   const [newNiche, setNewNiche] = useState('');
 
@@ -81,87 +103,176 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }
   };
 
+  // Function to add publisher role to user using secure RPC function
+  const addPublisherRole = async (userId: string) => {
+    try {
+      console.log('🔄 Adding publisher role for user:', userId);
+      console.log('🔍 DEBUG: About to call add_publisher_role RPC');
+
+      // Step 1: Call the secure RPC function to add publisher role
+      const { data, error } = await supabase.rpc('add_publisher_role' as any, {
+        p_user_id: userId
+      });
+
+      console.log('🔍 DEBUG: RPC call result:', { data, error });
+
+      // Check if user already had publisher role
+      if (data?.message === 'User already has publisher role') {
+        console.log('ℹ️ User already had publisher role - this is expected behavior');
+        return; // Success, no need to continue
+      }
+
+      if (error) {
+        console.error('❌ Database error adding publisher role:', error);
+
+        // Try fallback: direct insert if RPC fails
+        console.log('🔄 Attempting fallback: direct role insertion...');
+        const { error: insertError } = await supabase
+          .from('user_role_assignments')
+          .upsert({
+            user_id: userId,
+            role: 'publisher'
+          }, { onConflict: 'user_id,role' });
+
+        if (insertError) {
+          console.error('❌ Fallback insertion also failed:', insertError);
+          throw new Error(`Database error: ${error.message}`);
+        } else {
+          console.log('✅ Fallback insertion succeeded');
+          return;
+        }
+      }
+
+      if (data && !data.success) {
+        console.error('❌ RPC function returned error:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('✅ Publisher role added to database successfully:', data);
+
+      // Step 2: AuthContext will automatically refresh roles on next auth state change
+      console.log('🔄 AuthContext will automatically refresh roles on next state change');
+
+      console.log('🎉 Publisher role assignment and synchronization complete');
+
+    } catch (error) {
+      console.error('💥 Failed to add publisher role:', error);
+
+      // Provide user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+      toast({
+        title: "Role Assignment Failed",
+        description: `Could not assign publisher role: ${errorMessage}. Please try completing onboarding again.`,
+        variant: "destructive",
+      });
+
+      throw error;
+    }
+  };
+
   const handleComplete = async () => {
     if (!user) return;
     
     try {
       setSaving(true);
 
-      // Update user metadata
-      await supabase.auth.updateUser({
-        data: {
-          display_name: profileData.displayName,
-          bio: profileData.bio,
-          onboarding_completed: true
-        }
+      // Validate required profile data
+      if (!profileData.displayName || profileData.displayName.trim() === '') {
+        throw new Error('Display name is required');
+      }
+
+      // Create/update profile using secure function (before comprehensive completion)
+      console.log('🔄 Creating/updating profile...');
+      const { data: profileResult, error: profileError } = await supabase.rpc('update_onboarding_profile' as any, {
+        p_user_id: user.id,
+        p_display_name: profileData.displayName.trim(),
+        p_bio: profileData.bio?.trim() || null,
+        p_company: profileData.company?.trim() || null,
+        p_country: profileData.country?.trim() || null,
+        p_vat_number: profileData.vatNumber?.trim() || null
       });
 
-      // Create/update profile
-      await supabase
-        .from('profiles')
-        .upsert({
-          user_id: user.id
+      if (profileError) {
+        console.error('❌ Database error updating profile:', profileError);
+        throw new Error(`Failed to update user profile: ${profileError.message}`);
+      }
+
+      if (profileResult && !profileResult.success) {
+        console.error('❌ Profile update failed:', profileResult.error);
+        throw new Error(profileResult.error || 'Failed to update user profile');
+      }
+
+      console.log('✅ Profile updated successfully:', profileResult);
+
+      // Handle publisher role assignment for buyers who chose to become publishers
+      console.log('🔍 DEBUG: Publisher role assignment check');
+      console.log('  - primaryRole:', primaryRole);
+      console.log('  - isAlsoPublisher:', isAlsoPublisher);
+      console.log('  - userRoles:', userRoles);
+      console.log('  - user.id:', user.id);
+
+      if (primaryRole === 'buyer' && isAlsoPublisher === true) {
+        console.log('👤 User chose to become publisher, assigning role...');
+        await addPublisherRole(user.id);
+        console.log('✅ Publisher role assigned successfully');
+      } else {
+        console.log('❌ Publisher role assignment skipped:', {
+          primaryRole,
+          isAlsoPublisher,
+          condition: primaryRole === 'buyer' && isAlsoPublisher === true
+        });
+      }
+
+                 // Note: Role verification will happen in the comprehensive completion function
+      // AuthContext will automatically sync roles on next state change
+
+      // For original publishers only, create their first media outlet using secure function
+      const shouldCreateMediaOutlet = primaryRole === 'publisher' && profileData.mediaOutletDomain;
+
+      if (shouldCreateMediaOutlet) {
+        // Validate media outlet data
+        if (!profileData.mediaOutletDomain || profileData.mediaOutletDomain.trim() === '') {
+          throw new Error('Media outlet domain is required');
+        }
+        if (!profileData.mediaOutletCategory || profileData.mediaOutletCategory.trim() === '') {
+          throw new Error('Media outlet category is required');
+        }
+        const price = parseFloat(profileData.mediaOutletPrice);
+        if (isNaN(price) || price <= 0) {
+          throw new Error('Valid price is required for media outlet');
+        }
+
+        console.log('🔄 Creating media outlet...');
+        const { data: mediaOutletResult, error: mediaOutletError } = await supabase.rpc('create_onboarding_media_outlet' as any, {
+          p_user_id: user.id,
+          p_domain: profileData.mediaOutletDomain.trim(),
+          p_category: profileData.mediaOutletCategory.trim(),
+          p_price: price,
+          p_niches: Array.isArray(profileData.mediaOutletNiches) ? profileData.mediaOutletNiches : [],
+          p_country: profileData.country?.trim() || 'SE'
         });
 
-      // Create organization if provided
-      if (profileData.company && profileData.country) {
-        const { data: org } = await supabase
-          .from('organizations')
-          .insert({
-            name: profileData.company,
-            country: profileData.country,
-            vat_number: profileData.vatNumber || null
-          })
-          .select()
-          .single();
-
-        if (org) {
-          await supabase
-            .from('profiles')
-            .update({
-              organization_id: org.id
-            })
-            .eq('user_id', user.id);
+        if (mediaOutletError) {
+          console.error('❌ Database error creating media outlet:', mediaOutletError);
+          throw new Error(`Failed to create media outlet: ${mediaOutletError.message}`);
         }
+
+        if (mediaOutletResult && !mediaOutletResult.success) {
+          console.error('❌ Media outlet creation failed:', mediaOutletResult.error);
+          throw new Error(mediaOutletResult.error || 'Failed to create media outlet');
+        }
+
+        console.log('✅ Media outlet created successfully:', mediaOutletResult);
       }
 
-      // For publishers, create their first media outlet
-      if (userRole === 'publisher' && profileData.mediaOutletDomain) {
-        await supabase
-          .from('media_outlets')
-          .insert({
-            publisher_id: user.id,
-            domain: profileData.mediaOutletDomain,
-            category: profileData.mediaOutletCategory,
-            niches: profileData.mediaOutletNiches,
-            price: parseFloat(profileData.mediaOutletPrice) || 0,
-            currency: 'EUR',
-            country: profileData.country,
-            language: 'English'
-          });
+      // Small delay to ensure database transactions are committed
+      console.log('⏳ Waiting for database transactions to commit...');
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Create default metrics for the media outlet
-        const { data: mediaOutlet } = await supabase
-          .from('media_outlets')
-          .select('id')
-          .eq('publisher_id', user.id)
-          .eq('domain', profileData.mediaOutletDomain)
-          .single();
-
-        if (mediaOutlet) {
-          await supabase
-            .from('metrics')
-            .insert({
-              media_outlet_id: mediaOutlet.id,
-              ahrefs_dr: 10,
-              moz_da: 10,
-              semrush_as: 10,
-              spam_score: 0,
-              organic_traffic: 1000,
-              referring_domains: 50
-            });
-        }
-      }
+      // Use the comprehensive completion function from AuthContext
+      console.log('🔄 Starting comprehensive onboarding completion...');
+      await completeOnboardingWithServerSync();
 
       toast({
         title: "Welcome aboard! 🎉",
@@ -171,11 +282,76 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       onComplete();
 
     } catch (error) {
-      console.error('Onboarding error:', error);
+      console.error('💥 Onboarding completion error:', error);
+
+      // Provide specific error messages based on error type
+      let errorTitle = "Onboarding Failed";
+      let errorDescription = "Failed to complete onboarding setup. Please try again.";
+
+      if (error instanceof Error) {
+        if (error.message.includes('Database error')) {
+          errorTitle = "Database Error";
+          errorDescription = "There was a problem saving your information. Please check your connection and try again.";
+        } else if (error.message.includes('Failed to update user metadata')) {
+          errorTitle = "Account Setup Error";
+          errorDescription = "Could not update your account settings. Please try again.";
+        } else if (error.message.includes('Failed to add publisher role')) {
+          errorTitle = "Role Assignment Error";
+          errorDescription = "Could not set up your publisher account. Please try again.";
+        } else if (error.message.includes('Failed to create media outlet')) {
+          errorTitle = "Media Outlet Error";
+          errorDescription = "Could not create your media outlet. Please try again.";
+        } else if (error.message.includes('Failed to update profile')) {
+          errorTitle = "Profile Error";
+          errorDescription = "Could not save your profile information. Please try again.";
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to complete onboarding. Please try again.",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
+      });
+
+      // Check if we should retry
+      if (retryCount < MAX_RETRIES && (
+        error instanceof Error &&
+        (error.message.includes('Database error') ||
+         error.message.includes('Failed to update user metadata') ||
+         error.message.includes('Failed to add publisher role'))
+      )) {
+        console.log(`🔄 Retrying onboarding completion (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+        setRetryCount(prev => prev + 1);
+
+        // Show user feedback about retry
+        toast({
+          title: "Retrying...",
+          description: `Attempting to complete setup again (${retryCount + 1}/${MAX_RETRIES})`,
+          variant: "default",
+        });
+
+        // Keep loading state active during retry
+        setSaving(true);
+
+        // Add delay before retry
+        setTimeout(() => {
+          handleComplete();
+        }, 1000 * (retryCount + 1)); // Exponential backoff
+
+        return; // Don't show error toast yet, we're retrying
+      }
+
+      // Reset retry count on final failure
+      setRetryCount(0);
+
+      // Log additional context for debugging
+      console.error('Onboarding error details:', {
+        error: error instanceof Error ? error.message : String(error),
+        userId: user?.id,
+        primaryRole,
+        isAlsoPublisher,
+        step: currentStep,
+        retryCount
       });
     } finally {
       setSaving(false);
@@ -183,48 +359,90 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   };
 
   const getStepTitle = () => {
-    switch (currentStep) {
-      case 1: return "Welcome! Let's get you set up";
-      case 2: return "Tell us about yourself";
-      case 3: return userRole === 'publisher' ? "Your organization" : "Almost done!";
-      case 4: return "Set up your first media outlet";
-      default: return "Getting started";
+    if (primaryRole === 'publisher') {
+      // Original publisher flow
+      switch (currentStep) {
+        case 1: return "Welcome! Let's get you set up";
+        case 2: return "Tell us about yourself";
+        case 3: return "Your organization";
+        case 4: return "Set up your first media outlet";
+        default: return "Getting started";
+      }
+    } else {
+      // Simplified buyer flow
+      switch (currentStep) {
+        case 1: return "Welcome! Let's get you set up";
+        case 2: return "Tell us about yourself";
+        case 3: return "Do you have media websites?";
+        case 4: return "You're all set!";
+        default: return "Getting started";
+      }
     }
   };
 
   const getStepDescription = () => {
-    switch (currentStep) {
-      case 1: return "We'll help you set up your account in just a few steps";
-      case 2: return "Add some personal information to complete your profile";
-      case 3: return userRole === 'publisher' ? "Organization details are required for payments" : "Review your information";
-      case 4: return "Add your first media outlet to start receiving orders";
-      default: return "";
+    if (primaryRole === 'publisher') {
+      // Original publisher flow
+      switch (currentStep) {
+        case 1: return "We'll help you set up your account in just a few steps";
+        case 2: return "Add some personal information to complete your profile";
+        case 3: return "Organization details are required for payments";
+        case 4: return "Add your first media outlet to start receiving orders";
+        default: return "";
+      }
+    } else {
+      // Simplified buyer flow
+      switch (currentStep) {
+        case 1: return "We'll help you set up your account in just a few steps";
+        case 2: return "Add some personal information to complete your profile";
+        case 3: return "Do you have media websites you'd like to upload to our marketplace?";
+        case 4: return "You're all set! Ready to explore the marketplace?";
+        default: return "";
+      }
     }
   };
 
   const getStepIcon = () => {
-    switch (currentStep) {
-      case 1: return <Sparkles className="h-6 w-6" />;
-      case 2: return <User className="h-6 w-6" />;
-      case 3: return userRole === 'publisher' ? <Building className="h-6 w-6" /> : <CheckCircle className="h-6 w-6" />;
-      case 4: return <Package className="h-6 w-6" />;
-      default: return <User className="h-6 w-6" />;
+    if (primaryRole === 'publisher') {
+      // Original publisher flow
+      switch (currentStep) {
+        case 1: return <Sparkles className="h-6 w-6" />;
+        case 2: return <User className="h-6 w-6" />;
+        case 3: return <Building className="h-6 w-6" />;
+        case 4: return <Package className="h-6 w-6" />;
+        default: return <User className="h-6 w-6" />;
+      }
+    } else {
+      // Simplified buyer flow
+      switch (currentStep) {
+        case 1: return <Sparkles className="h-6 w-6" />;
+        case 2: return <User className="h-6 w-6" />;
+        case 3: return <Globe className="h-6 w-6" />;
+        case 4: return <CheckCircle className="h-6 w-6" />;
+        default: return <User className="h-6 w-6" />;
+      }
     }
   };
 
   const isStepValid = () => {
-    switch (currentStep) {
-      case 1: return true;
-      case 2: return profileData.displayName.length > 0;
-      case 3: 
-        return userRole === 'publisher' 
-          ? profileData.company && profileData.country
-          : true;
-      case 4: 
-        return profileData.mediaOutletDomain && 
-               profileData.mediaOutletCategory && 
-               profileData.mediaOutletPrice;
-      default: return true;
+    if (primaryRole === 'publisher') {
+      // Original publisher flow validation
+      switch (currentStep) {
+        case 1: return true;
+        case 2: return profileData.displayName.length > 0;
+        case 3: return profileData.company && profileData.country;
+        case 4: return profileData.mediaOutletDomain && profileData.mediaOutletCategory && profileData.mediaOutletPrice;
+        default: return true;
+      }
+    } else {
+      // Simplified buyer flow validation
+      switch (currentStep) {
+        case 1: return true;
+        case 2: return profileData.displayName.length > 0;
+        case 3: return isAlsoPublisher !== null; // Must answer the publisher question
+        case 4: return true; // Completion step
+        default: return true;
+      }
     }
   };
 
@@ -261,14 +479,14 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 <div className="space-y-2">
                   <h3 className="text-lg font-medium">Welcome to Moody Media! 👋</h3>
                   <p className="text-muted-foreground">
-                    You're signed up as a <Badge variant="outline" className="mx-1">{userRole}</Badge>
-                    {userRole === 'buyer' && "Ready to purchase high-quality link placements?"}
-                    {userRole === 'publisher' && "Ready to monetize your media outlets?"}
+                    You're signed up as a <Badge variant="outline" className="mx-1">{primaryRole}</Badge>
+                    {primaryRole === 'buyer' && "Ready to purchase high-quality link placements?"}
+                    {primaryRole === 'publisher' && "Ready to monetize your media outlets?"}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                  {userRole === 'buyer' ? (
+                  {primaryRole === 'buyer' ? (
                     <>
                       <div className="p-4 border rounded-lg">
                         <Target className="h-8 w-8 text-primary mb-2" />
@@ -340,10 +558,11 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               </div>
             )}
 
-            {/* Step 3: Organization (Publisher) or Summary (Buyer) */}
+            {/* Step 3: Organization (Publisher), Publisher Question (Buyer), or Banking (Publisher) */}
             {currentStep === 3 && (
               <div className="space-y-4">
-                {userRole === 'publisher' ? (
+                {primaryRole === 'publisher' ? (
+                  // Original publisher organization step
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -388,88 +607,173 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center space-y-4">
-                    <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-                    <div>
-                      <h3 className="text-lg font-medium">You're all set!</h3>
-                      <p className="text-muted-foreground">
-                        Your account is ready. You can now start browsing the marketplace.
+                  // Simplified buyer publisher question step
+                  <div className="text-center space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Do you have media websites?</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        If you own websites or blogs, you can upload them to our marketplace and start earning money by selling link placements.
                       </p>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg mx-auto">
+                      <Button
+                        variant={isAlsoPublisher === true ? "default" : "outline"}
+                        className="h-20 flex flex-col items-center justify-center space-y-2"
+                        onClick={() => setIsAlsoPublisher(true)}
+                      >
+                        <Globe className="h-6 w-6" />
+                        <span>Yes, I have websites</span>
+                        <span className="text-xs opacity-70">Add publisher rights</span>
+                      </Button>
+                      
+                      <Button
+                        variant={isAlsoPublisher === false ? "default" : "outline"}
+                        className="h-20 flex flex-col items-center justify-center space-y-2"
+                        onClick={() => setIsAlsoPublisher(false)}
+                      >
+                        <User className="h-6 w-6" />
+                        <span>No, just buying</span>
+                        <span className="text-xs opacity-70">Continue as buyer only</span>
+                      </Button>
+                    </div>
+
+                    {isAlsoPublisher === true && (
+                      <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+                        <p className="text-sm text-muted-foreground">
+                          Perfect! We'll add publisher rights to your account. You can upload your websites later in your dashboard.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Step 4: First Media Outlet (Publishers only) */}
-            {currentStep === 4 && userRole === 'publisher' && (
+            {/* Step 4: Media Outlet Setup (Publishers) or Completion (Buyers) */}
+            {currentStep === 4 && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="mediaOutletDomain">Domain *</Label>
-                    <Input
-                      id="mediaOutletDomain"
-                      value={profileData.mediaOutletDomain}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, mediaOutletDomain: e.target.value }))}
-                      placeholder="example.com"
-                      className="mt-2"
-                    />
+                {primaryRole === 'publisher' ? (
+                  // Media outlet setup for original publishers
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="mediaOutletDomain">Domain *</Label>
+                        <Input
+                          id="mediaOutletDomain"
+                          value={profileData.mediaOutletDomain}
+                          onChange={(e) => setProfileData(prev => ({ ...prev, mediaOutletDomain: e.target.value }))}
+                          placeholder="example.com"
+                          className="mt-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="mediaOutletCategory">Category *</Label>
+                        <Select value={profileData.mediaOutletCategory} onValueChange={(value) => setProfileData(prev => ({ ...prev, mediaOutletCategory: value }))}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="News">News</SelectItem>
+                            <SelectItem value="Tech">Technology</SelectItem>
+                            <SelectItem value="Business">Business</SelectItem>
+                            <SelectItem value="Lifestyle">Lifestyle</SelectItem>
+                            <SelectItem value="Sports">Sports</SelectItem>
+                            <SelectItem value="Health">Health</SelectItem>
+                            <SelectItem value="Finance">Finance</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="mediaOutletPrice">Price per Article (EUR) *</Label>
+                      <Input
+                        id="mediaOutletPrice"
+                        type="number"
+                        value={profileData.mediaOutletPrice}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, mediaOutletPrice: e.target.value }))}
+                        placeholder="299"
+                        className="mt-2"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Niches (Optional)</Label>
+                      <div className="flex flex-wrap gap-2 mt-2 mb-3">
+                        {profileData.mediaOutletNiches.map((niche) => (
+                          <Badge key={niche} variant="secondary" className="flex items-center gap-1">
+                            {niche}
+                            <button
+                              type="button"
+                              onClick={() => removeNiche(niche)}
+                              className="ml-1 hover:text-red-500"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          value={newNiche}
+                          onChange={(e) => setNewNiche(e.target.value)}
+                          placeholder="Add niche..."
+                          onKeyPress={(e) => e.key === 'Enter' && addNiche()}
+                        />
+                        <Button type="button" variant="outline" onClick={addNiche}>
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Completion step for buyers
+                  <div className="text-center space-y-6">
+                    <div className="space-y-4">
+                      <CheckCircle className="h-20 w-20 text-green-500 mx-auto" />
+                      <div>
+                        <h3 className="text-2xl font-medium">Welcome to Moody Media! 🎉</h3>
+                        <p className="text-muted-foreground mt-2">
+                          Your account is ready! {isAlsoPublisher ? "You now have both buyer and publisher rights." : "Start exploring our marketplace of quality media outlets."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                      <div className="p-4 border rounded-lg bg-primary/5">
+                        <Target className="h-8 w-8 text-primary mb-2" />
+                        <h4 className="font-medium">Browse Media Outlets</h4>
+                        <p className="text-sm text-muted-foreground">Find quality sites in your niche</p>
+                      </div>
+                      <div className="p-4 border rounded-lg bg-primary/5">
+                        <Users className="h-8 w-8 text-primary mb-2" />
+                        <h4 className="font-medium">Easy Ordering</h4>
+                        <p className="text-sm text-muted-foreground">Simple cart and checkout process</p>
+                      </div>
+                    </div>
+
+                    {isAlsoPublisher && (
+                      <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
+                        <p className="text-sm">
+                          🚀 <strong>Publisher Bonus:</strong> You can now upload your websites in your dashboard to start earning from link placements!
+                        </p>
+                      </div>
+                    )}
+
+                    {!isAlsoPublisher && (
+                      <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
+                        <p className="text-sm">
+                          💡 <strong>Tip:</strong> You can always add publisher capabilities later in your profile settings if you decide to monetize your own websites.
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div>
-                    <Label htmlFor="mediaOutletCategory">Category *</Label>
-                    <Select value={profileData.mediaOutletCategory} onValueChange={(value) => setProfileData(prev => ({ ...prev, mediaOutletCategory: value }))}>
-                      <SelectTrigger className="mt-2">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="News">News</SelectItem>
-                        <SelectItem value="Tech">Technology</SelectItem>
-                        <SelectItem value="Business">Business</SelectItem>
-                        <SelectItem value="Lifestyle">Lifestyle</SelectItem>
-                        <SelectItem value="Sports">Sports</SelectItem>
-                        <SelectItem value="Health">Health</SelectItem>
-                        <SelectItem value="Finance">Finance</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="mediaOutletPrice">Price per Article (EUR) *</Label>
-                  <Input
-                    id="mediaOutletPrice"
-                    type="number"
-                    value={profileData.mediaOutletPrice}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, mediaOutletPrice: e.target.value }))}
-                    placeholder="299"
-                    className="mt-2"
-                  />
-                </div>
-                
-                <div>
-                  <Label>Niches (Optional)</Label>
-                  <div className="flex flex-wrap gap-2 mt-2 mb-2">
-                    {profileData.mediaOutletNiches.map((niche) => (
-                      <Badge key={niche} variant="secondary" className="cursor-pointer" onClick={() => removeNiche(niche)}>
-                        {niche} ×
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newNiche}
-                      onChange={(e) => setNewNiche(e.target.value)}
-                      placeholder="Add niche..."
-                      onKeyPress={(e) => e.key === 'Enter' && addNiche()}
-                    />
-                    <Button type="button" variant="outline" onClick={addNiche}>
-                      Add
-                    </Button>
-                  </div>
-                </div>
+                )}
               </div>
             )}
+
 
             {/* Navigation */}
             <div className="flex justify-between pt-6">

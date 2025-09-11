@@ -13,18 +13,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getNavigationItems } from "./navigation";
+import { getNavigationItems, getDualRoleNavigationItems } from "./navigation";
+import { RoleIndicator } from "./RoleIndicator";
+import { RoleSwitcher } from "./RoleSwitcher";
 import { User, LogOut, Settings } from "lucide-react";
 import logoImage from '@/assets/moody-media-logo-new.png';
 
 export function TopNav() {
-  const { user, userRole, signOut } = useAuth();
+  const { user, userRoles, currentRole, signOut } = useAuth();
   const { cartItems } = useCart();
   const { unreadCount } = useNotifications();
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const navigationItems = getNavigationItems(userRole);
+  // Use dual-role navigation for users who have both buyer and publisher roles
+  const hasDualRoles = userRoles?.includes('buyer') && userRoles?.includes('publisher');
+  const navigationItems = hasDualRoles
+    ? getDualRoleNavigationItems(currentRole, userRoles)
+    : getNavigationItems(currentRole, userRoles);
 
   const isActive = (path: string) => {
     if (path === "/dashboard") {
@@ -95,6 +101,29 @@ export function TopNav() {
         ))}
       </nav>
 
+      {/* Role Management */}
+      {user && (
+        <div className="flex items-center gap-2 ml-2 mr-2 sm:gap-3 sm:ml-4 sm:mr-4">
+          <RoleIndicator size="sm" showIcon={true} />
+          <RoleSwitcher
+            variant="outline"
+            size="sm"
+            showIcon={true}
+            showText={true}
+            className="hidden xs:inline-flex sm:inline-flex"
+          />
+          {/* Mobile: Show compact switcher */}
+          <RoleSwitcher
+            variant="outline"
+            size="sm"
+            showIcon={false}
+            showText={false}
+            compact={true}
+            className="inline-flex xs:hidden sm:hidden"
+          />
+        </div>
+      )}
+
       {/* User Menu */}
       {user && (
         <DropdownMenu>
@@ -109,11 +138,9 @@ export function TopNav() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 animate-scale-in">
             <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
+              <div className="flex flex-col space-y-2">
                 <p className="text-sm font-medium">{user.email?.split('@')[0]}</p>
-                <p className="text-xs text-muted-foreground">
-                  {getRoleDisplayName(userRole)}
-                </p>
+                <RoleIndicator size="sm" showIcon={false} />
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -123,7 +150,7 @@ export function TopNav() {
                 Profile Settings
               </NavLink>
             </DropdownMenuItem>
-            {userRole === 'admin' && (
+            {currentRole === 'admin' && (
               <DropdownMenuItem asChild>
                 <NavLink to="/admin" className="flex items-center gap-2 cursor-pointer">
                   <Settings className="h-4 w-4" />

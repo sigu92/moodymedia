@@ -5,6 +5,8 @@ import { useCart } from "@/hooks/useCart";
 import { useNotifications } from "@/hooks/useNotifications";
 import logoImage from '@/assets/moody-media-logo-new.png';
 import { getNavigationItems } from "./navigation";
+import { RoleIndicator } from "./RoleIndicator";
+import { RoleSwitcher } from "./RoleSwitcher";
 import { User, LogOut, Settings, RotateCcw, Shield } from "lucide-react";
 
 import {
@@ -43,7 +45,7 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   
 
-  const navigationItems = getNavigationItems(currentRole);
+  const navigationItems = getNavigationItems(currentRole, userRoles);
 
   const isActive = (path: string) => {
     if (path === "/dashboard") {
@@ -153,26 +155,27 @@ export function AppSidebar() {
         )}
 
 
-        {/* Role Switcher - Show for users with both buyer and publisher roles, including system admins */}
-        {user && hasRole('buyer') && hasRole('publisher') && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const nextRole = currentRole === 'publisher' ? 'buyer' : 'publisher';
-              switchRole(nextRole);
-              navigate(nextRole === 'publisher' ? '/dashboard/publisher' : '/dashboard/marketplace');
-            }}
-            className="w-full glass-button text-xs flex items-center gap-2"
-            title={state === "collapsed" ? `Switch to ${currentRole === 'publisher' ? 'Buyer' : 'Publisher'} Platform` : undefined}
-          >
-            <RotateCcw className="h-3 w-3 flex-shrink-0" />
-            {state !== "collapsed" && (
-              <span>
-                Switch to {currentRole === 'publisher' ? 'Buyer' : 'Publisher'}
-              </span>
-            )}
-          </Button>
+        {/* Role Indicator and Switcher - Unified role management */}
+        {user && (
+          <div className="flex flex-col gap-2 px-2">
+            {/* Role Indicator - Show current role */}
+            <div className="flex items-center justify-center">
+              <RoleIndicator
+                size="sm"
+                showIcon={state !== "collapsed"}
+                className={state === "collapsed" ? "px-1" : ""}
+              />
+            </div>
+
+            {/* Role Switcher - Show for publishers (can switch to buyer mode) */}
+            <RoleSwitcher
+              variant="outline"
+              size="sm"
+              className={state === "collapsed" ? "w-full px-1" : "w-full"}
+              showText={state !== "collapsed"}
+              compact={state === "collapsed"}
+            />
+          </div>
         )}
 
         {/* Publisher Promotion - Show for users without publisher role */}
@@ -213,9 +216,9 @@ export function AppSidebar() {
                       <p className="text-sm font-medium truncate">
                         {user.email?.split('@')[0]}
                       </p>
-                       <p className="text-xs text-muted-foreground">
-                         {getRoleDisplayName(currentRole)}
-                       </p>
+                      <div className="mt-1">
+                        <RoleIndicator size="sm" showIcon={false} />
+                      </div>
                     </div>
                   )}
                 </div>
