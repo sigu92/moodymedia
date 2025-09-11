@@ -8,7 +8,7 @@ interface ProtectedPublisherRouteProps {
 }
 
 export function ProtectedPublisherRoute({ children, restrictBuyerRoutes = false }: ProtectedPublisherRouteProps) {
-  const { user, userRole, loading } = useAuth();
+  const { user, userRoles, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -27,7 +27,7 @@ export function ProtectedPublisherRoute({ children, restrictBuyerRoutes = false 
   }
 
   // If restrictBuyerRoutes is true and user is a publisher, redirect to publisher dashboard
-  if (restrictBuyerRoutes && userRole === 'publisher') {
+  if (restrictBuyerRoutes && userRoles?.includes('publisher')) {
     return <Navigate to="/dashboard/publisher" replace />;
   }
 

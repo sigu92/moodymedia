@@ -16,17 +16,24 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<'buyer' | 'publisher'>('buyer');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, needsOnboarding, userRoles, loading } = useAuth();
   const navigate = useNavigate();
-  
+
   // Get referral code from URL parameters
   const referralCode = searchParams.get('ref');
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
+    // Only redirect if user exists AND we have determined onboarding status AND roles are loaded
+    if (user && !loading && userRoles !== null) {
+      if (needsOnboarding) {
+        // Redirect to dashboard so onboarding can show
+        navigate('/dashboard', { replace: true });
+      } else {
+        // User has completed onboarding, redirect to appropriate dashboard
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [user, navigate]);
+  }, [user, needsOnboarding, userRoles, loading, navigate]);
 
   // Show referral banner if there's a referral code
   useEffect(() => {
@@ -42,13 +49,15 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     const { error } = await signIn(email, password);
-    
+
+    // Don't navigate here - let the useEffect handle redirection after onboarding status is determined
     if (!error) {
-      navigate('/dashboard');
+      // AuthContext will handle redirection once onboarding status is checked
+      console.log('✅ Sign in successful - waiting for onboarding check...');
     }
-    
+
     setIsLoading(false);
   };
 

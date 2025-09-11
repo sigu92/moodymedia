@@ -5,8 +5,6 @@ import { Separator } from "@/components/ui/separator";
 import { Trash2, ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCart } from "@/hooks/useCart";
-import { CompletionGuard } from "@/components/settings/CompletionGuard";
-import { useSettingsStatus } from "@/hooks/useSettings";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -89,11 +87,10 @@ const Cart = () => {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-4 py-8">
-        <CompletionGuard showBanner={true}>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Shopping Cart</h1>
-            <p className="text-muted-foreground">Review your selected media outlets before checkout</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Shopping Cart</h1>
+          <p className="text-muted-foreground">Review your selected media outlets before checkout</p>
+        </div>
 
         {cartItems.length === 0 ? (
           <Card>
@@ -212,7 +209,6 @@ const Cart = () => {
             </div>
           </div>
         )}
-        </CompletionGuard>
       </main>
     </div>
   );

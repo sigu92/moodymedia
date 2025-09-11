@@ -29,7 +29,7 @@ export interface Order {
 export const useOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, userRole } = useAuth();
+  const { user, userRoles } = useAuth();
 
   const fetchOrders = async () => {
     if (!user) {
@@ -49,10 +49,10 @@ export const useOrders = () => {
           )
         `);
 
-      // Filter based on user role
-      if (userRole === 'admin') {
+      // Filter based on user roles
+      if (userRoles?.includes('admin') || userRoles?.includes('system_admin')) {
         // Admins can see all orders
-      } else if (userRole === 'publisher') {
+      } else if (userRoles?.includes('publisher')) {
         // Publishers see orders for their media outlets
         query = query.eq('publisher_id', user.id);
       } else {
@@ -164,7 +164,7 @@ export const useOrders = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, [user, userRole]);
+  }, [user, userRoles]);
 
   return {
     orders,

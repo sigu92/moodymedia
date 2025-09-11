@@ -46,7 +46,7 @@ export const useDashboard = () => {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [favoritedMedia, setFavoritedMedia] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, userRole } = useAuth();
+  const { user, userRoles } = useAuth();
 
   const fetchDashboardData = async () => {
     if (!user) return;
@@ -65,9 +65,9 @@ export const useDashboard = () => {
           )
         `);
 
-      if (userRole === 'publisher') {
+      if (userRoles?.includes('publisher')) {
         ordersQuery.eq('publisher_id', user.id);
-      } else if (userRole !== 'admin') {
+      } else if (!userRoles?.includes('admin') && !userRoles?.includes('system_admin')) {
         ordersQuery.eq('buyer_id', user.id);
       }
 
@@ -111,7 +111,7 @@ export const useDashboard = () => {
       };
 
       let publisherStats;
-      if (userRole === 'publisher') {
+      if (userRoles?.includes('publisher')) {
         const { data: outlets } = await supabase
           .from('media_outlets')
           .select('*')
@@ -169,7 +169,7 @@ export const useDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [user, userRole]);
+  }, [user, userRoles]);
 
   return {
     stats,
