@@ -18,6 +18,7 @@ import { CSVImportModal } from "@/components/publisher/CSVImportModal";
 import { BulkEditModal } from "@/components/publisher/BulkEditModal";
 import { CreateSiteModal } from "@/components/publisher/CreateSiteModal";
 import { GoogleSheetsImportModal } from "@/components/publisher/GoogleSheetsImportModal";
+import { SubmissionHistory } from "@/components/publisher/SubmissionHistory";
 import { Progress } from "@/components/ui/progress";
 
 interface MediaOutletWithMetrics {
@@ -33,6 +34,10 @@ interface MediaOutletWithMetrics {
   lead_time_days: number;
   guidelines: string;
   created_at: string;
+  status: string;
+  submitted_at?: string;
+  reviewed_at?: string;
+  review_notes?: string;
   metrics: {
     ahrefs_dr: number;
     moz_da: number;
@@ -110,7 +115,7 @@ export default function PublisherSites() {
       const sitesWithPerformance = data?.map(site => {
         const siteOrders = orders?.filter(order => order.media_outlet_id === site.id) || [];
         const revenue = siteOrders.reduce((sum, order) => sum + Number(order.price), 0);
-        
+
         return {
           id: site.id,
           domain: site.domain,
@@ -124,6 +129,10 @@ export default function PublisherSites() {
           lead_time_days: site.lead_time_days,
           guidelines: site.guidelines || '',
           created_at: site.created_at,
+          status: site.status,
+          submitted_at: site.submitted_at,
+          reviewed_at: site.reviewed_at,
+          review_notes: site.review_notes,
           metrics: {
             ahrefs_dr: site.metrics?.[0]?.ahrefs_dr || 0,
             moz_da: site.metrics?.[0]?.moz_da || 0,
@@ -267,6 +276,28 @@ export default function PublisherSites() {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    const variants = {
+      pending: "secondary" as const,
+      approved: "default" as const,
+      active: "default" as const,
+      rejected: "destructive" as const,
+    };
+
+    const labels = {
+      pending: "Pending",
+      approved: "Approved",
+      active: "Active",
+      rejected: "Rejected",
+    };
+
+    return (
+      <Badge variant={variants[status as keyof typeof variants] || "secondary"}>
+        {labels[status as keyof typeof labels] || status}
+      </Badge>
+    );
+  };
+
   const exportToCSV = () => {
     const headers = ['Domain', 'Price', 'Currency', 'Country', 'Language', 'Category', 'Active', 'Lead Time (days)', 'DR', 'Traffic', 'Orders', 'Revenue'];
     const csvContent = [
@@ -368,9 +399,10 @@ export default function PublisherSites() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="management">Site Management</TabsTrigger>
+            <TabsTrigger value="submissions">Submissions</TabsTrigger>
             <TabsTrigger value="optimization">Optimization</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
           </TabsList>
@@ -388,7 +420,7 @@ export default function PublisherSites() {
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">{sites.length}</div>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {sites.filter(s => s.is_active).length} active
+                    {sites.filter(s => s.is_active).length} active, {sites.filter(s => s.status === 'pending').length} pending
                   </p>
                 </CardContent>
               </Card>
@@ -436,6 +468,44 @@ export default function PublisherSites() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Submission Status Overview */}
+            <Card className="glass-card-clean shadow-medium">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-primary" />
+                  Submission Status Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {sites.filter(s => s.status === 'pending').length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Pending Review</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="text-2xl font-bold text-green-600">
+                      {sites.filter(s => s.status === 'approved' || s.status === 'active').length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Approved</div>
+                  </div>
+                  <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                    <div className="text-2xl font-bold text-red-600">
+                      {sites.filter(s => s.status === 'rejected').length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Rejected</div>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {sites.length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Submissions</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Quick Performance Overview */}
             <Card className="glass-card-clean shadow-medium">
@@ -567,6 +637,7 @@ export default function PublisherSites() {
                         />
                       </TableHead>
                       <TableHead className="font-semibold">Domain</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
                       <TableHead className="font-semibold">Price</TableHead>
                       <TableHead className="font-semibold">Country</TableHead>
                       <TableHead className="font-semibold">DR</TableHead>
@@ -603,6 +674,9 @@ export default function PublisherSites() {
                               ))}
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(site.status)}
                         </TableCell>
                         <TableCell>
                           <Input
@@ -656,6 +730,10 @@ export default function PublisherSites() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="submissions" className="space-y-6">
+            <SubmissionHistory />
           </TabsContent>
 
           <TabsContent value="optimization" className="space-y-6">

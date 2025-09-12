@@ -210,3 +210,4 @@ När migrationen är klar kan du:
 2. Lägga till caching-lager (Redis, etc.)
 3. Implementera databas-migreringar
 4. Lägga till backup-strategier
+

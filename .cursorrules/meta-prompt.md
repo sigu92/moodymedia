@@ -105,3 +105,4 @@ When applying rules:
 ---
 
 **Remember**: Security and best practices are non-negotiable. Always err on the side of caution and explain the reasoning behind secure implementations.
+

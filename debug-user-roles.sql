@@ -56,3 +56,4 @@ SELECT
 FROM pg_enum
 WHERE enumtypid = 'public.app_role'::regtype
 ORDER BY enumsortorder;
+

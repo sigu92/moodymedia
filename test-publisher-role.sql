@@ -37,3 +37,4 @@ FROM information_schema.columns
 WHERE table_name = 'user_role_assignments'
 AND table_schema = 'public'
 ORDER BY ordinal_position;
+

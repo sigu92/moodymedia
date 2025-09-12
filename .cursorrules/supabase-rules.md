@@ -45,3 +45,4 @@ alwaysApply: true
 - Document all RLS policies: table, roles, operations, and reasoning.  
 - Maintain an updated database schema diagram with tables, relations, and constraints.  
 - Document `.env` structure and required environment variables for local/staging/prod setups.  
+
