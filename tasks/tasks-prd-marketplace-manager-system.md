@@ -17,6 +17,8 @@
 - `src/components/publisher/SubmissionHistory.tsx` - New component for tracking submissions
 - `src/components/admin/MarketplaceManager.tsx` - New marketplace manager admin interface with tabbed layout
 - `src/components/admin/PendingApprovalsTab.tsx` - Comprehensive pending approvals interface with grid/list views, filtering, and approval workflow
+- `src/components/admin/EnhancedImport.tsx` - Admin import component updated to handle status field mapping
+- `supabase/functions/admin-import-batch/index.ts` - Updated to set appropriate status and tracking fields for admin-imported sites
 - `src/components/admin/ProfitAnalyticsTab.tsx` - Profit margin analytics
 
 ### Notes
@@ -64,7 +66,7 @@
 
 - [ ] 5.0 Integration and Status Updates
   - [ ] 5.1 Update all marketplace queries and components to respect status filtering (only show active listings to buyers)
-  - [ ] 5.2 Update EnhancedImport component to handle new status field and admin_tags logic for company-owned sites
+  - [x] 5.2 Update EnhancedImport component to handle new status field and admin_tags logic for company-owned sites
   - [ ] 5.3 Update publisher components to show appropriate messaging based on submission status
   - [ ] 5.4 Add status transition logic to handle approved submissions becoming active listings
   - [ ] 5.5 Update any existing admin bulk operations to work with new approval workflow
