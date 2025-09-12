@@ -1,9 +1,11 @@
 -- FIX RLS INFINITE RECURSION ISSUE
 -- Run this in your Supabase SQL Editor to fix the infinite recursion problem
 
--- Step 1: Drop problematic policies
+-- Step 1: Drop ALL existing policies on user_role_assignments to avoid conflicts
 DROP POLICY IF EXISTS "Users can view their own role assignments" ON public.user_role_assignments;
 DROP POLICY IF EXISTS "Users can insert their own buyer role during signup" ON public.user_role_assignments;
+DROP POLICY IF EXISTS "Users can update their own role assignments" ON public.user_role_assignments;
+DROP POLICY IF EXISTS "Admins can delete role assignments" ON public.user_role_assignments;
 DROP POLICY IF EXISTS "System admins can manage all role assignments" ON public.user_role_assignments;
 
 -- Step 2: Create security definer function to check admin status

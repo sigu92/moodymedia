@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getNavigationItems, getDualRoleNavigationItems } from "./navigation";
+import { getNavigationItems, getContextAwareNavigation } from "./navigation";
 import { RoleIndicator } from "./RoleIndicator";
 import { RoleSwitcher } from "./RoleSwitcher";
 import { User, LogOut, Settings } from "lucide-react";
@@ -26,10 +26,10 @@ export function TopNav() {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  // Use dual-role navigation for users who have both buyer and publisher roles
+  // Use context-aware navigation for dual-role users, regular navigation for single-role users
   const hasDualRoles = userRoles?.includes('buyer') && userRoles?.includes('publisher');
   const navigationItems = hasDualRoles
-    ? getDualRoleNavigationItems(currentRole, userRoles)
+    ? getContextAwareNavigation(currentRole, userRoles, currentPath)
     : getNavigationItems(currentRole, userRoles);
 
   const isActive = (path: string) => {
