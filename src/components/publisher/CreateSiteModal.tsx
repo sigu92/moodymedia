@@ -59,9 +59,92 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
     forex: { accepted: false, multiplier: 1.8 }
   });
 
+  const validateForm = () => {
+    const errors: string[] = [];
+
+    // Domain validation
+    if (!formData.domain.trim()) {
+      errors.push('Domain is required');
+    } else {
+      const normalizedDomain = formData.domain.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').trim();
+      if (normalizedDomain.length < 3) {
+        errors.push('Domain must be at least 3 characters long');
+      } else if (normalizedDomain.length > 253) {
+        errors.push('Domain cannot exceed 253 characters');
+      } else {
+        // Basic domain format validation
+        const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+        if (!domainRegex.test(normalizedDomain)) {
+          errors.push('Invalid domain format');
+        }
+      }
+    }
+
+    // Required fields validation
+    if (!formData.country.trim()) {
+      errors.push('Country is required');
+    } else if (formData.country.length > 100) {
+      errors.push('Country name cannot exceed 100 characters');
+    }
+
+    if (!formData.language.trim()) {
+      errors.push('Language is required');
+    } else if (formData.language.length > 50) {
+      errors.push('Language name cannot exceed 50 characters');
+    }
+
+    if (!formData.category.trim()) {
+      errors.push('Category is required');
+    } else if (formData.category.length > 100) {
+      errors.push('Category name cannot exceed 100 characters');
+    }
+
+    // Price validation
+    if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+      errors.push('Marketplace price must be a positive number');
+    } else if (Number(formData.price) > 10000) {
+      errors.push('Marketplace price cannot exceed €10,000');
+    }
+
+    // Purchase price validation (optional)
+    if (formData.purchase_price !== null && formData.purchase_price !== undefined) {
+      if (isNaN(Number(formData.purchase_price))) {
+        errors.push('Purchase price must be a valid number');
+      } else if (Number(formData.purchase_price) < 0) {
+        errors.push('Purchase price cannot be negative');
+      } else if (Number(formData.purchase_price) > 50000) {
+        errors.push('Purchase price cannot exceed €50,000');
+      }
+    }
+
+    // Optional field validation
+    if (formData.guidelines && formData.guidelines.length > 2000) {
+      errors.push('Guidelines cannot exceed 2000 characters');
+    }
+
+    if (formData.lead_time_days && (isNaN(Number(formData.lead_time_days)) || Number(formData.lead_time_days) < 1 || Number(formData.lead_time_days) > 365)) {
+      errors.push('Lead time must be between 1 and 365 days');
+    }
+
+    // Niche validation
+    const niches = formData.niches.split(',').map(n => n.trim()).filter(Boolean);
+    if (niches.length > 20) {
+      errors.push('Cannot have more than 20 niches');
+    }
+
+    return errors;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // Client-side validation
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors.join('. '));
+      return;
+    }
 
     // Show confirmation dialog instead of submitting directly
     setShowConfirmation(true);
@@ -223,9 +306,21 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         crypto: { accepted: false, multiplier: 1.5 },
         forex: { accepted: false, multiplier: 1.8 }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving site:', error);
-      toast.error('Failed to save site');
+
+      // Handle different types of errors
+      if (error.message?.includes('Domain already exists')) {
+        toast.error('This domain is already submitted to the marketplace');
+      } else if (error.message?.includes('Publisher role required')) {
+        toast.error('You must have publisher privileges to submit websites');
+      } else if (error.message?.includes('Validation failed')) {
+        toast.error('Submission validation failed. Please check your input.');
+      } else if (error.message?.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error('Failed to submit website. Please try again or contact support if the problem persists.');
+      }
     } finally {
       setLoading(false);
     }

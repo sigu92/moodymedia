@@ -12,7 +12,7 @@ function logStep(step: string, data?: any) {
 function validateApprovalRequest(data: any) {
   const errors = [];
 
-  if (!data.submission_id || typeof data.submission_id !== 'string') {
+  if (!data.submission_id || typeof data.submission_id !== 'string' || data.submission_id.trim() === '') {
     errors.push('Valid submission_id is required');
   }
 
@@ -25,11 +25,17 @@ function validateApprovalRequest(data: any) {
       errors.push('Marketplace price is required for approval');
     } else if (parseFloat(data.marketplace_price) <= 0) {
       errors.push('Marketplace price must be greater than 0');
+    } else if (parseFloat(data.marketplace_price) > 10000) {
+      errors.push('Marketplace price cannot exceed €10,000');
     }
   }
 
   if (data.review_notes && typeof data.review_notes !== 'string') {
     errors.push('Review notes must be a string');
+  }
+
+  if (data.review_notes && data.review_notes.length > 2000) {
+    errors.push('Review notes cannot exceed 2000 characters');
   }
 
   return errors;
@@ -118,22 +124,51 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get current submission data (for audit logging)
+    // Get current submission data (for audit logging and status validation)
     const { data: currentSubmission, error: fetchError } = await supabase
       .from('media_outlets')
       .select('*')
       .eq('id', approvalData.submission_id)
-      .eq('status', 'pending')
       .single();
 
     if (fetchError || !currentSubmission) {
-      logStep('Submission not found or not in pending status', {
+      logStep('Submission not found', {
         submissionId: approvalData.submission_id,
         error: fetchError
       });
       return new Response(
-        JSON.stringify({ error: 'Submission not found or not pending approval' }),
+        JSON.stringify({ error: 'Submission not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate status transition
+    if (currentSubmission.status !== 'pending') {
+      logStep('Invalid status transition attempt', {
+        submissionId: approvalData.submission_id,
+        currentStatus: currentSubmission.status,
+        requestedAction: approvalData.action
+      });
+      return new Response(
+        JSON.stringify({
+          error: `Cannot ${approvalData.action} submission: current status is '${currentSubmission.status}'`
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if already reviewed by someone else (concurrent modification)
+    if (currentSubmission.reviewed_by && currentSubmission.reviewed_at) {
+      logStep('Submission already reviewed by another admin', {
+        submissionId: approvalData.submission_id,
+        reviewedBy: currentSubmission.reviewed_by,
+        reviewedAt: currentSubmission.reviewed_at
+      });
+      return new Response(
+        JSON.stringify({
+          error: 'This submission has already been reviewed by another administrator'
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -147,8 +182,8 @@ Deno.serve(async (req) => {
     };
 
     if (approvalData.action === 'approve') {
-      // Approve the submission
-      updateData.status = 'approved';
+      // Approve the submission - set to active immediately
+      updateData.status = 'active';
       updateData.price = parseFloat(approvalData.marketplace_price);
       updateData.is_active = true;
 
@@ -169,20 +204,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update the media outlet
+    // Update the media outlet with optimistic concurrency control
     const { data: updatedSubmission, error: updateError } = await supabase
       .from('media_outlets')
       .update(updateData)
       .eq('id', approvalData.submission_id)
-      .eq('status', 'pending') // Ensure it's still pending
+      .eq('status', 'pending') // Ensure it's still pending (concurrency check)
+      .is('reviewed_by', null) // Ensure not already reviewed (concurrency check)
       .select()
       .single();
 
-    if (updateError || !updatedSubmission) {
+    if (updateError) {
+      if (updateError.code === 'PGRST116') { // No rows updated - likely concurrent modification
+        logStep('Concurrent modification detected', {
+          submissionId: approvalData.submission_id,
+          action: approvalData.action
+        });
+        return new Response(
+          JSON.stringify({
+            error: 'This submission has been modified by another administrator. Please refresh and try again.'
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       logStep('Update error', { error: updateError, submissionId: approvalData.submission_id });
       return new Response(
-        JSON.stringify({ error: 'Failed to update submission: ' + updateError?.message }),
+        JSON.stringify({ error: 'Failed to update submission: ' + updateError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!updatedSubmission) {
+      logStep('No rows updated - concurrent modification', { submissionId: approvalData.submission_id });
+      return new Response(
+        JSON.stringify({
+          error: 'This submission has been modified by another administrator. Please refresh and try again.'
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -195,34 +254,42 @@ Deno.serve(async (req) => {
 
       if (listingError) {
         logStep('Listing activation error', { error: listingError, submissionId: approvalData.submission_id });
-        // Don't fail the entire operation, but log the error
+        // Log error but don't fail the entire operation since the media outlet was successfully updated
+        // The listing will be activated manually by an admin if needed
       }
     }
 
     // Log the action to audit_log
-    const auditData = {
-      actor_user_id: user.id,
-      action: approvalData.action === 'approve' ? 'approve_submission' : 'reject_submission',
-      target_table: 'media_outlets',
-      target_id: approvalData.submission_id,
-      before_data: beforeData,
-      after_data: updatedSubmission,
-      metadata: {
-        marketplace_price: approvalData.marketplace_price,
-        review_notes: approvalData.review_notes,
-        profit_margin: approvalData.action === 'approve' && currentSubmission.purchase_price
-          ? ((parseFloat(approvalData.marketplace_price) - currentSubmission.purchase_price) / parseFloat(approvalData.marketplace_price) * 100).toFixed(2) + '%'
-          : null
+    try {
+      const auditData = {
+        actor_user_id: user.id,
+        action: approvalData.action === 'approve' ? 'approve_submission' : 'reject_submission',
+        target_table: 'media_outlets',
+        target_id: approvalData.submission_id,
+        before_data: beforeData,
+        after_data: updatedSubmission,
+        metadata: {
+          marketplace_price: approvalData.marketplace_price,
+          review_notes: approvalData.review_notes,
+          profit_margin: approvalData.action === 'approve' && currentSubmission.purchase_price
+            ? ((parseFloat(approvalData.marketplace_price) - currentSubmission.purchase_price) / parseFloat(approvalData.marketplace_price) * 100).toFixed(2) + '%'
+            : null
+        }
+      };
+
+      const { error: auditError } = await supabase
+        .from('audit_log')
+        .insert(auditData);
+
+      if (auditError) {
+        logStep('Audit logging error', { error: auditError });
+        // Don't fail the operation for audit logging errors, but log it for monitoring
+      } else {
+        logStep('Audit log entry created successfully', { action: auditData.action });
       }
-    };
-
-    const { error: auditError } = await supabase
-      .from('audit_log')
-      .insert(auditData);
-
-    if (auditError) {
-      logStep('Audit logging error', { error: auditError });
-      // Don't fail the operation, but log this error
+    } catch (auditException) {
+      logStep('Audit logging exception', { error: auditException.message });
+      // Continue with success response even if audit logging fails
     }
 
     logStep('Submission processed successfully', {

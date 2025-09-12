@@ -20,36 +20,85 @@ function normalizeDomain(domain: string): string {
 function validateSubmission(data: any) {
   const errors = [];
 
+  // Domain validation
   if (!data.domain || typeof data.domain !== 'string' || data.domain.trim() === '') {
     errors.push('Domain is required');
+  } else {
+    const normalizedDomain = normalizeDomain(data.domain);
+    if (normalizedDomain.length < 3) {
+      errors.push('Domain must be at least 3 characters long');
+    }
+    if (normalizedDomain.length > 253) {
+      errors.push('Domain cannot exceed 253 characters');
+    }
+    // Basic domain format validation
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+    if (!domainRegex.test(normalizedDomain)) {
+      errors.push('Invalid domain format');
+    }
   }
 
+  // Required field validation
   if (!data.country || typeof data.country !== 'string' || data.country.trim() === '') {
     errors.push('Country is required');
+  } else if (data.country.length > 100) {
+    errors.push('Country name cannot exceed 100 characters');
   }
 
   if (!data.language || typeof data.language !== 'string' || data.language.trim() === '') {
     errors.push('Language is required');
+  } else if (data.language.length > 50) {
+    errors.push('Language name cannot exceed 50 characters');
   }
 
   if (!data.category || typeof data.category !== 'string' || data.category.trim() === '') {
     errors.push('Category is required');
+  } else if (data.category.length > 100) {
+    errors.push('Category name cannot exceed 100 characters');
   }
 
   // Price validation
   if (data.price === undefined || data.price === null || isNaN(parseFloat(data.price))) {
     errors.push('Valid marketplace price is required');
-  } else if (parseFloat(data.price) <= 0) {
-    errors.push('Marketplace price must be greater than 0');
+  } else {
+    const price = parseFloat(data.price);
+    if (price <= 0) {
+      errors.push('Marketplace price must be greater than 0');
+    } else if (price > 10000) {
+      errors.push('Marketplace price cannot exceed €10,000');
+    }
   }
 
   // Purchase price validation (optional for company-owned sites)
   if (data.purchase_price !== undefined && data.purchase_price !== null) {
     if (isNaN(parseFloat(data.purchase_price))) {
       errors.push('Purchase price must be a valid number');
-    } else if (parseFloat(data.purchase_price) < 0) {
-      errors.push('Purchase price cannot be negative');
+    } else {
+      const purchasePrice = parseFloat(data.purchase_price);
+      if (purchasePrice < 0) {
+        errors.push('Purchase price cannot be negative');
+      } else if (purchasePrice > 50000) {
+        errors.push('Purchase price cannot exceed €50,000');
+      }
     }
+  }
+
+  // Optional field validation
+  if (data.guidelines && typeof data.guidelines !== 'string') {
+    errors.push('Guidelines must be a string');
+  } else if (data.guidelines && data.guidelines.length > 2000) {
+    errors.push('Guidelines cannot exceed 2000 characters');
+  }
+
+  if (data.lead_time_days !== undefined && (isNaN(parseInt(data.lead_time_days)) || parseInt(data.lead_time_days) < 1 || parseInt(data.lead_time_days) > 365)) {
+    errors.push('Lead time must be between 1 and 365 days');
+  }
+
+  // Array field validation
+  if (data.niches && (!Array.isArray(data.niches) || data.niches.some((n: any) => typeof n !== 'string'))) {
+    errors.push('Niches must be an array of strings');
+  } else if (data.niches && data.niches.length > 20) {
+    errors.push('Cannot have more than 20 niches');
   }
 
   return errors;
