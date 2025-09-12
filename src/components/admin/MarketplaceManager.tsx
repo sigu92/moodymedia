@@ -86,13 +86,13 @@ export function MarketplaceManager() {
 
       // Calculate stats
       const pendingCount = data?.filter(s => s.status === 'pending').length || 0;
-      const approvedCount = data?.filter(s => s.status === 'approved' || s.status === 'active').length || 0;
+      const activeCount = data?.filter(s => s.status === 'active').length || 0;
       const rejectedCount = data?.filter(s => s.status === 'rejected').length || 0;
       const totalCount = data?.length || 0;
 
       setStats({
         pending: pendingCount,
-        approved: approvedCount,
+        approved: activeCount,
         rejected: rejectedCount,
         total: totalCount
       });
@@ -156,18 +156,18 @@ export function MarketplaceManager() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            Approved Listings ({stats.approved})
+            Active Listings ({stats.approved})
           </CardTitle>
           <CardDescription>
-            View and manage approved marketplace listings
+            View and manage active marketplace listings
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Approved Listings Tab</h3>
+            <h3 className="text-lg font-semibold mb-2">Active Listings Tab</h3>
             <p className="text-muted-foreground">
-              This tab will show all approved marketplace listings.
+              This tab will show all active marketplace listings.
               Implementation will be completed in subsequent tasks.
             </p>
           </div>
@@ -263,18 +263,18 @@ export function MarketplaceManager() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card-clean hover:shadow-medium transition-all duration-300">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              Approved Listings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">{stats.approved}</div>
-            <p className="text-sm text-muted-foreground mt-1">Active on marketplace</p>
-          </CardContent>
-        </Card>
+              <Card className="glass-card-clean hover:shadow-medium transition-all duration-300">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Active Listings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-600">{stats.approved}</div>
+                  <p className="text-sm text-muted-foreground mt-1">Live on marketplace</p>
+                </CardContent>
+              </Card>
 
         <Card className="glass-card-clean hover:shadow-medium transition-all duration-300">
           <CardHeader className="pb-4">
@@ -323,7 +323,7 @@ export function MarketplaceManager() {
               </TabsTrigger>
               <TabsTrigger value="approved" className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
-                Approved Listings ({stats.approved})
+                Active Listings ({stats.approved})
               </TabsTrigger>
               <TabsTrigger value="rejected" className="flex items-center gap-2">
                 <XCircle className="h-4 w-4" />
