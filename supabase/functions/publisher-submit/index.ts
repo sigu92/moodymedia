@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    logStep('User authenticated', { userId: user.id });
+    logStep('User authenticated', { userId: user.id, email: user.email });
 
     // Check if user has publisher role
     const { data: userRoles, error: roleError } = await supabase
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const submissionData = await req.json();
-    logStep('Submission data received', { domain: submissionData.domain });
+    logStep('Submission data received', { domain: submissionData.domain, userId: user.id });
 
     // Validate submission data
     const validationErrors = validateSubmission(submissionData);
@@ -187,11 +187,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check for duplicate domain
+    // Check for duplicate domain (global check)
     const normalizedDomain = normalizeDomain(submissionData.domain);
     const { data: existingOutlet, error: checkError } = await supabase
       .from('media_outlets')
-      .select('id, domain')
+      .select('id, domain, status, publisher_id')
       .eq('domain', normalizedDomain)
       .single();
 
@@ -204,11 +204,25 @@ Deno.serve(async (req) => {
     }
 
     if (existingOutlet) {
-      logStep('Domain already exists', { domain: normalizedDomain });
-      return new Response(
-        JSON.stringify({ error: 'Domain already exists in the marketplace' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Allow resubmission of rejected sites by the same publisher
+      if (existingOutlet.publisher_id === user.id && existingOutlet.status === 'rejected') {
+        logStep('Allowing resubmission of rejected site', {
+          domain: normalizedDomain,
+          existingId: existingOutlet.id,
+          status: existingOutlet.status
+        });
+        // Continue with submission - will update existing record
+      } else {
+        logStep('Domain already exists and cannot be resubmitted', {
+          domain: normalizedDomain,
+          existingPublisher: existingOutlet.publisher_id,
+          status: existingOutlet.status
+        });
+        return new Response(
+          JSON.stringify({ error: 'Domain already exists in the marketplace' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Prepare outlet data for submission (pending approval)
@@ -236,24 +250,50 @@ Deno.serve(async (req) => {
       is_active: false // Not active until approved
     };
 
-    logStep('Inserting media outlet', { domain: outletData.domain, status: outletData.status });
+    logStep('Processing media outlet', {
+      domain: outletData.domain,
+      status: outletData.status,
+      isUpdate: !!existingOutlet
+    });
 
-    // Insert media outlet
-    const { data: insertedOutlet, error: insertError } = await supabase
-      .from('media_outlets')
-      .insert(outletData)
-      .select()
-      .single();
+    let insertedOutlet;
 
-    if (insertError) {
-      logStep('Insert error', { error: insertError, domain: outletData.domain });
-      return new Response(
-        JSON.stringify({ error: 'Failed to submit website: ' + insertError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (existingOutlet) {
+      // Update existing rejected submission
+      const { data: updatedOutlet, error: updateError } = await supabase
+        .from('media_outlets')
+        .update(outletData)
+        .eq('id', existingOutlet.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        logStep('Update error for resubmission', { error: updateError, domain: outletData.domain });
+        return new Response(
+          JSON.stringify({ error: 'Failed to resubmit website: ' + updateError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      insertedOutlet = updatedOutlet;
+    } else {
+      // Insert new media outlet
+      const { data: newOutlet, error: insertError } = await supabase
+        .from('media_outlets')
+        .insert(outletData)
+        .select()
+        .single();
+
+      if (insertError) {
+        logStep('Insert error', { error: insertError, domain: outletData.domain });
+        return new Response(
+          JSON.stringify({ error: 'Failed to submit website: ' + insertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      insertedOutlet = newOutlet;
     }
 
-    // Insert metrics if provided
+    // Handle metrics (insert for new, update for existing)
     if (submissionData.metrics) {
       const metricsData = {
         media_outlet_id: insertedOutlet.id,
@@ -265,56 +305,92 @@ Deno.serve(async (req) => {
         referring_domains: submissionData.metrics.referring_domains ? parseInt(submissionData.metrics.referring_domains) : 0
       };
 
-      const { error: metricsError } = await supabase
-        .from('metrics')
-        .insert(metricsData);
+      if (existingOutlet) {
+        // Update existing metrics
+        const { error: metricsError } = await supabase
+          .from('metrics')
+          .update(metricsData)
+          .eq('media_outlet_id', insertedOutlet.id);
 
-      if (metricsError) {
-        logStep('Metrics insert error', { error: metricsError, domain: outletData.domain });
-        // Delete the outlet if metrics failed
-        await supabase.from('media_outlets').delete().eq('id', insertedOutlet.id);
-        return new Response(
-          JSON.stringify({ error: 'Failed to save website metrics' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (metricsError) {
+          logStep('Metrics update error for resubmission', { error: metricsError, domain: outletData.domain });
+          return new Response(
+            JSON.stringify({ error: 'Failed to update website metrics' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        // Insert new metrics
+        const { error: metricsError } = await supabase
+          .from('metrics')
+          .insert(metricsData);
+
+        if (metricsError) {
+          logStep('Metrics insert error', { error: metricsError, domain: outletData.domain });
+          // Delete the outlet if metrics failed
+          await supabase.from('media_outlets').delete().eq('id', insertedOutlet.id);
+          return new Response(
+            JSON.stringify({ error: 'Failed to save website metrics' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 
-    // Create listing (inactive until approved)
-    const { error: listingError } = await supabase
-      .from('listings')
-      .insert({
-        media_outlet_id: insertedOutlet.id,
-        is_active: false // Not active until approved
-      });
+    // Handle listing (create for new, ensure inactive for resubmissions)
+    if (!existingOutlet) {
+      // Create new listing for new submissions
+      const { error: listingError } = await supabase
+        .from('listings')
+        .insert({
+          media_outlet_id: insertedOutlet.id,
+          is_active: false // Not active until approved
+        });
 
-    if (listingError) {
-      logStep('Listing insert error', { error: listingError, domain: outletData.domain });
-      // Clean up on error
-      await supabase.from('media_outlets').delete().eq('id', insertedOutlet.id);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create marketplace listing' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (listingError) {
+        logStep('Listing insert error', { error: listingError, domain: outletData.domain });
+        // Clean up on error
+        await supabase.from('media_outlets').delete().eq('id', insertedOutlet.id);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create marketplace listing' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Ensure listing is inactive for resubmissions
+      const { error: listingError } = await supabase
+        .from('listings')
+        .update({ is_active: false })
+        .eq('media_outlet_id', insertedOutlet.id);
+
+      if (listingError) {
+        logStep('Listing update error for resubmission', { error: listingError, domain: outletData.domain });
+        // Don't fail the entire operation, but log the error
+      }
     }
 
     logStep('Website submission successful', {
       outletId: insertedOutlet.id,
       domain: outletData.domain,
-      status: 'pending'
+      status: 'pending',
+      submitted_by: outletData.submitted_by
     });
 
+    const responseData = {
+      success: true,
+      message: 'Website submitted successfully for admin approval',
+      data: {
+        id: insertedOutlet.id,
+        domain: outletData.domain,
+        status: 'pending',
+        submitted_at: outletData.submitted_at
+      }
+    };
+
+    console.log('[publisher-submit] Returning success response:', responseData);
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Website submitted successfully for admin approval',
-        data: {
-          id: insertedOutlet.id,
-          domain: outletData.domain,
-          status: 'pending',
-          submitted_at: outletData.submitted_at
-        }
-      }),
+      JSON.stringify(responseData),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
