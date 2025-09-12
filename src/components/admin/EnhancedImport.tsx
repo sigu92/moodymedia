@@ -6,9 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, FileSpreadsheet, Link, CheckCircle, XCircle, AlertCircle, Download } from 'lucide-react';
+import { Upload, FileSpreadsheet, Link, CheckCircle, XCircle, AlertCircle, Download, Tag } from 'lucide-react';
 
 interface ImportResult {
   row: number;
@@ -28,9 +30,11 @@ interface ImportResponse {
 }
 
 export function EnhancedImport() {
+  const { userRoles, hasRole } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [googleSheetUrl, setGoogleSheetUrl] = useState('');
   const [importMode, setImportMode] = useState<'upload' | 'google'>('upload');
+  const [selectedAdminTag, setSelectedAdminTag] = useState<string>('');
   const [mapping, setMapping] = useState({
     domain: 'none',
     price: 'none',
@@ -49,10 +53,13 @@ export function EnhancedImport() {
   });
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
-  const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'results'>('upload');
+  const [step, setStep] = useState<'upload' | 'mapping' | 'admin_tags' | 'preview' | 'results'>('upload');
   const [loading, setLoading] = useState(false);
   const [importResults, setImportResults] = useState<ImportResponse | null>(null);
   const { toast } = useToast();
+
+  // Check if user is system admin
+  const isSystemAdmin = hasRole('system_admin');
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -225,6 +232,23 @@ export function EnhancedImport() {
 
   const handlePreview = () => {
     if (!validateMapping()) return;
+    // System admins get admin tags step, others go directly to preview
+    if (isSystemAdmin) {
+      setStep('admin_tags');
+    } else {
+      setStep('preview');
+    }
+  };
+
+  const handleAdminTagsNext = () => {
+    if (!selectedAdminTag) {
+      toast({
+        title: "Tag selection required",
+        description: "Please select an admin tag for this import",
+        variant: "destructive",
+      });
+      return;
+    }
     setStep('preview');
   };
 
@@ -239,6 +263,7 @@ export function EnhancedImport() {
           data: parsedData,
           mapping,
           dry_run: dryRun,
+          admin_tags: selectedAdminTag ? [selectedAdminTag] : [],
         },
       });
 
@@ -288,6 +313,7 @@ export function EnhancedImport() {
   const resetImport = () => {
     setFile(null);
     setGoogleSheetUrl('');
+    setSelectedAdminTag('');
     setParsedData([]);
     setAvailableColumns([]);
     setImportResults(null);
@@ -452,6 +478,85 @@ export function EnhancedImport() {
           </div>
         )}
 
+        {step === 'admin_tags' && isSystemAdmin && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Admin Tagging
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Select an admin tag for this import batch. This tag will be applied to all imported websites for categorization and management.
+              </p>
+            </div>
+
+            <div className="max-w-md">
+              <Label className="text-base font-medium mb-3 block">Choose Import Tag</Label>
+              <RadioGroup
+                value={selectedAdminTag}
+                onValueChange={setSelectedAdminTag}
+                className="space-y-3"
+              >
+                <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="moody" id="moody" />
+                  <div className="flex-1">
+                    <Label htmlFor="moody" className="cursor-pointer font-medium">
+                      Moody
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Websites from Moody Media partnerships
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="Partnerdeal" id="partnerdeal" />
+                  <div className="flex-1">
+                    <Label htmlFor="partnerdeal" className="cursor-pointer font-medium">
+                      Partnerdeal
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Partner deal websites and special arrangements
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="bm" id="bm" />
+                  <div className="flex-1">
+                    <Label htmlFor="bm" className="cursor-pointer font-medium">
+                      BM
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Black Market or special category websites
+                    </p>
+                  </div>
+                </div>
+              </RadioGroup>
+
+              {selectedAdminTag && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Selected:</strong> <Badge variant="secondary">{selectedAdminTag}</Badge>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    All {parsedData.length} websites in this import will be tagged with "{selectedAdminTag}"
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-4">
+              <Button onClick={() => setStep('mapping')} variant="outline">
+                Back
+              </Button>
+              <Button onClick={handleAdminTagsNext}>
+                Continue to Preview
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === 'preview' && (
           <div className="space-y-6">
             <div>
@@ -485,7 +590,7 @@ export function EnhancedImport() {
             </div>
             
             <div className="flex gap-4">
-              <Button onClick={() => setStep('mapping')} variant="outline">
+              <Button onClick={() => setStep(isSystemAdmin ? 'admin_tags' : 'mapping')} variant="outline">
                 Back
               </Button>
               <Button onClick={() => handleImport(true)} variant="outline" disabled={loading}>
