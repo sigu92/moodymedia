@@ -71,12 +71,41 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
   const [reviewNotes, setReviewNotes] = useState('');
   const [marketplacePrice, setMarketplacePrice] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showBulkPricing, setShowBulkPricing] = useState(false);
+  const [bulkPrice, setBulkPrice] = useState<number>(0);
+  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     const pending = submissions.filter(s => s.status === 'pending');
     setPendingSubmissions(pending);
+    // Clear selections when submissions change
+    setSelectedSubmissions([]);
+    setShowBulkActions(false);
   }, [submissions]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedSubmissions(filteredAndSortedSubmissions.map(s => s.id));
+    } else {
+      setSelectedSubmissions([]);
+    }
+  };
+
+  const handleSelectSubmission = (submissionId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedSubmissions(prev => [...prev, submissionId]);
+    } else {
+      setSelectedSubmissions(prev => prev.filter(id => id !== submissionId));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedSubmissions([]);
+    setShowBulkActions(false);
+  };
 
   const filteredAndSortedSubmissions = pendingSubmissions
     .filter(submission => {
@@ -227,6 +256,95 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
     setShowReviewModal(true);
   };
 
+  const handleBulkApprove = () => {
+    setBulkAction('approve');
+    setBulkPrice(100); // Default price
+    setShowBulkPricing(true);
+  };
+
+  const handleBulkReject = () => {
+    setBulkAction('reject');
+    setShowBulkPricing(true);
+  };
+
+  const executeBulkAction = async () => {
+    if (selectedSubmissions.length === 0) return;
+
+    setLoading(true);
+    try {
+      const selectedSubs = filteredAndSortedSubmissions.filter(s =>
+        selectedSubmissions.includes(s.id)
+      );
+
+      if (bulkAction === 'approve') {
+        // Bulk approve with the same price
+        const updates = selectedSubs.map(submission => ({
+          id: submission.id,
+          status: 'approved',
+          price: bulkPrice,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: 'admin', // This should be the current admin user
+          is_active: true
+        }));
+
+        for (const update of updates) {
+          const { error } = await supabase
+            .from('media_outlets')
+            .update(update)
+            .eq('id', update.id);
+
+          if (error) throw error;
+        }
+
+        toast({
+          title: "Bulk Approval Complete",
+          description: `Successfully approved ${selectedSubs.length} submissions`,
+        });
+
+      } else if (bulkAction === 'reject') {
+        // Bulk reject
+        const updates = selectedSubs.map(submission => ({
+          id: submission.id,
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: 'admin', // This should be the current admin user
+          review_notes: reviewNotes || 'Bulk rejected by admin'
+        }));
+
+        for (const update of updates) {
+          const { error } = await supabase
+            .from('media_outlets')
+            .update(update)
+            .eq('id', update.id);
+
+          if (error) throw error;
+        }
+
+        toast({
+          title: "Bulk Rejection Complete",
+          description: `Successfully rejected ${selectedSubs.length} submissions`,
+        });
+      }
+
+      clearSelection();
+      setShowBulkPricing(false);
+      setBulkAction(null);
+      setBulkPrice(0);
+      setReviewNotes('');
+      onRefresh();
+
+    } catch (error) {
+      console.error('Error executing bulk action:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process bulk action",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderTableView = () => (
     <Card>
       <CardHeader>
@@ -252,6 +370,14 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedSubmissions.length === filteredAndSortedSubmissions.length && filteredAndSortedSubmissions.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded"
+                    />
+                  </TableHead>
                   <TableHead>Domain</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Asking Price</TableHead>
@@ -264,6 +390,14 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
               <TableBody>
                 {filteredAndSortedSubmissions.map((submission) => (
                   <TableRow key={submission.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedSubmissions.includes(submission.id)}
+                        onChange={(e) => handleSelectSubmission(submission.id, e.target.checked)}
+                        className="rounded"
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div>
                         <div className="font-semibold">{submission.domain}</div>
@@ -324,17 +458,25 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
   const renderCardView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {filteredAndSortedSubmissions.map((submission) => (
-        <Card key={submission.id} className="hover:shadow-md transition-shadow">
+        <Card key={submission.id} className={`hover:shadow-md transition-shadow ${selectedSubmissions.includes(submission.id) ? 'ring-2 ring-primary' : ''}`}>
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-lg">{submission.domain}</CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <Globe className="h-3 w-3" />
-                  {submission.category} • {submission.country}
-                </CardDescription>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedSubmissions.includes(submission.id)}
+                  onChange={(e) => handleSelectSubmission(submission.id, e.target.checked)}
+                  className="rounded"
+                />
+                <Badge variant="secondary">Pending</Badge>
               </div>
-              <Badge variant="secondary">Pending</Badge>
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-lg">{submission.domain}</CardTitle>
+              <CardDescription className="flex items-center gap-2 mt-1">
+                <Globe className="h-3 w-3" />
+                {submission.category} • {submission.country}
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -377,8 +519,56 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
     </div>
   );
 
+  // Show bulk actions when submissions are selected
+  useEffect(() => {
+    setShowBulkActions(selectedSubmissions.length > 0);
+  }, [selectedSubmissions]);
+
   return (
     <div className="space-y-6">
+      {/* Bulk Actions Bar */}
+      {showBulkActions && (
+        <Card className="border-primary/30 ring-2 ring-primary/20 animate-fade-in">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium">
+                  {selectedSubmissions.length} submission{selectedSubmissions.length !== 1 ? 's' : ''} selected
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleBulkApprove}
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={loading}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Bulk Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleBulkReject}
+                    disabled={loading}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Bulk Reject
+                  </Button>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearSelection}
+                disabled={loading}
+              >
+                Clear Selection
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters and Controls */}
       <Card>
         <CardContent className="pt-6">
@@ -571,6 +761,73 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Pricing Modal */}
+      <Dialog open={showBulkPricing} onOpenChange={setShowBulkPricing}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {bulkAction === 'approve' ? 'Bulk Approve Submissions' : 'Bulk Reject Submissions'}
+            </DialogTitle>
+            <DialogDescription>
+              {bulkAction === 'approve'
+                ? `Set marketplace price for ${selectedSubmissions.length} selected submissions`
+                : `Add rejection notes for ${selectedSubmissions.length} selected submissions`
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {bulkAction === 'approve' && (
+              <div>
+                <label className="text-sm font-medium">Marketplace Price (€)</label>
+                <Input
+                  type="number"
+                  value={bulkPrice}
+                  onChange={(e) => setBulkPrice(Number(e.target.value))}
+                  placeholder="Enter price for all selected submissions"
+                  min="0"
+                  step="5"
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  This price will be applied to all selected submissions
+                </p>
+              </div>
+            )}
+
+            {bulkAction === 'reject' && (
+              <div>
+                <label className="text-sm font-medium">Rejection Notes</label>
+                <textarea
+                  className="w-full mt-1 p-3 border rounded-md min-h-20 resize-none"
+                  placeholder="Provide feedback for rejected submissions..."
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  These notes will be shared with all rejected publishers
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkPricing(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={executeBulkAction}
+              disabled={loading || (bulkAction === 'approve' && bulkPrice <= 0) || (bulkAction === 'reject' && !reviewNotes.trim())}
+            >
+              {loading ? 'Processing...' : bulkAction === 'approve' ? 'Approve All' : 'Reject All'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
