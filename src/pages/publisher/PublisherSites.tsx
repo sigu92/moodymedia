@@ -287,7 +287,7 @@ export default function PublisherSites() {
 
     const labels = {
       pending: "Pending Review",
-      approved: "Approved",
+      approved: "Activated",
       active: "Active",
       rejected: "Rejected",
     };
@@ -311,9 +311,9 @@ export default function PublisherSites() {
       case 'approved':
         return {
           type: 'success' as const,
-          title: 'Approved for Marketplace',
-          message: 'Your site has been approved and will be activated in the marketplace soon.',
-          action: 'Monitor the Submissions tab for activation confirmation.'
+          title: 'Activated on Marketplace',
+          message: 'Your site has been approved and is now live on the marketplace.',
+          action: 'Your site is available for link building orders.'
         };
       case 'active':
         return {
@@ -448,7 +448,7 @@ export default function PublisherSites() {
             {(() => {
               const pendingCount = sites.filter(s => s.status === 'pending').length;
               const rejectedCount = sites.filter(s => s.status === 'rejected').length;
-              const approvedCount = sites.filter(s => s.status === 'approved').length;
+              const activeCount = sites.filter(s => s.status === 'active').length;
 
               return (
                 <div className="space-y-4">
@@ -472,12 +472,12 @@ export default function PublisherSites() {
                     </Alert>
                   )}
 
-                  {approvedCount > 0 && (
+                  {activeCount > 0 && (
                     <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <AlertDescription className="text-green-800 dark:text-green-200">
-                        <strong>{approvedCount} site{approvedCount !== 1 ? 's' : ''} approved:</strong> Your approved sites will be activated in the marketplace soon.
-                        Monitor the Submissions tab for activation confirmation.
+                        <strong>{activeCount} site{activeCount !== 1 ? 's' : ''} active:</strong> Your sites are now live on the marketplace
+                        and available for link building orders.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -564,9 +564,9 @@ export default function PublisherSites() {
                   </div>
                   <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="text-2xl font-bold text-green-600">
-                      {sites.filter(s => s.status === 'approved' || s.status === 'active').length}
+                      {sites.filter(s => s.status === 'active').length}
                     </div>
-                    <div className="text-sm text-muted-foreground">Approved</div>
+                    <div className="text-sm text-muted-foreground">Active</div>
                   </div>
                   <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                     <div className="text-2xl font-bold text-red-600">

@@ -169,7 +169,7 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
       const { error } = await supabase
         .from('media_outlets')
         .update({
-          status: 'approved',
+          status: 'active',
           price: marketplacePrice,
           reviewed_at: new Date().toISOString(),
           reviewed_by: 'admin', // This should be the current admin user
@@ -280,7 +280,7 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
         // Bulk approve with the same price
         const updates = selectedSubs.map(submission => ({
           id: submission.id,
-          status: 'approved',
+          status: 'active',
           price: bulkPrice,
           reviewed_at: new Date().toISOString(),
           reviewed_by: 'admin', // This should be the current admin user

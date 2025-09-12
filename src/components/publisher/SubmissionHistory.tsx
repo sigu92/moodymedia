@@ -94,7 +94,7 @@ export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
 
     const labels = {
       pending: "Pending Review",
-      approved: "Approved",
+      approved: "Activated",
       active: "Active",
       rejected: "Rejected",
     };
@@ -297,7 +297,6 @@ export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
             {(() => {
               const pendingCount = submissions.filter(s => s.status === 'pending').length;
               const rejectedCount = submissions.filter(s => s.status === 'rejected').length;
-              const approvedCount = submissions.filter(s => s.status === 'approved').length;
               const activeCount = submissions.filter(s => s.status === 'active').length;
 
               return (
@@ -308,16 +307,6 @@ export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
                       <AlertDescription>
                         <strong>{pendingCount} submission{pendingCount !== 1 ? 's' : ''} under review:</strong> Our admin team is evaluating your sites.
                         You'll receive an email notification once the review is complete.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {approvedCount > 0 && (
-                    <Alert>
-                      <CheckCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        <strong>{approvedCount} site{approvedCount !== 1 ? 's' : ''} approved:</strong> These sites are scheduled for marketplace activation.
-                        Check back soon to see them live!
                       </AlertDescription>
                     </Alert>
                   )}
@@ -355,9 +344,9 @@ export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">
-                  {submissions.filter(s => s.status === 'approved' || s.status === 'active').length}
+                  {submissions.filter(s => s.status === 'active').length}
                 </div>
-                <div className="text-sm text-muted-foreground">Approved</div>
+                <div className="text-sm text-muted-foreground">Active</div>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <div className="text-2xl font-bold text-red-600">
