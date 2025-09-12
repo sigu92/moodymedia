@@ -229,9 +229,14 @@ export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
                           className="max-w-xs"
                         />
                         {submission.review_notes && (
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            Has feedback
+                          <div className="text-xs">
+                            <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                              <MessageSquare className="h-3 w-3" />
+                              Admin Feedback
+                            </div>
+                            <div className="text-xs bg-muted/50 p-2 rounded border-l-2 border-orange-300 text-foreground">
+                              {submission.review_notes}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -285,32 +290,87 @@ export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
           </div>
         )}
 
-        {/* Summary Stats */}
+        {/* Status Information */}
         {submissions.length > 0 && (
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">
-                {submissions.filter(s => s.status === 'pending').length}
+          <div className="mt-6 space-y-4">
+            {/* Status Alerts */}
+            {(() => {
+              const pendingCount = submissions.filter(s => s.status === 'pending').length;
+              const rejectedCount = submissions.filter(s => s.status === 'rejected').length;
+              const approvedCount = submissions.filter(s => s.status === 'approved').length;
+              const activeCount = submissions.filter(s => s.status === 'active').length;
+
+              return (
+                <div className="space-y-3">
+                  {pendingCount > 0 && (
+                    <Alert>
+                      <Clock className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>{pendingCount} submission{pendingCount !== 1 ? 's' : ''} under review:</strong> Our admin team is evaluating your sites.
+                        You'll receive an email notification once the review is complete.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {approvedCount > 0 && (
+                    <Alert>
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>{approvedCount} site{approvedCount !== 1 ? 's' : ''} approved:</strong> These sites are scheduled for marketplace activation.
+                        Check back soon to see them live!
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {activeCount > 0 && (
+                    <Alert>
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>{activeCount} site{activeCount !== 1 ? 's' : ''} active:</strong> These sites are now live on the marketplace
+                        and available for link building orders.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {rejectedCount > 0 && (
+                    <Alert variant="destructive">
+                      <XCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>{rejectedCount} submission{rejectedCount !== 1 ? 's' : ''} need{rejectedCount === 1 ? 's' : ''} revision:</strong> Review the admin feedback above,
+                        make the suggested improvements, and resubmit your sites.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {submissions.filter(s => s.status === 'pending').length}
+                </div>
+                <div className="text-sm text-muted-foreground">Pending</div>
               </div>
-              <div className="text-sm text-muted-foreground">Pending</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
-                {submissions.filter(s => s.status === 'approved' || s.status === 'active').length}
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {submissions.filter(s => s.status === 'approved' || s.status === 'active').length}
+                </div>
+                <div className="text-sm text-muted-foreground">Approved</div>
               </div>
-              <div className="text-sm text-muted-foreground">Approved</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">
-                {submissions.filter(s => s.status === 'rejected').length}
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold text-red-600">
+                  {submissions.filter(s => s.status === 'rejected').length}
+                </div>
+                <div className="text-sm text-muted-foreground">Rejected</div>
               </div>
-              <div className="text-sm text-muted-foreground">Rejected</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold">
-                {submissions.length}
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold">
+                  {submissions.length}
+                </div>
+                <div className="text-sm text-muted-foreground">Total</div>
               </div>
-              <div className="text-sm text-muted-foreground">Total</div>
             </div>
           </div>
         )}
