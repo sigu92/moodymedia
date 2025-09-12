@@ -17,6 +17,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { PendingApprovalsTab } from './PendingApprovalsTab';
+import { ProfitAnalyticsTab } from './ProfitAnalyticsTab';
 
 interface MediaOutlet {
   id: string;
@@ -203,29 +204,7 @@ export function MarketplaceManager() {
   );
 
   const renderProfitAnalytics = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-500" />
-            Profit Analytics
-          </CardTitle>
-          <CardDescription>
-            Analyze profit margins and pricing strategies across marketplace listings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Profit Analytics Tab</h3>
-            <p className="text-muted-foreground">
-              This tab will contain profit margin analytics and pricing insights.
-              Implementation will be completed in task 4.6.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <ProfitAnalyticsTab />
   );
 
   if (loading) {
