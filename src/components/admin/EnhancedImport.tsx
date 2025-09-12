@@ -52,6 +52,7 @@ export function EnhancedImport() {
     language: 'none',
     category: 'none',
     niches: 'none',
+    status: 'none',
     ahrefs_dr: 'none',
     moz_da: 'none',
     semrush_as: 'none',

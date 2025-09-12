@@ -21,7 +21,7 @@ const normalizeDomain = (domain: string): string => {
 
 const validateRow = (row: any, mapping: any) => {
   const errors = [];
-  
+
   if (!row[mapping.domain]) {
     errors.push('Domain is required');
   } else {
@@ -30,14 +30,21 @@ const validateRow = (row: any, mapping: any) => {
       errors.push('Invalid domain format');
     }
   }
-  
+
   if (mapping.price && row[mapping.price]) {
     const price = Number(row[mapping.price]);
     if (isNaN(price) || price <= 0) {
       errors.push('Price must be a positive number');
     }
   }
-  
+
+  if (mapping.status && row[mapping.status]) {
+    const validStatuses = ['pending', 'approved', 'rejected', 'active'];
+    if (!validStatuses.includes(row[mapping.status])) {
+      errors.push('Status must be one of: pending, approved, rejected, active');
+    }
+  }
+
   return errors;
 }
 
@@ -278,7 +285,13 @@ serve(async (req) => {
             admin_tags: admin_tags.length > 0 ? admin_tags : [],
             source: source,
             publisher_id: user.id, // Admin becomes the publisher for imported sites
-            is_active: true
+            is_active: true,
+            status: mapping.status && row[mapping.status] ? row[mapping.status] : 'active', // Use mapped status or default to active
+            submitted_by: user.id, // Track who imported it
+            submitted_at: new Date().toISOString(),
+            reviewed_by: user.id, // Admin is both submitter and reviewer
+            reviewed_at: new Date().toISOString(),
+            review_notes: 'Imported by admin - automatically approved'
           };
 
           if (mapping.title && row[mapping.title]) {
