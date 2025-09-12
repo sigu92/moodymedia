@@ -5,9 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { CheckCircle, Clock, DollarSign, Shield } from "lucide-react";
+import { SubmissionProgressIndicator } from "./SubmissionProgressIndicator";
 
 interface CreateSiteModalProps {
   open: boolean;
@@ -19,9 +22,13 @@ interface CreateSiteModalProps {
 export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite }: CreateSiteModalProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [submittedSite, setSubmittedSite] = useState<any>(null);
   const [formData, setFormData] = useState({
     domain: editingSite?.domain || '',
     price: editingSite?.price || 200,
+    purchase_price: editingSite?.purchase_price || null,
     currency: editingSite?.currency || 'EUR',
     country: editingSite?.country || '',
     language: editingSite?.language || '',
@@ -52,15 +59,24 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
     forex: { accepted: false, multiplier: 1.8 }
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
+    // Show confirmation dialog instead of submitting directly
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmedSubmit = async () => {
+    if (!user) return;
+
     setLoading(true);
+    setShowConfirmation(false);
     try {
       const siteData = {
         domain: formData.domain,
         price: formData.price,
+        purchase_price: formData.purchase_price,
         currency: formData.currency,
         country: formData.country,
         language: formData.language,
@@ -72,7 +88,10 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         sponsor_tag_status: formData.sponsorTagStatus,
         sponsor_tag_type: formData.sponsorTagType,
         publisher_id: user.id,
-        is_active: true,
+        status: 'pending', // Set to pending for admin approval
+        submitted_by: user.id,
+        submitted_at: new Date().toISOString(),
+        is_active: false, // Not active until approved
       };
 
       let mediaOutletId;
@@ -130,12 +149,12 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
           
         if (metricsError) throw metricsError;
         
-        // Create listing so it appears in marketplace
+        // Create listing (inactive until approved)
         const { error: listingError } = await supabase
           .from('listings')
           .insert([{
             media_outlet_id: mediaOutletId,
-            is_active: true
+            is_active: false // Not active until admin approval
           }]);
           
         if (listingError) throw listingError;
@@ -171,12 +190,13 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         if (nicheRulesError) throw nicheRulesError;
       }
 
-      toast.success(editingSite ? 'Site updated successfully' : 'Site created successfully');
-      onSiteCreated();
-      onOpenChange(false);
+      toast.success(editingSite ? 'Site updated and submitted for review' : 'Site submitted for review successfully');
+      setSubmittedSite(siteData);
+      setShowSuccess(true);
       setFormData({
         domain: '',
         price: 200,
+        purchase_price: null,
         currency: 'EUR',
         country: '',
         language: '',
@@ -235,7 +255,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="price">Price (EUR) *</Label>
+              <Label htmlFor="price">Marketplace Price (EUR) *</Label>
               <Input
                 id="price"
                 type="number"
@@ -246,6 +266,29 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
                 className="glass-input"
               />
             </div>
+
+            {/* Purchase Price field - only show for non-moody sites */}
+            {formData.domain && !formData.domain.toLowerCase().includes('moody') && (
+              <div className="space-y-2">
+                <Label htmlFor="purchase_price">Your Asking Price (EUR)</Label>
+                <Input
+                  id="purchase_price"
+                  type="number"
+                  value={formData.purchase_price || ''}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    purchase_price: e.target.value ? Number(e.target.value) : null
+                  }))}
+                  min="0"
+                  step="0.01"
+                  placeholder="What you want to charge for this website"
+                  className="glass-input"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This is what you'll charge buyers. The marketplace price above is what customers will pay.
+                </p>
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label htmlFor="country">Country *</Label>
@@ -556,5 +599,252 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         </form>
       </DialogContent>
     </Dialog>
+  );
+
+  return (
+    <>
+      {/* Submission Confirmation Dialog */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+      <DialogContent className="glass-card max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Shield className="h-5 w-5 text-blue-500" />
+            Submit Website for Review
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your website submission will be reviewed by our admin team before being listed on the marketplace.
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
+              <Clock className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Review Timeline</h4>
+                <p className="text-sm text-muted-foreground">
+                  Most submissions are reviewed within 24-48 hours during business days.
+                  You will receive an email notification once your submission is processed.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
+              <Shield className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Quality Review</h4>
+                <p className="text-sm text-muted-foreground">
+                  Our team will verify your website's quality, SEO metrics, and content guidelines
+                  to ensure it meets our marketplace standards.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
+              <DollarSign className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Pricing Strategy</h4>
+                <p className="text-sm text-muted-foreground">
+                  While you can suggest your asking price, our admins may adjust the final marketplace
+                  price based on market conditions and competitive positioning.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-yellow-600" />
+              What happens next?
+            </h4>
+            <ul className="text-sm text-muted-foreground space-y-1 ml-6">
+              <li>• Your submission enters a "pending" status</li>
+              <li>• You cannot edit the submission while under review</li>
+              <li>• You'll receive email updates on the approval status</li>
+              <li>• Approved sites become active in the marketplace</li>
+              <li>• Rejected submissions include detailed feedback</li>
+            </ul>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowConfirmation(false)}
+              className="glass-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmedSubmit}
+              disabled={loading}
+              className="glass-button-primary"
+            >
+              {loading ? 'Submitting...' : 'Submit for Review'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Success Dialog with Progress Indicator */}
+    <Dialog open={showSuccess} onOpenChange={(open) => {
+      if (!open) {
+        setShowSuccess(false);
+        onSiteCreated();
+        onOpenChange(false);
+      }
+    }}>
+      <DialogContent className="glass-card max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            Submission Successful!
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your website "{submittedSite?.domain}" has been submitted for review.
+              Our admin team will evaluate it within 24-48 hours.
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-4">
+            <h3 className="font-semibold">Submission Progress</h3>
+            <SubmissionProgressIndicator
+              status="pending"
+              submittedAt={submittedSite?.submitted_at}
+              className="border rounded-lg p-4 bg-muted/30"
+            />
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-blue-600" />
+              What to expect next
+            </h4>
+            <ul className="text-sm text-muted-foreground space-y-1 ml-6">
+              <li>• Track your submission status in the "Submissions" tab</li>
+              <li>• You'll receive an email when your submission is reviewed</li>
+              <li>• Check the SubmissionHistory component for detailed status updates</li>
+              <li>• Approved sites will automatically become active in the marketplace</li>
+            </ul>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowSuccess(false);
+                onSiteCreated();
+                onOpenChange(false);
+              }}
+              className="glass-button"
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowSuccess(false);
+                onSiteCreated();
+                onOpenChange(false);
+                // Could navigate to submissions tab here
+              }}
+              className="glass-button-primary"
+            >
+              View Submissions
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Success Dialog with Progress Indicator */}
+    <Dialog open={showSuccess} onOpenChange={(open) => {
+      if (!open) {
+        setShowSuccess(false);
+        onSiteCreated();
+        onOpenChange(false);
+      }
+    }}>
+      <DialogContent className="glass-card max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            Submission Successful!
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your website "{submittedSite?.domain}" has been submitted for review.
+              Our admin team will evaluate it within 24-48 hours.
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-4">
+            <h3 className="font-semibold">Submission Progress</h3>
+            <SubmissionProgressIndicator
+              status="pending"
+              submittedAt={submittedSite?.submitted_at}
+              className="border rounded-lg p-4 bg-muted/30"
+            />
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-blue-600" />
+              What to expect next
+            </h4>
+            <ul className="text-sm text-muted-foreground space-y-1 ml-6">
+              <li>• Track your submission status in the "Submissions" tab</li>
+              <li>• You'll receive an email when your submission is reviewed</li>
+              <li>• Check the SubmissionHistory component for detailed status updates</li>
+              <li>• Approved sites will automatically become active in the marketplace</li>
+            </ul>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowSuccess(false);
+                onSiteCreated();
+                onOpenChange(false);
+              }}
+              className="glass-button"
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowSuccess(false);
+                onSiteCreated();
+                onOpenChange(false);
+                // Could navigate to submissions tab here
+              }}
+              className="glass-button-primary"
+            >
+              View Submissions
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

@@ -146,3 +146,5 @@ SELECT
     now() as completed_at,
     (SELECT COUNT(*) FROM public.user_role_assignments WHERE role IN ('system_admin', 'admin')) as admin_users,
     (SELECT COUNT(*) FROM pg_policies WHERE tablename IN ('media_outlets', 'metrics', 'imports')) as rls_policies;
+
+

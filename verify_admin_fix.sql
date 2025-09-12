@@ -48,3 +48,5 @@ AND pg_function_is_visible(oid);
 -- 5. Check Edge Function deployment status
 -- (This would need to be checked in Supabase Dashboard -> Edge Functions)
 -- Look for 'admin-import-batch' and check if it shows "Deployed" with recent timestamp
+
+

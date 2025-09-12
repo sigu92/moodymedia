@@ -40,3 +40,5 @@ SELECT
     public.is_platform_admin() as without_user_id
 FROM auth.users u
 WHERE u.email = 'moodymannen@gmail.com';
+
+

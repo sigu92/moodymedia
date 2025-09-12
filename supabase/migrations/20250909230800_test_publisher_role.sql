@@ -51,3 +51,4 @@ BEGIN
 
     RAISE NOTICE 'Test completed successfully. Check the logs above for debugging information.';
 END $$;
+

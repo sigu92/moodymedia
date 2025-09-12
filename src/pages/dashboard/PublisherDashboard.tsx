@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
 import SEOHead from "@/components/SEOHead";
+import { SubmissionHistory } from "@/components/publisher/SubmissionHistory";
 interface AnalyticsData {
   totalEarnings: number;
   thisMonthEarnings: number;
@@ -68,6 +69,7 @@ const PublisherDashboard = () => {
   
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [pendingSubmissions, setPendingSubmissions] = useState(0);
   const [timeRange, setTimeRange] = useState("6months");
   const [focusMetric, setFocusMetric] = useState("earnings");
   const { user } = useAuth();
@@ -95,6 +97,16 @@ const PublisherDashboard = () => {
         .eq('publisher_id', user.id);
 
       if (outletsError) throw outletsError;
+
+      // Get pending submissions count
+      const { count: pendingCount, error: pendingError } = await supabase
+        .from('media_outlets')
+        .select('*', { count: 'exact', head: true })
+        .eq('publisher_id', user.id)
+        .eq('status', 'pending');
+
+      if (pendingError) throw pendingError;
+      setPendingSubmissions(pendingCount || 0);
 
       // Calculate analytics
       const now = new Date();
@@ -383,7 +395,7 @@ const PublisherDashboard = () => {
             </div>
 
             {/* Publisher Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className="glass-card-clean p-6 hover:shadow-medium transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-primary/10 text-primary rounded-lg">
@@ -443,12 +455,27 @@ const PublisherDashboard = () => {
                   New orders this month
                 </p>
               </div>
+
+              <div className="glass-card-clean p-6 hover:shadow-medium transition-all duration-300">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-yellow-500/10 text-yellow-600 rounded-lg">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-heading font-bold text-yellow-600">{pendingSubmissions}</div>
+                    <div className="text-sm text-muted-foreground">Pending Reviews</div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Submissions awaiting admin approval
+                </p>
+              </div>
             </div>
 
 
             {/* Enhanced Key Metrics */}
             {analytics && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Card className="glass-card-clean hover:shadow-medium transition-all duration-300">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -550,6 +577,9 @@ const PublisherDashboard = () => {
                 </Card>
               </div>
             )}
+
+            {/* Submission History */}
+            <SubmissionHistory />
 
             {/* Analytics Charts */}
             {analytics && (

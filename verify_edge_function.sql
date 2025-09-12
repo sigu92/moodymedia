@@ -40,3 +40,5 @@ WHERE u.email = 'moodymannen@gmail.com';
 -- If old_function_result = false but new_function_result = true,
 -- then the Edge Function deployed in Supabase is the OLD VERSION
 -- and needs to be redeployed with the user_id parameter fix.
+
+

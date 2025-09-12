@@ -44,3 +44,5 @@ fetch('/functions/v1/admin-import-batch', { method: 'OPTIONS' })
   .catch(error => console.log('🌐 Edge Function not accessible:', error));
 
 console.log('✅ Debug script completed - check logs above for issues');
+
+

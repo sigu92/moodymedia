@@ -4,12 +4,13 @@
 - `supabase/migrations/20250912000001_add_status_enum_column.sql` - Database migration to add status enum column with approval workflow states
 - `supabase/migrations/20250912000002_add_submission_tracking_columns.sql` - Database migration to add submission tracking columns (submitted_by, submitted_at, reviewed_by, reviewed_at, review_notes)
 - `supabase/migrations/20250912000003_add_performance_indexes.sql` - Database migration to add performance indexes on status and timestamp columns
+- `supabase/functions/publisher-submit/index.ts` - Edge function for handling publisher website submissions with pending status
+- `supabase/functions/admin-approve/index.ts` - Edge function for admin approval/rejection workflow with audit logging
 - `src/types/index.ts` - TypeScript interfaces for new fields and status types
 - `src/components/publisher/CreateSiteModal.tsx` - Publisher submission interface updates
 - `src/components/admin/MarketplaceManager.tsx` - New admin approval interface (to be created)
 - `src/pages/AdminSystem.tsx` - Add MarketplaceManager to admin navigation
 - `src/pages/publisher/Dashboard.tsx` - Update publisher dashboard with submission status
-- `supabase/functions/publisher-submit/index.ts` - New edge function for submissions
 - `supabase/functions/admin-approve/index.ts` - New edge function for approvals
 - `src/integrations/supabase/types.ts` - Update generated types for new schema
 - `src/components/publisher/SubmissionHistory.tsx` - New component for tracking submissions
@@ -34,19 +35,19 @@
   - [x] 1.6 Regenerate Supabase types to reflect schema changes in src/integrations/supabase/types.ts
 
 - [ ] 2.0 Backend Infrastructure Setup
-  - [ ] 2.1 Create publisher-submit edge function to handle website submissions with pending status
-  - [ ] 2.2 Create admin-approve edge function to handle approval/rejection workflow with audit logging
-  - [ ] 2.3 Update RLS policies for media_outlets to allow publishers to see their own submissions (all statuses) and buyers to only see approved/active listings
-  - [ ] 2.4 Update RLS policies to allow system admins full access to all submissions for review and modification
-  - [ ] 2.5 Update marketplace queries throughout the app to filter by status='active' for buyer-facing views
-  - [ ] 2.6 Add audit logging integration for all approval decisions and status changes
+  - [x] 2.1 Create publisher-submit edge function to handle website submissions with pending status
+  - [x] 2.2 Create admin-approve edge function to handle approval/rejection workflow with audit logging
+  - [x] 2.3 Update RLS policies for media_outlets to allow publishers to see their own submissions (all statuses) and buyers to only see approved/active listings
+  - [x] 2.4 Update RLS policies to allow system admins full access to all submissions for review and modification
+  - [x] 2.5 Update marketplace queries throughout the app to filter by status='active' for buyer-facing views
+  - [x] 2.6 Add audit logging integration for all approval decisions and status changes
 
 - [ ] 3.0 Publisher Submission System
-  - [ ] 3.1 Modify CreateSiteModal to include purchase_price input field (only for non-moody sites)
-  - [ ] 3.2 Update CreateSiteModal to show submission confirmation dialog explaining the approval process
-  - [ ] 3.3 Modify CreateSiteModal submission logic to set status='pending' and populate submission tracking fields
-  - [ ] 3.4 Create SubmissionHistory component to display publisher's submission status and admin feedback
-  - [ ] 3.5 Update publisher dashboard to include SubmissionHistory component and pending submission indicators
+  - [x] 3.1 Modify CreateSiteModal to include purchase_price input field (only for non-moody sites)
+  - [x] 3.2 Update CreateSiteModal to show submission confirmation dialog explaining the approval process
+  - [x] 3.3 Modify CreateSiteModal submission logic to set status='pending' and populate submission tracking fields
+  - [x] 3.4 Create SubmissionHistory component to display publisher's submission status and admin feedback
+  - [x] 3.5 Update publisher dashboard to include SubmissionHistory component and pending submission indicators
   - [ ] 3.6 Add status badges and progress indicators to publisher interface showing submission workflow
 
 - [ ] 4.0 Marketplace Manager Admin Interface

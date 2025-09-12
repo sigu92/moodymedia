@@ -37,7 +37,8 @@ export const useMediaOutlets = () => {
             )
           )
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('status', 'active');
 
       if (mediaError) {
         throw mediaError;
