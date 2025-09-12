@@ -30,7 +30,16 @@ interface ImportResponse {
 }
 
 export function EnhancedImport() {
-  const { userRoles, hasRole } = useAuth();
+  const { userRoles, hasRole, isSystemAdmin, user } = useAuth();
+
+  // Debug logging
+  console.log('🔍 EnhancedImport Debug:', {
+    userRoles,
+    isSystemAdmin,
+    user: user?.email,
+    hasAdminRole: hasRole('admin'),
+    hasSystemAdminRole: hasRole('system_admin')
+  });
   const [file, setFile] = useState<File | null>(null);
   const [googleSheetUrl, setGoogleSheetUrl] = useState('');
   const [importMode, setImportMode] = useState<'upload' | 'google'>('upload');
@@ -58,8 +67,7 @@ export function EnhancedImport() {
   const [importResults, setImportResults] = useState<ImportResponse | null>(null);
   const { toast } = useToast();
 
-  // Check if user is system admin
-  const isSystemAdmin = hasRole('system_admin');
+  // isSystemAdmin is already provided by useAuth()
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -257,6 +265,16 @@ export function EnhancedImport() {
 
     setLoading(true);
     try {
+      console.log('🚀 Calling admin-import-batch with:', {
+        source: importMode === 'upload' ? 'csv' : 'google_sheet',
+        data_length: parsedData?.length,
+        mapping,
+        dry_run: dryRun,
+        admin_tags: selectedAdminTag ? [selectedAdminTag] : [],
+        user_roles: userRoles,
+        is_system_admin: isSystemAdmin
+      });
+
       const { data, error } = await supabase.functions.invoke('admin-import-batch', {
         body: {
           source: importMode === 'upload' ? 'csv' : 'google_sheet',
@@ -266,6 +284,8 @@ export function EnhancedImport() {
           admin_tags: selectedAdminTag ? [selectedAdminTag] : [],
         },
       });
+
+      console.log('📥 Response from admin-import-batch:', { data, error });
 
       if (error) throw error;
 
@@ -278,9 +298,33 @@ export function EnhancedImport() {
       });
     } catch (error) {
       console.error('Import error:', error);
+
+      // Extract meaningful error message
+      let errorMessage = "An error occurred during import";
+      let errorTitle = "Import failed";
+
+      if (error?.message) {
+        // Handle specific error types
+        if (error.message.includes('Edge Function returned a non-2xx status code')) {
+          errorTitle = "Server Error";
+          errorMessage = "The import server returned an error. Please check the console for details.";
+        } else if (error.message.includes('Access denied')) {
+          errorTitle = "Access Denied";
+          errorMessage = "You don't have permission to perform this import.";
+        } else if (error.message.includes('Missing required parameter')) {
+          errorTitle = "Configuration Error";
+          errorMessage = error.message;
+        } else if (error.message.includes('Import too large')) {
+          errorTitle = "Import Too Large";
+          errorMessage = "The import file is too large. Please reduce the number of rows.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Import failed",
-        description: "An error occurred during import",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -536,12 +580,12 @@ export function EnhancedImport() {
 
               {selectedAdminTag && (
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                  <div className="text-sm text-blue-800">
                     <strong>Selected:</strong> <Badge variant="secondary">{selectedAdminTag}</Badge>
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
                     All {parsedData.length} websites in this import will be tagged with "{selectedAdminTag}"
-                  </p>
+                  </div>
                 </div>
               )}
             </div>

@@ -47,7 +47,7 @@ serve(async (req) => {
 
     // Check if user is platform admin
     const { data: isAdmin, error: adminError } = await supabase
-      .rpc('is_platform_admin');
+      .rpc('is_user_admin');
 
     if (adminError || !isAdmin) {
       logStep('Admin check failed', { isAdmin, adminError });

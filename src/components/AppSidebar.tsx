@@ -3,6 +3,8 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/hooks/useCart";
 import { useNotifications } from "@/hooks/useNotifications";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import logoImage from '@/assets/moody-media-logo-new.png';
 import { getNavigationItems } from "./navigation";
 import { RoleIndicator } from "./RoleIndicator";
@@ -37,7 +39,7 @@ import {
 
 export function AppSidebar() {
   const { state } = useSidebar();
-  const { user, currentRole, userRoles, hasRole, isSystemAdmin, signOut, switchRole } = useAuth();
+  const { user, currentRole, userRoles, hasRole, isSystemAdmin, signOut, switchRole, fetchUserRoles } = useAuth();
   const { cartItems } = useCart();
   const { unreadCount } = useNotifications();
   const location = useLocation();
@@ -75,6 +77,54 @@ export function AppSidebar() {
         return 'System Admin';
       default:
         return 'Buyer';
+    }
+  };
+
+  const handleStartPublishing = async () => {
+    if (!user) return;
+
+    try {
+      // Assign publisher role using the add_publisher_role function
+      const { data, error } = await supabase.rpc('add_publisher_role', {
+        p_user_id: user.id
+      });
+
+      if (error) {
+        console.error('Error assigning publisher role:', error);
+        toast({
+          title: "Error",
+          description: "Failed to set up your publishing account. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Also ensure buyer role exists (should already exist, but just in case)
+      await supabase
+        .from('user_role_assignments')
+        .upsert({
+          user_id: user.id,
+          role: 'buyer'
+        }, { onConflict: 'user_id,role' });
+
+      // Immediately refresh user roles in auth context for instant UI update
+      await fetchUserRoles(user.id);
+
+      toast({
+        title: "Welcome to Publishing!",
+        description: "Your account now has both buyer and publisher roles. You can switch between them using the role switcher.",
+      });
+
+      // Navigate to settings page where they can fill out organization info
+      navigate('/settings');
+
+    } catch (error) {
+      console.error('Error in handleStartPublishing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to set up your publishing account. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -188,11 +238,11 @@ export function AppSidebar() {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Start a publishing account and start selling your links here today
               </p>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="premium"
                 className="w-full text-xs h-8"
-                onClick={() => navigate('/profile')}
+                onClick={handleStartPublishing}
               >
                 Start Publishing
               </Button>

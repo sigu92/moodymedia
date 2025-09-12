@@ -537,6 +537,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     switchRole,
     hasRole,
     isSystemAdmin,
+    fetchUserRoles,
     // Backward compatibility
     userRole: currentRole,
   };
