@@ -1,20 +1,21 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Database, FileSpreadsheet, Users, DollarSign } from 'lucide-react';
+import { BarChart3, Database, FileSpreadsheet, Users, DollarSign, Package } from 'lucide-react';
 import SEOHead from '@/components/SEOHead';
 import { EconomyAnalytics } from '@/components/admin/EconomyAnalytics';
 import { BulkWebsiteEditor } from '@/components/admin/BulkWebsiteEditor';
 import { EnhancedImport } from '@/components/admin/EnhancedImport';
 import { AccountsOverview } from '@/components/admin/AccountsOverview';
 import { PayoutsManagement } from '@/components/admin/PayoutsManagement';
+import { MarketplaceManager } from '@/components/admin/MarketplaceManager';
 
 const AdminSystem = () => {
   return (
     <>
-      <SEOHead 
+      <SEOHead
         title="System Admin Console"
-        description="System administration panel for managing analytics, websites, imports, accounts, and payouts"
+        description="System administration panel for managing analytics, websites, imports, accounts, payouts, and marketplace submissions"
       />
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
@@ -26,7 +27,7 @@ const AdminSystem = () => {
           </div>
 
           <Tabs defaultValue="analytics" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="analytics" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 Analytics
@@ -46,6 +47,10 @@ const AdminSystem = () => {
               <TabsTrigger value="payouts" className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
                 Payouts
+              </TabsTrigger>
+              <TabsTrigger value="marketplace" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Marketplace
               </TabsTrigger>
             </TabsList>
 
@@ -67,6 +72,10 @@ const AdminSystem = () => {
 
             <TabsContent value="payouts" className="space-y-6">
               <PayoutsManagement />
+            </TabsContent>
+
+            <TabsContent value="marketplace" className="space-y-6">
+              <MarketplaceManager />
             </TabsContent>
           </Tabs>
         </div>

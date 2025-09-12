@@ -14,6 +14,7 @@
 - `supabase/functions/admin-approve/index.ts` - New edge function for approvals
 - `src/integrations/supabase/types.ts` - Update generated types for new schema
 - `src/components/publisher/SubmissionHistory.tsx` - New component for tracking submissions
+- `src/components/admin/MarketplaceManager.tsx` - New marketplace manager admin interface with tabbed layout
 - `src/components/admin/PendingApprovalsTab.tsx` - Admin approval interface components
 - `src/components/admin/ProfitAnalyticsTab.tsx` - Profit margin analytics
 
@@ -48,10 +49,10 @@
   - [x] 3.3 Modify CreateSiteModal submission logic to set status='pending' and populate submission tracking fields
   - [x] 3.4 Create SubmissionHistory component to display publisher's submission status and admin feedback
   - [x] 3.5 Update publisher dashboard to include SubmissionHistory component and pending submission indicators
-  - [ ] 3.6 Add status badges and progress indicators to publisher interface showing submission workflow
+  - [x] 3.6 Add status badges and progress indicators to publisher interface showing submission workflow
 
 - [ ] 4.0 Marketplace Manager Admin Interface
-  - [ ] 4.1 Create MarketplaceManager component with tabbed interface (Pending Approvals, Approved Listings, Rejected Submissions, Profit Analytics)
+  - [x] 4.1 Create MarketplaceManager component with tabbed interface (Pending Approvals, Approved Listings, Rejected Submissions, Profit Analytics)
   - [ ] 4.2 Implement PendingApprovalsTab with grid/list view of pending submissions showing key metrics and pricing
   - [ ] 4.3 Create detailed review modal/interface for individual submissions with full metrics, pricing, and profit calculations
   - [ ] 4.4 Implement approval workflow allowing admins to set marketplace price, add review notes, and approve/reject submissions
