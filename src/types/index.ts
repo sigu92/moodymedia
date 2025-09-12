@@ -14,6 +14,8 @@ export interface Organization {
   createdAt: string;
 }
 
+export type MediaOutletStatus = 'pending' | 'approved' | 'rejected' | 'active';
+
 export interface MediaOutlet {
   id: string;
   domain: string;
@@ -22,11 +24,18 @@ export interface MediaOutlet {
   niches: string[];
   category: string;
   price: number;
+  purchase_price?: number; // What we pay publishers for their websites
   currency: string;
   guidelines: string;
   leadTimeDays: number;
   isActive: boolean;
+  status: MediaOutletStatus; // Approval workflow status
   publisherId: string;
+  submitted_by?: string; // UUID of user who submitted for approval
+  submitted_at?: string; // When the website was submitted for approval
+  reviewed_by?: string; // UUID of admin who reviewed the submission
+  reviewed_at?: string; // When the submission was reviewed
+  review_notes?: string; // Admin feedback on approval/rejection
   createdAt: string;
   updatedAt: string;
   acceptsNoLicense?: boolean; // Legacy field

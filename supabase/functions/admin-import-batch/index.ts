@@ -50,43 +50,71 @@ serve(async (req) => {
   try {
     logStep('Starting import batch request');
 
-    // Initialize Supabase client
+    // Initialize Supabase clients
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Get user from auth header
+    // Client for database operations (with service role)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false }
+    });
+
+    // Use Supabase built-in auth to get user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      logStep('No authorization header found');
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
+    // Create a client with the user's JWT to verify authentication
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false }
+      }
     );
 
+    // Get the authenticated user
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
     if (authError || !user) {
-      logStep('Auth error', authError);
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      logStep('Authentication failed', { error: authError?.message });
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Check if user is platform admin
-    const { data: isAdmin, error: adminError } = await supabase
-      .rpc('is_platform_admin', { _user_id: user.id });
+    logStep('User authenticated successfully', { userId: user.id, email: user.email });
 
-    if (adminError || !isAdmin) {
-      logStep('Admin check failed', { isAdmin, adminError });
-      return new Response(JSON.stringify({ error: 'Access denied' }), {
+    // Check if user is platform admin using service role client
+    const { data: isAdmin, error: adminError } = await supabase
+      .rpc('is_user_admin', { user_uuid: user.id });
+
+    logStep('Admin check result', { isAdmin, adminError, userId: user.id });
+
+    if (adminError) {
+      logStep('Admin check ERROR', { error: adminError.message, code: adminError.code });
+      return new Response(JSON.stringify({ error: `Database error: ${adminError.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!isAdmin) {
+      logStep('Admin check failed - user not admin', { isAdmin, userId: user.id });
+      return new Response(JSON.stringify({ error: 'Access denied - admin privileges required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    logStep('Admin check passed', { userId: user.id });
 
     if (req.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
