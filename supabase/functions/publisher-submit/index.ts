@@ -243,12 +243,22 @@ Deno.serve(async (req) => {
       accepts_no_license_status: submissionData.accepts_no_license_status || 'no',
       sponsor_tag_status: submissionData.sponsor_tag_status || 'no',
       sponsor_tag_type: submissionData.sponsor_tag_type || 'text',
+      source: 'publisher_submit',
       publisher_id: user.id,
       status: 'pending', // Start as pending for admin approval
       submitted_by: user.id,
       submitted_at: new Date().toISOString(),
       is_active: false // Not active until approved
     };
+
+    // Triple-check that status is set correctly
+    if (outletData.status !== 'pending') {
+      logStep('ERROR: Status not set to pending!', { status: outletData.status });
+      return new Response(
+        JSON.stringify({ error: 'Internal error: Status not set correctly' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     logStep('Processing media outlet', {
       domain: outletData.domain,

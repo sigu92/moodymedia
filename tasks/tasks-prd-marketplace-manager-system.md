@@ -1,4 +1,5 @@
 
+
 ## Relevant Files
 
 - `supabase/migrations/20250912000000_add_purchase_price_column.sql` - Database migration to add purchase_price column to media_outlets table

@@ -266,7 +266,7 @@ const PublisherDashboard = () => {
 
       const ordersByStatus = Object.entries(statusCounts).map(([status, count]) => ({
         status: status.replace('_', ' ').toUpperCase(),
-        count,
+        count: Number(count),
         color: statusColors[status as keyof typeof statusColors] || '#6b7280'
       }));
 
@@ -379,6 +379,12 @@ const PublisherDashboard = () => {
                 </div>
                 <div className="flex gap-4">
                   <Button asChild size="lg" className="bg-white/20 hover:bg-white/30 border-white/30 text-white font-medium backdrop-blur-sm">
+                    <Link to="/publisher/sites?tab=submissions">
+                      <Clock className="h-5 w-5 mr-2" />
+                      View Submissions
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" className="bg-white/10 hover:bg-white/20 border-white/20 text-white font-medium backdrop-blur-sm">
                     <Link to="/publisher/sites">
                       <Package className="h-5 w-5 mr-2" />
                       Manage Sites

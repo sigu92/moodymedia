@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Database, FileSpreadsheet, Users, DollarSign, Package } from 'lucide-react';
+import { BarChart3, Database, FileSpreadsheet, Users, DollarSign, Package, Activity } from 'lucide-react';
 import SEOHead from '@/components/SEOHead';
 import { EconomyAnalytics } from '@/components/admin/EconomyAnalytics';
 import { BulkWebsiteEditor } from '@/components/admin/BulkWebsiteEditor';
@@ -9,6 +9,8 @@ import { EnhancedImport } from '@/components/admin/EnhancedImport';
 import { AccountsOverview } from '@/components/admin/AccountsOverview';
 import { PayoutsManagement } from '@/components/admin/PayoutsManagement';
 import { MarketplaceManager } from '@/components/admin/MarketplaceManager';
+import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
+import { SystemHealth } from '@/components/admin/SystemHealth';
 
 const AdminSystem = () => {
   return (
@@ -27,7 +29,7 @@ const AdminSystem = () => {
           </div>
 
           <Tabs defaultValue="analytics" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="analytics" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 Analytics
@@ -52,10 +54,14 @@ const AdminSystem = () => {
                 <Package className="h-4 w-4" />
                 Marketplace
               </TabsTrigger>
+              <TabsTrigger value="health" className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Health
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="analytics" className="space-y-6">
-              <EconomyAnalytics />
+              <AnalyticsDashboard />
             </TabsContent>
 
             <TabsContent value="websites" className="space-y-6">
@@ -76,6 +82,10 @@ const AdminSystem = () => {
 
             <TabsContent value="marketplace" className="space-y-6">
               <MarketplaceManager />
+            </TabsContent>
+
+            <TabsContent value="health" className="space-y-6">
+              <SystemHealth />
             </TabsContent>
           </Tabs>
         </div>

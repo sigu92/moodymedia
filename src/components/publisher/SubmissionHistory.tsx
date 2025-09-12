@@ -13,13 +13,15 @@ import {
   RefreshCw,
   MessageSquare,
   Calendar,
-  Eye
+  Eye,
+  Bell
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MediaOutlet, MediaOutletStatus } from "@/types";
 import { format } from "date-fns";
 import { SubmissionProgressIndicator } from "./SubmissionProgressIndicator";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface SubmissionHistoryProps {
   onViewDetails?: (submission: MediaOutlet) => void;
@@ -27,6 +29,7 @@ interface SubmissionHistoryProps {
 
 export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
   const { user } = useAuth();
+  const { notifications } = useNotifications();
   const [submissions, setSubmissions] = useState<MediaOutlet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -330,6 +333,37 @@ export function SubmissionHistory({ onViewDetails }: SubmissionHistoryProps) {
                       </AlertDescription>
                     </Alert>
                   )}
+                </div>
+              );
+            })()}
+
+            {/* Recent Notifications */}
+            {(() => {
+              const submissionNotifications = notifications
+                .filter(n => n.type === 'submission_status')
+                .slice(0, 3);
+
+              if (submissionNotifications.length === 0) return null;
+
+              return (
+                <div className="space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    Recent Status Updates
+                  </h4>
+                  <div className="space-y-2">
+                    {submissionNotifications.map((notification) => (
+                      <Alert key={notification.id} className="border-l-4 border-l-green-500">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <AlertDescription className="flex items-center justify-between">
+                          <span>{notification.message}</span>
+                          <span className="text-xs text-muted-foreground ml-4">
+                            {format(new Date(notification.created_at), 'MMM dd, HH:mm')}
+                          </span>
+                        </AlertDescription>
+                      </Alert>
+                    ))}
+                  </div>
                 </div>
               );
             })()}

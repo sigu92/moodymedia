@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { PendingApprovalsTab } from './PendingApprovalsTab';
 import { ProfitAnalyticsTab } from './ProfitAnalyticsTab';
+import { UserSummaryCard } from './UserSummaryCard';
 
 interface MediaOutlet {
   id: string;
@@ -51,21 +52,106 @@ interface SubmissionStats {
   total: number;
 }
 
+interface UserGroup {
+  userId: string;
+  email?: string;
+  name?: string;
+  pendingCount: number;
+  totalSubmissions: number;
+  lastSubmissionDate: string;
+}
+
 export function MarketplaceManager() {
   const [submissions, setSubmissions] = useState<MediaOutlet[]>([]);
+  const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<SubmissionStats>({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const { toast } = useToast();
 
   useEffect(() => {
-    loadSubmissions();
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    await Promise.all([loadUserGroups(), loadSubmissions()]);
+  };
+
+  const loadUserGroups = async () => {
+    try {
+      console.log('[MarketplaceManager] Loading user groups...');
+
+      // Query to group pending submissions by user and get user info
+      const { data, error } = await supabase
+        .from('media_outlets')
+        .select(`
+          submitted_by,
+          submitted_at
+        `)
+        .eq('status', 'pending')
+        .not('submitted_by', 'is', null)
+        .order('submitted_at', { ascending: false });
+
+      if (error) {
+        console.error('[MarketplaceManager] Error loading user groups:', error);
+        return;
+      }
+
+      // Group submissions by user and count them
+      const userGroupsMap = new Map<string, UserGroup>();
+
+      data?.forEach((submission) => {
+        const userId = submission.submitted_by;
+        if (!userId) return;
+
+        const existingGroup = userGroupsMap.get(userId);
+        if (existingGroup) {
+          existingGroup.pendingCount += 1;
+          existingGroup.totalSubmissions += 1;
+          // Update last submission date if this is newer
+          if (new Date(submission.submitted_at) > new Date(existingGroup.lastSubmissionDate)) {
+            existingGroup.lastSubmissionDate = submission.submitted_at;
+          }
+        } else {
+          // Use user ID as display name for now (could be enhanced later with user lookup)
+          const userName = `User ${userId.slice(0, 8)}`;
+
+          userGroupsMap.set(userId, {
+            userId,
+            name: userName,
+            pendingCount: 1,
+            totalSubmissions: 1,
+            lastSubmissionDate: submission.submitted_at
+          });
+        }
+      });
+
+      // Convert map to array and sort by pending count (descending)
+      const userGroupsArray = Array.from(userGroupsMap.values())
+        .sort((a, b) => b.pendingCount - a.pendingCount);
+
+      console.log('[MarketplaceManager] Loaded user groups:', userGroupsArray.length);
+      setUserGroups(userGroupsArray);
+
+    } catch (error) {
+      console.error('[MarketplaceManager] Error in loadUserGroups:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load user groups",
+        variant: "destructive"
+      });
+    }
+  };
 
   const loadSubmissions = async () => {
     try {
       setLoading(true);
+      console.log('[MarketplaceManager] Starting to load submissions...');
 
-      const { data, error } = await supabase
+      const { data: userData } = await supabase.auth.getUser();
+      console.log('[MarketplaceManager] Current user:', userData?.user?.id, userData?.user?.email);
+
+      let query = supabase
         .from('media_outlets')
         .select(`
           *,
@@ -81,7 +167,23 @@ export function MarketplaceManager() {
         .order('submitted_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      // Filter by selected user if one is selected
+      if (selectedUserId) {
+        query = query.eq('submitted_by', selectedUserId);
+      }
+
+      const { data, error } = await query;
+
+      console.log('[MarketplaceManager] Query result:', {
+        error,
+        dataCount: data?.length || 0,
+        data: data?.slice(0, 3) // Log first 3 items for debugging
+      });
+
+      if (error) {
+        console.error('[MarketplaceManager] Database error:', error);
+        throw error;
+      }
 
       setSubmissions(data || []);
 
@@ -91,6 +193,13 @@ export function MarketplaceManager() {
       const rejectedCount = data?.filter(s => s.status === 'rejected').length || 0;
       const totalCount = data?.length || 0;
 
+      console.log('[MarketplaceManager] Calculated stats:', {
+        pending: pendingCount,
+        active: activeCount,
+        rejected: rejectedCount,
+        total: totalCount
+      });
+
       setStats({
         pending: pendingCount,
         approved: activeCount,
@@ -98,16 +207,31 @@ export function MarketplaceManager() {
         total: totalCount
       });
 
+      console.log('[MarketplaceManager] Submissions loaded successfully');
+
     } catch (error) {
-      console.error('Error loading submissions:', error);
+      console.error('[MarketplaceManager] Error loading submissions:', error);
       toast({
         title: "Error",
-        description: "Failed to load marketplace submissions",
+        description: `Failed to load marketplace submissions: ${error.message}`,
         variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUserSelect = async (userId: string | null) => {
+    setSelectedUserId(userId);
+    // Reload submissions with the new filter
+    await loadSubmissions();
+  };
+
+  const handleSelectAllUserSubmissions = async (userId: string) => {
+    // This will be handled by the PendingApprovalsTab component
+    // For now, just select the user to show their submissions
+    await handleUserSelect(userId);
+    // TODO: Pass this to PendingApprovalsTab to auto-select all submissions
   };
 
   const getStatusIcon = (status: string) => {
@@ -148,7 +272,12 @@ export function MarketplaceManager() {
   };
 
   const renderPendingApprovals = () => (
-    <PendingApprovalsTab submissions={submissions} onRefresh={loadSubmissions} />
+    <PendingApprovalsTab
+      submissions={submissions}
+      onRefresh={loadData}
+      selectedUserId={selectedUserId}
+      onUserSelect={handleUserSelect}
+    />
   );
 
   const renderApprovedListings = () => (
@@ -281,6 +410,35 @@ export function MarketplaceManager() {
           </CardContent>
         </Card>
       </div>
+
+      {/* User Groups Summary */}
+      {userGroups.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">User Submissions</h3>
+            {selectedUserId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleUserSelect(null)}
+              >
+                Show All Users
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {userGroups.map((userGroup) => (
+              <UserSummaryCard
+                key={userGroup.userId}
+                userGroup={userGroup}
+                isSelected={selectedUserId === userGroup.userId}
+                onClick={() => handleUserSelect(userGroup.userId)}
+                onSelectAll={userGroup.pendingCount > 1 ? () => handleSelectAllUserSubmissions(userGroup.userId) : undefined}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Interface */}
       <Card className="glass-card-clean shadow-medium">

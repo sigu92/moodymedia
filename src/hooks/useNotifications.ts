@@ -30,6 +30,7 @@ export interface NotificationSettings {
   order_updates: boolean;
   marketing_emails: boolean;
   referral_updates: boolean;
+  submission_updates: boolean;
 }
 
 export const useNotifications = () => {
@@ -41,6 +42,7 @@ export const useNotifications = () => {
     order_updates: true,
     marketing_emails: false,
     referral_updates: true,
+    submission_updates: true,
   });
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);

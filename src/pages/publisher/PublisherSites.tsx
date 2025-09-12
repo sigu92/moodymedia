@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { SubmissionHistory } from "@/components/publisher/SubmissionHistory";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,6 @@ import { CSVImportModal } from "@/components/publisher/CSVImportModal";
 import { BulkEditModal } from "@/components/publisher/BulkEditModal";
 import { CreateSiteModal } from "@/components/publisher/CreateSiteModal";
 import { GoogleSheetsImportModal } from "@/components/publisher/GoogleSheetsImportModal";
-import { SubmissionHistory } from "@/components/publisher/SubmissionHistory";
 import { Progress } from "@/components/ui/progress";
 
 interface MediaOutletWithMetrics {
@@ -65,6 +66,7 @@ interface SiteOptimization {
 }
 
 export default function PublisherSites() {
+  const [searchParams] = useSearchParams();
   const [sites, setSites] = useState<MediaOutletWithMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSites, setSelectedSites] = useState<string[]>([]);
@@ -424,7 +426,7 @@ export default function PublisherSites() {
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Import Google Sheets
             </Button>
-            <Button 
+            <Button
               onClick={() => setShowCreateSite(true)}
               className="glass-button-primary shadow-glass"
             >
@@ -434,7 +436,7 @@ export default function PublisherSites() {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue={searchParams.get('tab') || 'overview'} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="management">Site Management</TabsTrigger>
