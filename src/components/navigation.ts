@@ -69,40 +69,76 @@ export const getNavigationItems = (userRole: string | null, userRoles?: string[]
   return buyerItems;
 };
 
-// New function to get navigation items for dual-role users
-export const getDualRoleNavigationItems = (currentRole: string | null, userRoles?: string[]): NavigationItem[] => {
-  // Only return dual navigation if user has both buyer and publisher roles
-  if (!userRoles?.includes('buyer') || !userRoles?.includes('publisher')) {
-    // Fall back to regular navigation
+// Context-aware navigation for dual-role users
+// Shows navigation based on current route context, not currentRole
+export const getContextAwareNavigation = (currentRole: string | null, userRoles?: string[], currentPath?: string): NavigationItem[] => {
+  // If user doesn't have dual roles, use standard navigation
+  const hasDualRoles = userRoles?.includes('buyer') && userRoles?.includes('publisher');
+  if (!hasDualRoles) {
     return getNavigationItems(currentRole, userRoles);
   }
 
-  // For dual-role users, combine both buyer and publisher navigation items
-  // Remove duplicates and prioritize based on current role
-  const allItems = [...buyerItems, ...publisherItems];
+  // Define route contexts - determine navigation based on current page location
+  const buyerRoutes = ['/marketplace', '/cart', '/orders', '/transactions'];
+  const publisherRoutes = ['/publisher', '/dashboard/publisher', '/publisher/orders', '/publisher/sites'];
 
-  // Remove duplicate items (Dashboard, Settings, etc.)
-  const uniqueItems = allItems.filter((item, index, self) =>
-    index === self.findIndex(t => t.title === item.title && t.url === item.url)
-  );
+  // Special handling for dashboard - show based on currentRole context
+  const isDashboard = currentPath === '/dashboard' || currentPath === '/';
+  const isPublisherDashboard = currentPath === '/dashboard/publisher';
 
-  // For dual-role users, we want to show both marketplace and order management
-  // But keep only one dashboard and settings
-  return uniqueItems.map(item => {
-    // If it's dashboard, show based on current role context
-    if (item.title === 'Dashboard') {
-      return currentRole === 'publisher'
-        ? { ...item, title: 'Publisher Dashboard', url: '/dashboard/publisher' }
-        : { ...item, title: 'Marketplace Dashboard', url: '/dashboard/marketplace' };
-    }
+  // Determine context based on current path
+  const isOnBuyerRoute = buyerRoutes.some(route => currentPath?.startsWith(route));
+  const isOnPublisherRoute = publisherRoutes.some(route => currentPath?.startsWith(route)) || isPublisherDashboard;
 
-    // If it's order-related, show appropriate one based on current role
-    if (item.title === 'Orders' || item.title === 'Order Management') {
-      return currentRole === 'publisher'
-        ? { title: 'Order Management', url: '/publisher/orders', icon: item.icon }
-        : { title: 'Orders', url: '/orders', icon: item.icon };
-    }
+  // For dashboard pages, use currentRole to determine context
+  if (isDashboard && currentRole === 'publisher') {
+    return publisherItems.map(item => ({
+      ...item,
+      title: item.title === 'Dashboard' ? 'Publisher Dashboard' : item.title
+    }));
+  }
 
-    return item;
-  });
+  if (isDashboard && currentRole !== 'publisher') {
+    return buyerItems.map(item => ({
+      ...item,
+      title: item.title === 'Dashboard' ? 'Marketplace Dashboard' : item.title
+    }));
+  }
+
+  // For specific routes, show context-appropriate navigation
+  if (isOnPublisherRoute) {
+    return publisherItems.map(item => ({
+      ...item,
+      title: item.title === 'Dashboard' ? 'Publisher Dashboard' : item.title
+    }));
+  }
+
+  if (isOnBuyerRoute) {
+    return buyerItems.map(item => ({
+      ...item,
+      title: item.title === 'Dashboard' ? 'Marketplace Dashboard' : item.title
+    }));
+  }
+
+  // Default: use currentRole for navigation
+  if (currentRole === 'publisher') {
+    return publisherItems.map(item => ({
+      ...item,
+      title: item.title === 'Dashboard' ? 'Publisher Dashboard' : item.title
+    }));
+  }
+
+  // Default to buyer navigation
+  return buyerItems.map(item => ({
+    ...item,
+    title: item.title === 'Dashboard' ? 'Marketplace Dashboard' : item.title
+  }));
+};
+
+// Legacy function - kept for backward compatibility but should not be used
+// TODO: Remove this function after confirming new navigation works
+export const getDualRoleNavigationItems = (currentRole: string | null, userRoles?: string[]): NavigationItem[] => {
+  // This function is deprecated - use getContextAwareNavigation instead
+  console.warn('getDualRoleNavigationItems is deprecated - use getContextAwareNavigation');
+  return getContextAwareNavigation(currentRole, userRoles);
 };
