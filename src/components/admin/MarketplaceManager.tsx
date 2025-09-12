@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { PendingApprovalsTab } from './PendingApprovalsTab';
 
 interface MediaOutlet {
   id: string;
@@ -146,29 +147,7 @@ export function MarketplaceManager() {
   };
 
   const renderPendingApprovals = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-yellow-500" />
-            Pending Approvals ({stats.pending})
-          </CardTitle>
-          <CardDescription>
-            Review and approve publisher website submissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Pending Approvals Tab</h3>
-            <p className="text-muted-foreground">
-              This tab will contain the approval workflow interface.
-              Implementation will be completed in task 4.2.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <PendingApprovalsTab submissions={submissions} onRefresh={loadSubmissions} />
   );
 
   const renderApprovedListings = () => (
