@@ -78,7 +78,7 @@ serve(async (req) => {
 
     // Check if user is platform admin
     const { data: isAdmin, error: adminError } = await supabase
-      .rpc('is_platform_admin');
+      .rpc('is_platform_admin', { _user_id: user.id });
 
     if (adminError || !isAdmin) {
       logStep('Admin check failed', { isAdmin, adminError });
@@ -98,17 +98,70 @@ serve(async (req) => {
     const body = await req.json();
     const { source, source_url, data, mapping, dry_run = false, admin_tags = [] } = body;
 
-    logStep('Import parameters', { source, source_url, data_length: data?.length, mapping, dry_run, admin_tags });
+    logStep('Import parameters received', {
+      source,
+      source_url,
+      data_length: data?.length,
+      mapping,
+      dry_run,
+      admin_tags,
+      admin_tags_type: Array.isArray(admin_tags) ? 'array' : typeof admin_tags
+    });
 
-    if (!source || !data || !mapping) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
+    // Validate required parameters
+    if (!source) {
+      logStep('Validation error: missing source');
+      return new Response(JSON.stringify({ error: 'Missing required parameter: source' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!data || !Array.isArray(data)) {
+      logStep('Validation error: missing or invalid data', { data_type: typeof data, is_array: Array.isArray(data) });
+      return new Response(JSON.stringify({ error: 'Missing required parameter: data (must be array)' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!mapping || typeof mapping !== 'object') {
+      logStep('Validation error: missing or invalid mapping', { mapping_type: typeof mapping });
+      return new Response(JSON.stringify({ error: 'Missing required parameter: mapping (must be object)' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Check data size limits (prevent memory issues with extremely large imports)
+    if (data.length > 5000) {
+      logStep('Data size limit exceeded', { data_length: data.length });
+      return new Response(JSON.stringify({ error: 'Import too large. Maximum 5000 rows allowed per batch.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (data.length === 0) {
+      logStep('Empty data array');
+      return new Response(JSON.stringify({ error: 'No data to import' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     if (!['csv', 'xlsx', 'google_sheet'].includes(source)) {
-      return new Response(JSON.stringify({ error: 'Invalid source type' }), {
+      logStep('Invalid source type', { source });
+      return new Response(JSON.stringify({ error: 'Invalid source type. Must be: csv, xlsx, or google_sheet' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Validate admin_tags format
+    if (!Array.isArray(admin_tags)) {
+      logStep('Invalid admin_tags format', { admin_tags, admin_tags_type: typeof admin_tags });
+      return new Response(JSON.stringify({ error: 'admin_tags must be an array' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -137,123 +190,189 @@ serve(async (req) => {
       (existingOutlets || []).map(outlet => normalizeDomain(outlet.domain))
     );
 
+    // Process rows in batches to handle large datasets efficiently
+    const BATCH_SIZE = 100; // Process 100 rows at a time
+    const totalRows = data.length;
+
+    logStep('Starting import processing', { total_rows: totalRows, batch_size: BATCH_SIZE });
+
     // Validate and prepare rows
-    for (const [index, row] of data.entries()) {
-      const rowResult = {
-        row_number: index + 1,
-        data: row,
-        errors: [],
-        action: 'skip',
-        outlet_id: null
-      };
+    for (let batchStart = 0; batchStart < totalRows; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalRows);
+      const batchData = data.slice(batchStart, batchEnd);
 
-      // Validate row
-      const validationErrors = validateRow(row, mapping);
-      if (validationErrors.length > 0) {
-        rowResult.errors = validationErrors;
-        rowResult.action = 'error';
-        failed++;
-        results.push(rowResult);
-        continue;
-      }
+      logStep(`Processing batch ${Math.floor(batchStart/BATCH_SIZE) + 1}`, {
+        batch_start: batchStart,
+        batch_end: batchEnd,
+        batch_size: batchData.length
+      });
 
-      const normalizedDomain = normalizeDomain(row[mapping.domain]);
-      
-      // Check for duplicates
-      if (existingDomains.has(normalizedDomain)) {
-        rowResult.errors.push('Domain already exists');
-        rowResult.action = 'duplicate';
-        failed++;
-        results.push(rowResult);
-        continue;
-      }
+      for (const [index, row] of batchData.entries()) {
+        const globalIndex = batchStart + index;
+        const rowResult = {
+          row_number: globalIndex + 1,
+          data: row,
+          errors: [],
+          action: 'skip',
+          outlet_id: null
+        };
 
-      // Prepare outlet data
-      const outletData = {
-        domain: normalizedDomain,
-        price: mapping.price ? Number(row[mapping.price]) : 100,
-        currency: mapping.currency ? row[mapping.currency] : 'EUR',
-        country: mapping.country ? row[mapping.country] : 'SE',
-        language: mapping.language ? row[mapping.language] : 'Swedish',
-        category: mapping.category ? row[mapping.category] : 'General',
-        admin_tags: admin_tags.length > 0 ? admin_tags : [],
-        source: source,
-        publisher_id: user.id, // Admin becomes the publisher for imported sites
-        is_active: true
-      };
+        try {
+          // Validate row
+          const validationErrors = validateRow(row, mapping);
+          if (validationErrors.length > 0) {
+            rowResult.errors = validationErrors;
+            rowResult.action = 'error';
+            failed++;
+            results.push(rowResult);
+            continue;
+          }
 
-      if (mapping.title && row[mapping.title]) {
-        outletData.domain = `${normalizedDomain} (${row[mapping.title]})`;
-      }
+          const normalizedDomain = normalizeDomain(row[mapping.domain]);
 
-      rowResult.data = outletData;
-      rowResult.action = 'insert';
+          // Check for duplicates
+          if (existingDomains.has(normalizedDomain)) {
+            rowResult.errors.push('Domain already exists');
+            rowResult.action = 'duplicate';
+            failed++;
+            results.push(rowResult);
+            continue;
+          }
 
-      if (!dry_run) {
-        // Insert media outlet
-        const { data: insertedOutlet, error: insertError } = await supabase
-          .from('media_outlets')
-          .insert(outletData)
-          .select('id')
-          .single();
+          // Prepare outlet data
+          const outletData = {
+            domain: normalizedDomain,
+            price: mapping.price ? Number(row[mapping.price]) : 100,
+            currency: mapping.currency ? row[mapping.currency] : 'EUR',
+            country: mapping.country ? row[mapping.country] : 'SE',
+            language: mapping.language ? row[mapping.language] : 'Swedish',
+            category: mapping.category ? row[mapping.category] : 'General',
+            admin_tags: admin_tags.length > 0 ? admin_tags : [],
+            source: source,
+            publisher_id: user.id, // Admin becomes the publisher for imported sites
+            is_active: true
+          };
 
-        if (insertError) {
-          logStep('Insert error', insertError);
-          rowResult.errors.push(`Insert failed: ${insertError.message}`);
+          if (mapping.title && row[mapping.title]) {
+            outletData.domain = `${normalizedDomain} (${row[mapping.title]})`;
+          }
+
+          rowResult.data = outletData;
+          rowResult.action = 'insert';
+
+          if (!dry_run) {
+            // Insert media outlet
+            const { data: insertedOutlet, error: insertError } = await supabase
+              .from('media_outlets')
+              .insert(outletData)
+              .select('id')
+              .single();
+
+            if (insertError) {
+              logStep('Insert error for row ' + (globalIndex + 1), {
+                error: insertError,
+                domain: normalizedDomain,
+                outlet_data: outletData
+              });
+              rowResult.errors.push(`Insert failed: ${insertError.message}`);
+              rowResult.action = 'error';
+              failed++;
+            } else {
+              rowResult.outlet_id = insertedOutlet.id;
+              succeeded++;
+
+              // Add to existing domains to prevent duplicates in same batch
+              existingDomains.add(normalizedDomain);
+
+              // Create default metrics
+              const { error: metricsError } = await supabase
+                .from('metrics')
+                .insert({
+                  media_outlet_id: insertedOutlet.id,
+                  ahrefs_dr: mapping.ahrefs_dr ? Number(row[mapping.ahrefs_dr]) || 0 : 0,
+                  moz_da: mapping.moz_da ? Number(row[mapping.moz_da]) || 0 : 0,
+                  semrush_as: mapping.semrush_as ? Number(row[mapping.semrush_as]) || 0 : 0,
+                  spam_score: mapping.spam_score ? Number(row[mapping.spam_score]) || 0 : 0,
+                  organic_traffic: mapping.organic_traffic ? Number(row[mapping.organic_traffic]) || 0 : 0,
+                  referring_domains: mapping.referring_domains ? Number(row[mapping.referring_domains]) || 0 : 0
+                });
+
+              if (metricsError) {
+                logStep('Metrics insert error for row ' + (globalIndex + 1), {
+                  error: metricsError,
+                  outlet_id: insertedOutlet.id
+                });
+                // Don't fail the whole import for metrics errors, just log it
+              }
+            }
+          } else {
+            // Dry run - just mark as would be inserted
+            succeeded++;
+          }
+        } catch (rowError) {
+          logStep('Unexpected error processing row ' + (globalIndex + 1), {
+            error: rowError,
+            row_data: row
+          });
+          rowResult.errors.push(`Processing error: ${rowError.message}`);
           rowResult.action = 'error';
           failed++;
-        } else {
-          rowResult.outlet_id = insertedOutlet.id;
-          succeeded++;
-          
-          // Add to existing domains to prevent duplicates in same batch
-          existingDomains.add(normalizedDomain);
-
-          // Create default metrics
-          await supabase
-            .from('metrics')
-            .insert({
-              media_outlet_id: insertedOutlet.id,
-              ahrefs_dr: 0,
-              moz_da: 0,
-              semrush_as: 0,
-              spam_score: 0,
-              organic_traffic: 0,
-              referring_domains: 0
-            });
         }
-      } else {
-        // Dry run - just mark as would be inserted
-        succeeded++;
+
+        results.push(rowResult);
       }
 
-      results.push(rowResult);
+      // Add small delay between batches to prevent overwhelming the database
+      if (batchEnd < totalRows) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
 
     // Create import record if not dry run
     if (!dry_run) {
-      const importRecord = {
-        batch_id: batchId,
-        source,
-        source_url,
-        created_by: user.id,
-        row_count: data.length,
-        succeeded,
-        failed,
-        log_data: {
-          mapping,
-          admin_tags,
-          results: results.slice(0, 100) // Store first 100 results in log
+      try {
+        // Store only error results and summary in log_data to avoid size limits
+        const errorResults = results.filter(r => r.errors.length > 0);
+        const successfulCount = results.filter(r => r.action === 'insert' && r.errors.length === 0).length;
+
+        const importRecord = {
+          batch_id: batchId,
+          source,
+          source_url,
+          created_by: user.id,
+          row_count: data.length,
+          succeeded: successfulCount,
+          failed: results.filter(r => r.errors.length > 0).length,
+          log_data: {
+            mapping,
+            admin_tags,
+            total_processed: results.length,
+            errors_summary: errorResults.slice(0, 50).map(r => ({
+              row: r.row_number,
+              domain: r.data?.domain || 'unknown',
+              errors: r.errors
+            })),
+            performance: {
+              total_rows: data.length,
+              batch_size: BATCH_SIZE,
+              batches_processed: Math.ceil(data.length / BATCH_SIZE)
+            }
+          }
+        };
+
+        const { error: importError } = await supabase
+          .from('imports')
+          .insert(importRecord);
+
+        if (importError) {
+          logStep('Import record creation failed', importError);
+          // Don't fail the entire request for logging errors
+        } else {
+          logStep('Import record created successfully', { batch_id: batchId });
         }
-      };
-
-      const { error: importError } = await supabase
-        .from('imports')
-        .insert(importRecord);
-
-      if (importError) {
-        logStep('Import record error', importError);
-        // Don't fail the request for import record errors
+      } catch (logError) {
+        logStep('Import record creation error', logError);
+        // Continue with response even if logging fails
       }
     }
 
