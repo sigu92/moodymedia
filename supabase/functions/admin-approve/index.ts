@@ -259,6 +259,46 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Create notification for the publisher about status change
+    try {
+      const notificationData = {
+        user_id: currentSubmission.publisher_id,
+        type: 'submission_status',
+        title: approvalData.action === 'approve'
+          ? `Website Approved: ${currentSubmission.domain}`
+          : `Submission Rejected: ${currentSubmission.domain}`,
+        message: approvalData.action === 'approve'
+          ? `Great news! Your website ${currentSubmission.domain} has been approved and is now live on the marketplace.`
+          : `Your submission for ${currentSubmission.domain} was not approved. Please review the admin feedback and resubmit.`,
+        data: {
+          submission_id: approvalData.submission_id,
+          domain: currentSubmission.domain,
+          action: approvalData.action,
+          marketplace_price: approvalData.marketplace_price,
+          review_notes: approvalData.review_notes,
+          reviewed_at: new Date().toISOString()
+        }
+      };
+
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert(notificationData);
+
+      if (notificationError) {
+        logStep('Notification creation error', { error: notificationError });
+        // Don't fail the operation for notification errors, but log it
+      } else {
+        logStep('Notification created successfully', {
+          userId: currentSubmission.publisher_id,
+          type: notificationData.type,
+          title: notificationData.title
+        });
+      }
+    } catch (notificationException) {
+      logStep('Notification creation exception', { error: notificationException.message });
+      // Continue with success response even if notification creation fails
+    }
+
     // Log the action to audit_log
     try {
       const auditData = {

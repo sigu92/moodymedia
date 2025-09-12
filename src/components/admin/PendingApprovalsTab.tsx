@@ -26,6 +26,96 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { ProfitMarginCell } from './ProfitMarginDisplay';
+import { BulkActionsBar } from './BulkActionsBar';
+import { useBulkOperations } from '@/hooks/useBulkOperations';
+import { MarginControls } from './MarginControls';
+import { BulkOperationErrorBoundary } from './BulkOperationErrorBoundary';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Calculator } from 'lucide-react';
+
+// Bulk Margin Summary Component
+function BulkMarginSummary({
+  selectedSubmissions,
+  allSubmissions
+}: {
+  selectedSubmissions: string[];
+  allSubmissions: MediaOutlet[];
+}) {
+  const selectedData = allSubmissions.filter(s => selectedSubmissions.includes(s.id));
+
+  const totals = selectedData.reduce(
+    (acc, submission) => {
+      const costPrice = submission.purchase_price || 0;
+      const sellingPrice = submission.price || costPrice;
+
+      return {
+        totalCost: acc.totalCost + costPrice,
+        totalRevenue: acc.totalRevenue + sellingPrice,
+        totalProfit: acc.totalProfit + (sellingPrice - costPrice),
+        count: acc.count + 1
+      };
+    },
+    { totalCost: 0, totalRevenue: 0, totalProfit: 0, count: 0 }
+  );
+
+  const avgMargin = totals.totalCost > 0 ? (totals.totalProfit / totals.totalCost) * 100 : 0;
+
+  const getMarginCategory = (margin: number) => {
+    if (margin < 0) return 'loss';
+    if (margin >= 100) return 'excellent';
+    if (margin >= 50) return 'good';
+    if (margin >= 20) return 'fair';
+    return 'poor';
+  };
+
+  const category = getMarginCategory(avgMargin);
+  const categoryColors = {
+    excellent: 'text-green-600 bg-green-50 border-green-200',
+    good: 'text-blue-600 bg-blue-50 border-blue-200',
+    fair: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+    poor: 'text-orange-600 bg-orange-50 border-orange-200',
+    loss: 'text-red-600 bg-red-50 border-red-200'
+  };
+
+  return (
+    <div className="mb-4 p-3 rounded-lg border bg-muted/30">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div>
+          <div className="text-muted-foreground">Total Cost</div>
+          <div className="font-semibold">€{totals.totalCost.toFixed(0)}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Total Revenue</div>
+          <div className="font-semibold">€{totals.totalRevenue.toFixed(0)}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Total Profit</div>
+          <div className={`font-semibold ${totals.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            €{totals.totalProfit.toFixed(0)}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Avg Margin</div>
+          <div className={`font-semibold px-2 py-1 rounded border text-xs ${categoryColors[category as keyof typeof categoryColors]}`}>
+            {avgMargin.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface MediaOutlet {
   id: string;
@@ -57,14 +147,23 @@ interface MediaOutlet {
 interface PendingApprovalsTabProps {
   submissions: MediaOutlet[];
   onRefresh: () => void;
+  selectedUserId?: string | null;
+  onUserSelect?: (userId: string | null) => void;
 }
 
-export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovalsTabProps) {
+export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, onUserSelect }: PendingApprovalsTabProps) {
   const [pendingSubmissions, setPendingSubmissions] = useState<MediaOutlet[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'submitted_at' | 'domain' | 'price' | 'ahrefs_dr'>('submitted_at');
+
+  // Bulk operations
+  const bulkOps = useBulkOperations();
+  const [showMarginDialog, setShowMarginDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmPrice, setConfirmPrice] = useState<number>(0);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedSubmission, setSelectedSubmission] = useState<MediaOutlet | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -105,6 +204,73 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
   const clearSelection = () => {
     setSelectedSubmissions([]);
     setShowBulkActions(false);
+  };
+
+  // Bulk margin application
+  const handleApplyMargins = () => {
+    setShowMarginDialog(true);
+  };
+
+  const handleMarginApplied = async (marginCalculation: any) => {
+    // Apply the margin to all selected submissions
+    const success = await bulkOps.applyMarginsToSelection(
+      selectedSubmissions,
+      { type: 'fixed', value: marginCalculation.marginAmount }, // This could be improved to detect margin type
+      (completed, total) => {
+        console.log(`Applied margins to ${completed}/${total} submissions`);
+      }
+    );
+
+    if (success) {
+      setShowMarginDialog(false);
+      onRefresh(); // Refresh the data
+    }
+  };
+
+  // Updated bulk approve with confirmation
+  const handleBulkApprove = () => {
+    setConfirmAction('approve');
+    setConfirmPrice(100); // Default price
+    setShowConfirmDialog(true);
+  };
+
+  // Updated bulk reject with confirmation
+  const handleBulkReject = () => {
+    setConfirmAction('reject');
+    setShowConfirmDialog(true);
+  };
+
+  // Execute confirmed bulk action
+  const executeConfirmedBulkAction = async () => {
+    if (!confirmAction) return;
+
+    setShowConfirmDialog(false);
+    let success = false;
+
+    if (confirmAction === 'approve') {
+      success = await bulkOps.approveBulk(
+        selectedSubmissions,
+        confirmPrice,
+        reviewNotes,
+        (completed, total) => {
+          console.log(`Approved ${completed}/${total} submissions`);
+        }
+      );
+    } else if (confirmAction === 'reject') {
+      success = await bulkOps.rejectBulk(
+        selectedSubmissions,
+        reviewNotes,
+        (completed, total) => {
+          console.log(`Rejected ${completed}/${total} submissions`);
+        }
+      );
+    }
+
+    if (success) {
+      clearSelection();
+      // Refresh data after a short delay to ensure backend operations complete
+      setTimeout(() => onRefresh(), 1000);
+    }
   };
 
   const filteredAndSortedSubmissions = pendingSubmissions
@@ -519,6 +685,7 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
                   <TableHead>Domain</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Asking Price</TableHead>
+                  <TableHead>Profit Margin</TableHead>
                   <TableHead>DR</TableHead>
                   <TableHead>Traffic</TableHead>
                   <TableHead>Submitted</TableHead>
@@ -553,6 +720,16 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
                           €{submission.purchase_price || 'N/A'}
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {submission.purchase_price ? (
+                        <ProfitMarginCell
+                          costPrice={submission.purchase_price}
+                          sellingPrice={submission.price || submission.purchase_price}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-sm">N/A</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -664,44 +841,124 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
 
   return (
     <div className="space-y-6">
-      {/* Bulk Actions Bar */}
-      {showBulkActions && (
-        <Card className="border-primary/30 ring-2 ring-primary/20 animate-fade-in">
+      {/* Fixed Bulk Actions Bar with Error Boundary */}
+      <BulkOperationErrorBoundary
+        operationName="bulk approval workflow"
+        onRetry={() => {
+          // Clear any failed state and allow retry
+          bulkOps.clearResults();
+        }}
+      >
+        <BulkActionsBar
+          selectedCount={selectedSubmissions.length}
+          selectedSubmissions={selectedSubmissions}
+          allSubmissions={filteredAndSortedSubmissions}
+          onBulkApprove={handleBulkApprove}
+          onBulkReject={handleBulkReject}
+          onApplyMargins={handleApplyMargins}
+          onClearSelection={clearSelection}
+          loading={loading || bulkOps.isProcessing}
+        />
+      </BulkOperationErrorBoundary>
+
+      {/* Enhanced Progress indicator for bulk operations */}
+      {bulkOps.isProcessing && (
+        <Card>
           <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">
-                  {selectedSubmissions.length} submission{selectedSubmissions.length !== 1 ? 's' : ''} selected
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleBulkApprove}
-                    className="bg-green-600 hover:bg-green-700"
-                    disabled={loading}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Bulk Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={handleBulkReject}
-                    disabled={loading}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Bulk Reject
-                  </Button>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Bulk Operation in Progress</h4>
+                <Badge variant="secondary" className="text-xs">
+                  {bulkOps.progress.completed}/{bulkOps.progress.total}
+                </Badge>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{bulkOps.progress.currentOperation}</span>
+                  <span>{Math.round((bulkOps.progress.completed / bulkOps.progress.total) * 100)}%</span>
+                </div>
+                <Progress
+                  value={(bulkOps.progress.completed / bulkOps.progress.total) * 100}
+                  className="w-full h-2"
+                />
+              </div>
+
+              {/* Estimated time remaining (simple calculation) */}
+              {bulkOps.progress.completed > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Processing at ~{Math.round(bulkOps.progress.completed / Math.max(1, (Date.now() - Date.now() + 1000) / 1000))} items/sec
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Operation Results Summary */}
+      {bulkOps.results.length > 0 && !bulkOps.isProcessing && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Operation Results</h4>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={bulkOps.clearResults}
+                  className="text-xs"
+                >
+                  Clear
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {bulkOps.results.filter(r => r.success).length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Successful</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {bulkOps.results.filter(r => !r.success).length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Failed</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {bulkOps.results.length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Total</div>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearSelection}
-                disabled={loading}
-              >
-                Clear Selection
-              </Button>
+
+              {/* Show errors if any */}
+              {bulkOps.results.some(r => r.error) && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="text-sm">
+                      <strong>Errors occurred:</strong>
+                      <ul className="mt-2 space-y-1">
+                        {bulkOps.results
+                          .filter(r => r.error)
+                          .slice(0, 3) // Show first 3 errors
+                          .map((result, index) => (
+                            <li key={index} className="text-xs">
+                              {result.submissionId.slice(0, 8)}...: {result.error}
+                            </li>
+                          ))}
+                        {bulkOps.results.filter(r => r.error).length > 3 && (
+                          <li className="text-xs text-muted-foreground">
+                            ...and {bulkOps.results.filter(r => r.error).length - 3} more
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -847,6 +1104,24 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
                   </div>
                 </div>
 
+                {/* Margin Controls */}
+                {selectedSubmission.purchase_price && (
+                  <div className="border rounded-lg p-4 bg-muted/30">
+                    <h5 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <Calculator className="h-4 w-4" />
+                      Quick Margin Calculator
+                    </h5>
+                    <MarginControls
+                      askingPrice={selectedSubmission.purchase_price}
+                      onMarginApplied={(calculation) => {
+                        setMarketplacePrice(calculation.marketplacePrice);
+                      }}
+                      currentMarketplacePrice={marketplacePrice}
+                      disabled={loading}
+                    />
+                  </div>
+                )}
+
                 {selectedSubmission.purchase_price && marketplacePrice > 0 && (
                   <Alert>
                     <BarChart3 className="h-4 w-4" />
@@ -878,6 +1153,7 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
                 <Button
                   variant="outline"
                   onClick={() => setShowReviewModal(false)}
+                  disabled={loading}
                 >
                   Cancel
                 </Button>
@@ -892,9 +1168,18 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
                 <Button
                   onClick={() => handleApprove(selectedSubmission)}
                   disabled={loading || marketplacePrice <= 0}
+                  variant="outline"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Approve
+                </Button>
+                <Button
+                  onClick={() => handleApprove(selectedSubmission)}
+                  disabled={loading || marketplacePrice <= 0}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Calculator className="h-4 w-4 mr-1" />
+                  Apply & Approve
                 </Button>
               </DialogFooter>
             </div>
@@ -964,6 +1249,123 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
               disabled={loading || (bulkAction === 'approve' && bulkPrice <= 0) || (bulkAction === 'reject' && !reviewNotes.trim())}
             >
               {loading ? 'Processing...' : bulkAction === 'approve' ? 'Approve All' : 'Reject All'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Margin Application Dialog */}
+      <Dialog open={showMarginDialog} onOpenChange={setShowMarginDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Apply Margins to {selectedSubmissions.length} Submissions
+            </DialogTitle>
+            <DialogDescription>
+              Set profit margins for all selected submissions. The margin will be added to each publisher's asking price.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <MarginControls
+              askingPrice={100} // This is just for display, actual prices will be calculated per submission
+              onMarginApplied={handleMarginApplied}
+              disabled={bulkOps.isProcessing}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowMarginDialog(false)}
+              disabled={bulkOps.isProcessing}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Action Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction === 'approve' ? 'Bulk Approve Submissions' : 'Bulk Reject Submissions'}
+            </DialogTitle>
+            <DialogDescription>
+              This will {confirmAction === 'approve' ? 'approve' : 'reject'} {selectedSubmissions.length} submissions.
+              {confirmAction === 'approve' && ' All submissions will be set to the specified marketplace price.'}
+              {confirmAction === 'reject' && ' All publishers will receive the rejection feedback.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {confirmAction === 'approve' && (
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="confirm-price">Marketplace Price (€)</Label>
+                <Input
+                  id="confirm-price"
+                  type="number"
+                  value={confirmPrice}
+                  onChange={(e) => setConfirmPrice(Number(e.target.value))}
+                  placeholder="Enter marketplace price"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="bulk-notes">
+              {confirmAction === 'approve' ? 'Approval Notes (Optional)' : 'Rejection Reason (Required)'}
+            </Label>
+            <Textarea
+              id="bulk-notes"
+              value={reviewNotes}
+              onChange={(e) => setReviewNotes(e.target.value)}
+              placeholder={
+                confirmAction === 'approve'
+                  ? "Optional notes about the approval decision..."
+                  : "Please provide feedback explaining the rejection..."
+              }
+              rows={3}
+            />
+          </div>
+
+          {/* Summary of affected submissions */}
+          <Alert>
+            <AlertDescription>
+              <div className="text-sm">
+                <strong>Summary:</strong>
+                <ul className="mt-2 space-y-1">
+                  <li>• {selectedSubmissions.length} submissions will be {confirmAction === 'approve' ? 'approved' : 'rejected'}</li>
+                  {confirmAction === 'approve' && <li>• Marketplace price will be set to €{confirmPrice}</li>}
+                  {confirmAction === 'reject' && <li>• Publishers will receive rejection feedback</li>}
+                </ul>
+              </div>
+            </AlertDescription>
+          </Alert>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={bulkOps.isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={executeConfirmedBulkAction}
+              disabled={
+                bulkOps.isProcessing ||
+                (confirmAction === 'reject' && !reviewNotes.trim())
+              }
+              variant={confirmAction === 'approve' ? 'default' : 'destructive'}
+            >
+              {bulkOps.isProcessing ? 'Processing...' : `Confirm ${confirmAction === 'approve' ? 'Approval' : 'Rejection'}`}
             </Button>
           </DialogFooter>
         </DialogContent>

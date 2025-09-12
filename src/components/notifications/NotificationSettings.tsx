@@ -49,6 +49,12 @@ export const NotificationSettings = () => {
       icon: <Gift className="h-4 w-4" />,
     },
     {
+      key: 'submission_updates' as const,
+      title: 'Submission Status Updates',
+      description: 'Get notified when your website submissions are approved or rejected',
+      icon: <Megaphone className="h-4 w-4" />,
+    },
+    {
       key: 'marketing_emails' as const,
       title: 'Marketing Emails',
       description: 'Receive promotional emails and updates',

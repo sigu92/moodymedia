@@ -40,6 +40,8 @@ export const NotificationCenter = () => {
     switch (type) {
       case 'order_update':
         return <Package className="h-4 w-4 text-blue-600" />;
+      case 'submission_status':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'referral_signup':
       case 'referral_reward':
         return <Gift className="h-4 w-4 text-green-600" />;

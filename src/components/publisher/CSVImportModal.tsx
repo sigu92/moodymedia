@@ -6,12 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Upload, 
-  Download, 
-  FileSpreadsheet, 
-  CheckCircle, 
-  AlertTriangle, 
+import {
+  Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle,
+  AlertTriangle,
   X,
   Save,
   RefreshCw,
@@ -21,6 +21,170 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Helper function for direct batch import (no edge functions)
+const performDirectBatchImport = async (rows: any[], source: string, userId: string) => {
+  const results = {
+    succeeded: 0,
+    failed: 0,
+    skipped: 0,
+    results: [] as any[]
+  };
+
+  console.log(`[DirectBatchImport] Starting ${source} import for user ${userId}, ${rows.length} rows`);
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 1;
+
+    try {
+      // Normalize domain
+      const normalizedDomain = row.domain
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .toLowerCase()
+        .trim();
+
+      // Check for duplicate domain
+      const { data: existingOutlet } = await supabase
+        .from('media_outlets')
+        .select('id, domain, status, publisher_id')
+        .eq('domain', normalizedDomain)
+        .single();
+
+      if (existingOutlet) {
+        results.results.push({
+          row: rowNumber,
+          domain: normalizedDomain,
+          success: false,
+          error: 'Domain already exists',
+          skipped: true
+        });
+        results.skipped++;
+        continue;
+      }
+
+      // Prepare outlet data
+      const outletData = {
+        domain: normalizedDomain,
+        price: parseFloat(row.price) || 0,
+        purchase_price: row.purchase_price ? parseFloat(row.purchase_price) : null,
+        currency: row.currency || 'EUR',
+        country: row.country?.trim() || '',
+        language: row.language?.trim() || '',
+        category: row.category?.trim() || '',
+        niches: Array.isArray(row.niches)
+          ? row.niches.map((n: string) => n.trim()).filter(Boolean)
+          : (row.niches ? row.niches.split(',').map((n: string) => n.trim()).filter(Boolean) : []),
+        guidelines: row.guidelines?.trim() || null,
+        lead_time_days: row.lead_time_days ? parseInt(row.lead_time_days.toString()) : 7,
+        accepts_no_license: row.accepts_no_license === 'yes' || row.accepts_no_license === true,
+        accepts_no_license_status: ['yes', 'no', 'depends'].includes((row.accepts_no_license_status || '').toString().toLowerCase())
+          ? (row.accepts_no_license_status || '').toString().toLowerCase()
+          : 'no',
+        sponsor_tag_status: ['yes', 'no'].includes((row.sponsor_tag_status || '').toString().toLowerCase())
+          ? (row.sponsor_tag_status || '').toString().toLowerCase()
+          : 'no',
+        sponsor_tag_type: ['text', 'image'].includes((row.sponsor_tag_type || '').toString().toLowerCase())
+          ? (row.sponsor_tag_type || '').toString().toLowerCase()
+          : 'text',
+        source: source,
+        publisher_id: userId,
+        status: 'pending',
+        submitted_by: userId,
+        submitted_at: new Date().toISOString(),
+        is_active: false
+      };
+
+      // Insert media outlet
+      const { data: outletResult, error: outletError } = await supabase
+        .from('media_outlets')
+        .insert(outletData)
+        .select()
+        .single();
+
+      if (outletError) {
+        console.error(`[DirectBatchImport] Outlet insert error for ${normalizedDomain}:`, outletError);
+        results.results.push({
+          row: rowNumber,
+          domain: normalizedDomain,
+          success: false,
+          error: outletError.message,
+          skipped: false
+        });
+        results.failed++;
+        continue;
+      }
+
+      // Insert metrics if available
+      if (row.ahrefs_dr || row.moz_da || row.semrush_as || row.spam_score || row.organic_traffic || row.referring_domains) {
+        const metricsData = {
+          media_outlet_id: outletResult.id,
+          ahrefs_dr: row.ahrefs_dr ? parseInt(row.ahrefs_dr.toString()) : 0,
+          moz_da: row.moz_da ? parseInt(row.moz_da.toString()) : 0,
+          semrush_as: row.semrush_as ? parseInt(row.semrush_as.toString()) : 0,
+          spam_score: row.spam_score ? parseInt(row.spam_score.toString()) : 0,
+          organic_traffic: row.organic_traffic ? parseInt(row.organic_traffic.toString()) : 0,
+          referring_domains: row.referring_domains ? parseInt(row.referring_domains.toString()) : 0
+        };
+
+        const { error: metricsError } = await supabase
+          .from('metrics')
+          .insert(metricsData);
+
+        if (metricsError) {
+          console.error(`[DirectBatchImport] Metrics insert error for ${normalizedDomain}:`, metricsError);
+          // Don't fail the whole import for metrics errors
+        }
+      }
+
+      // Create listing
+      const { error: listingError } = await supabase
+        .from('listings')
+        .insert({
+          media_outlet_id: outletResult.id,
+          is_active: false
+        });
+
+      if (listingError) {
+        console.error(`[DirectBatchImport] Listing insert error for ${normalizedDomain}:`, listingError);
+        // Clean up on error
+        await supabase.from('media_outlets').delete().eq('id', outletResult.id);
+        results.results.push({
+          row: rowNumber,
+          domain: normalizedDomain,
+          success: false,
+          error: 'Failed to create listing',
+          skipped: false
+        });
+        results.failed++;
+        continue;
+      }
+
+      results.results.push({
+        row: rowNumber,
+        domain: normalizedDomain,
+        success: true,
+        outletId: outletResult.id
+      });
+      results.succeeded++;
+
+    } catch (error) {
+      console.error(`[DirectBatchImport] Unexpected error for row ${rowNumber}:`, error);
+      results.results.push({
+        row: rowNumber,
+        domain: row.domain || `Row ${rowNumber}`,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        skipped: false
+      });
+      results.failed++;
+    }
+  }
+
+  console.log(`[DirectBatchImport] ${source} import completed:`, results);
+  return results;
+};
 
 interface CSVImportModalProps {
   isOpen: boolean;
@@ -44,20 +208,6 @@ interface ImportRow {
   sponsor_tag_type?: 'image' | 'text';
   sale_price?: number;
   sale_note?: string;
-  accept_casino?: boolean;
-  casino_multiplier?: number;
-  accept_loans?: boolean;
-  loans_multiplier?: number;
-  accept_adult?: boolean;
-  adult_multiplier?: number;
-  accept_dating?: boolean;
-  dating_multiplier?: number;
-  accept_cbd?: boolean;
-  cbd_multiplier?: number;
-  accept_crypto?: boolean;
-  crypto_multiplier?: number;
-  accept_forex?: boolean;
-  forex_multiplier?: number;
   status?: 'valid' | 'error';
   errors?: string[];
 }
@@ -74,12 +224,15 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
   const [importProgress, setImportProgress] = useState(0);
   const [activeTab, setActiveTab] = useState('upload');
 
-  const csvTemplate = `domain,category,price,currency,country,language,lead_time_days,guidelines,niches,is_active,accepts_no_license_status,sponsor_tag_status,sponsor_tag_type,sale_price,sale_note,accept_casino,casino_multiplier,accept_loans,loans_multiplier,accept_adult,adult_multiplier,accept_dating,dating_multiplier,accept_cbd,cbd_multiplier,accept_crypto,crypto_multiplier,accept_forex,forex_multiplier
-example1.com,Blog,250,EUR,SE,Swedish,7,"No adult content, quality articles only","Technology,Health",true,no,yes,text,200,"Limited time offer",true,2.0,false,1.0,false,1.0,true,1.5,false,1.0,false,1.0,false,1.0
-example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business,Finance",true,depends,no,text,,,false,1.0,true,1.8,false,1.0,false,1.0,false,1.0,true,1.5,true,1.8`;
+  const csvTemplate = `domain,category,price,currency,country,language,lead_time_days,guidelines,niches,is_active,accepts_no_license_status,sponsor_tag_status,sponsor_tag_type,sale_price,sale_note,ahrefs_dr,moz_da,semrush_as,spam_score,organic_traffic,referring_domains
+example1.com,Blog,250,EUR,SE,Swedish,7,"No adult content, quality articles only","Technology,Health",true,no,yes,text,200,"Limited time offer",35,28,40,15,5000,150
+example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business,Finance",true,depends,no,text,,,42,31,38,12,8500,220`;
 
   const downloadTemplate = () => {
-    const blob = new Blob([csvTemplate], { type: 'text/csv' });
+    // Add BOM (Byte Order Mark) to ensure UTF-8 encoding is recognized by Excel and other applications
+    const BOM = '\uFEFF';
+    const csvContent = BOM + csvTemplate;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -188,7 +341,8 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
         return {
           domain: row.domain,
           category: row.category,
-          price: parseFloat(row.price) || 0,
+          price: parseFloat(row.price) || 0, // Publisher's asking price (initial marketplace price)
+          purchase_price: parseFloat(row.price) || null, // Publisher's asking price
           currency: row.currency || 'EUR',
           country: row.country,
           language: row.language,
@@ -200,21 +354,7 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
           sponsor_tag_status: row.sponsor_tag_status || 'no',
           sponsor_tag_type: row.sponsor_tag_type || 'text',
           sale_price: row.sale_price ? parseFloat(row.sale_price) : undefined,
-          sale_note: row.sale_note || '',
-          accept_casino: row.accept_casino === 'true' || row.accept_casino === '1',
-          casino_multiplier: row.casino_multiplier ? parseFloat(row.casino_multiplier) : 2.0,
-          accept_loans: row.accept_loans === 'true' || row.accept_loans === '1',
-          loans_multiplier: row.loans_multiplier ? parseFloat(row.loans_multiplier) : 1.8,
-          accept_adult: row.accept_adult === 'true' || row.accept_adult === '1',
-          adult_multiplier: row.adult_multiplier ? parseFloat(row.adult_multiplier) : 1.5,
-          accept_dating: row.accept_dating === 'true' || row.accept_dating === '1',
-          dating_multiplier: row.dating_multiplier ? parseFloat(row.dating_multiplier) : 1.5,
-          accept_cbd: row.accept_cbd === 'true' || row.accept_cbd === '1',
-          cbd_multiplier: row.cbd_multiplier ? parseFloat(row.cbd_multiplier) : 1.5,
-          accept_crypto: row.accept_crypto === 'true' || row.accept_crypto === '1',
-          crypto_multiplier: row.crypto_multiplier ? parseFloat(row.crypto_multiplier) : 1.5,
-          accept_forex: row.accept_forex === 'true' || row.accept_forex === '1',
-          forex_multiplier: row.forex_multiplier ? parseFloat(row.forex_multiplier) : 1.8
+          sale_note: row.sale_note || ''
         };
       });
 
@@ -235,7 +375,7 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
       // Required field validation
       if (!row.domain) rowErrors.push('Domain is required');
       if (!row.category) rowErrors.push('Category is required');
-      if (!row.price || row.price <= 0) rowErrors.push('Price must be greater than 0');
+      if (!row.price || parseFloat(row.price) <= 0) rowErrors.push('Publisher asking price must be greater than 0');
       if (!row.country) rowErrors.push('Country is required');
       if (!row.language) rowErrors.push('Language is required');
 
@@ -329,18 +469,9 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
         }
       });
       
-      // Call the import function
-      const { data, error } = await supabase.functions.invoke('publisher-import-batch', {
-        body: {
-          source: 'csv',
-          data: rows,
-          mapping: mapping,
-          dry_run: false
-        }
-      });
-      
-      if (error) throw error;
-      
+      // Perform direct batch import (no edge functions)
+      const data = await performDirectBatchImport(rows, 'csv', user!.id);
+
       toast.success(`Import completed! ${data.succeeded} websites imported, ${data.failed} failed, ${data.skipped} skipped.`);
       
       onSuccess();
@@ -530,31 +661,97 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
             {errorRows.length > 0 && (
               <Card className="glass-card-clean">
                 <CardHeader>
-                  <CardTitle className="text-red-600">Validation Errors</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                    <CardTitle className="text-red-600">Validation Failed - Action Required</CardTitle>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Domain</TableHead>
-                        <TableHead>Errors</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {errorRows.map((row, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{row.domain || 'N/A'}</TableCell>
-                          <TableCell>
+                <CardContent className="space-y-4">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-sm text-red-700 mb-3 font-medium">
+                      ⚠️ Found {errorRows.length} problem(s) in your CSV file that must be fixed before importing.
+                    </p>
+
+                    <div className="max-h-60 overflow-y-auto space-y-3">
+                      {errorRows.slice(0, 10).map((row, index) => (
+                        <div key={index} className="border-l-4 border-red-400 pl-4 py-2 bg-white rounded">
+                          <div className="font-medium text-red-800 text-sm">
+                            {row.domain || 'Unknown domain'}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2">
                             {row.errors?.map((error, i) => (
-                              <Badge key={i} variant="destructive" className="mr-1">
+                              <Badge key={i} variant="destructive" className="text-xs">
                                 {error}
                               </Badge>
                             ))}
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                        </div>
                       ))}
-                    </TableBody>
-                  </Table>
+
+                      {errorRows.length > 10 && (
+                        <p className="text-sm text-red-600 font-medium">
+                          📋 {errorRows.length - 10} more errors not shown. Fix these first to see the rest.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                      <h5 className="font-medium text-blue-800">How to Fix Your CSV:</h5>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-blue-700">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <strong className="text-blue-800">Required Fields:</strong>
+                          <ul className="list-disc list-inside mt-1 space-y-1">
+                            <li><code className="bg-blue-100 px-1 rounded">domain</code> - Valid domain (e.g., example.com)</li>
+                                <li><code className="bg-blue-100 px-1 rounded">price</code> - Publisher asking price (Number &gt; 0, e.g., 250)</li>
+                            <li><code className="bg-blue-100 px-1 rounded">country</code> - Country name</li>
+                            <li><code className="bg-blue-100 px-1 rounded">language</code> - Language name</li>
+                          </ul>
+                        </div>
+
+                        <div>
+                          <strong className="text-blue-800">Constraint Fields:</strong>
+                          <ul className="list-disc list-inside mt-1 space-y-1">
+                            <li><code className="bg-blue-100 px-1 rounded">accepts_no_license_status</code> - 'yes', 'no', or 'depends'</li>
+                            <li><code className="bg-blue-100 px-1 rounded">sponsor_tag_status</code> - 'yes' or 'no'</li>
+                            <li><code className="bg-blue-100 px-1 rounded">sponsor_tag_type</code> - 'text' or 'image'</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <strong className="text-blue-800">CSV Format Example:</strong>
+                        <div className="mt-2 bg-white border border-blue-200 rounded p-2 font-mono text-xs overflow-x-auto">
+                          domain,category,price,currency,country,language,accepts_no_license_status,sponsor_tag_status<br/>
+                          example.com,Blog,250,EUR,Sweden,Swedish,no,yes<br/>
+                          mysite.com,News,300,EUR,Norway,Norwegian,yes,no
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <strong className="text-blue-800">Next Steps:</strong>
+                        <ol className="list-decimal list-inside mt-1 space-y-1">
+                          <li>Edit your CSV file to fix the errors</li>
+                          <li>Save the corrected file</li>
+                          <li>Re-upload the CSV file</li>
+                          <li>Only proceed with import when validation passes</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                    <p className="text-sm">
+                      <strong>Important:</strong> Import will be blocked until all validation errors are resolved.
+                      This prevents database errors and ensures data quality.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}

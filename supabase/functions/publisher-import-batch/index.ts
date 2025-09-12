@@ -85,11 +85,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    logStep('User authenticated', { userId: user.id });
+    logStep('User authenticated', { userId: user.id, email: user.email });
+
+    // Check if user has publisher role
+    const { data: userRoles, error: roleError } = await supabase
+      .from('user_role_assignments')
+      .select('role')
+      .eq('user_id', user.id);
+
+    if (roleError) {
+      logStep('Role check error', { error: roleError });
+      return new Response(
+        JSON.stringify({ error: 'Database error checking permissions' }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    const hasPublisherRole = userRoles?.some(role => role.role === 'publisher' || role.role === 'system_admin');
+
+    if (!hasPublisherRole) {
+      logStep('User does not have publisher role', { userId: user.id, roles: userRoles });
+      return new Response(
+        JSON.stringify({ error: 'Publisher role required for import' }),
+        { status: 403, headers: corsHeaders }
+      );
+    }
+
+    logStep('Publisher role confirmed', { userId: user.id });
 
     // Parse request body
     const { source, data, mapping, dry_run = false } = await req.json();
-    
+
+    logStep('Import parameters received', {
+      source,
+      data_length: data?.length,
+      mapping,
+      dry_run,
+      userId: user.id
+    });
+
     if (!source || !data || !mapping) {
       logStep('Missing required parameters');
       return new Response(
@@ -130,13 +164,19 @@ Deno.serve(async (req) => {
     let failureCount = 0;
     let skippedCount = 0;
 
+    logStep('Starting row processing', { totalRows: data.length, dryRun: dry_run });
+
     // Process each row
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       const rowNumber = i + 1;
-      
+
+      logStep(`Processing row ${rowNumber}`, { rowData: row, mapping });
+
       // Validate row
       const validationErrors = validateRow(row, mapping);
+
+      logStep(`Row ${rowNumber} validation`, { errors: validationErrors });
       
       if (validationErrors.length > 0) {
         results.push({
@@ -165,10 +205,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Prepare outlet data
+      // Prepare outlet data - publisher imports need admin approval
       const outletData = {
         domain: row[mapping.domain].trim(),
         price: parseFloat(row[mapping.price]),
+        purchase_price: row[mapping.purchase_price] ? parseFloat(row[mapping.purchase_price]) : null,
         currency: row[mapping.currency] || 'EUR',
         country: row[mapping.country].trim(),
         language: row[mapping.language].trim(),
@@ -176,32 +217,65 @@ Deno.serve(async (req) => {
         niches: row[mapping.niches] ? row[mapping.niches].split(',').map((n: string) => n.trim()).filter(Boolean) : [],
         guidelines: row[mapping.guidelines] || null,
         lead_time_days: row[mapping.lead_time_days] ? parseInt(row[mapping.lead_time_days]) : 7,
-        min_word_count: row[mapping.min_word_count] ? parseInt(row[mapping.min_word_count]) : 500,
-        max_word_count: row[mapping.max_word_count] ? parseInt(row[mapping.max_word_count]) : 1500,
-        turnaround_time: row[mapping.turnaround_time] || '3-5 business days',
-        required_format: row[mapping.required_format] || 'markdown',
-        content_types: row[mapping.content_types] ? row[mapping.content_types].split(',').map((t: string) => t.trim()).filter(Boolean) : ['article', 'blog_post'],
-        forbidden_topics: row[mapping.forbidden_topics] ? row[mapping.forbidden_topics].split(',').map((t: string) => t.trim()).filter(Boolean) : [],
         accepts_no_license: row[mapping.accepts_no_license] === 'true' || row[mapping.accepts_no_license] === '1',
+        accepts_no_license_status: row[mapping.accepts_no_license_status] || 'no',
         sponsor_tag_status: row[mapping.sponsor_tag_status] || 'no',
         sponsor_tag_type: row[mapping.sponsor_tag_type] || 'text',
-        sponsor_tag: row[mapping.sponsor_tag] || 'unknown',
-        sale_price: row[mapping.sale_price] ? parseFloat(row[mapping.sale_price]) : null,
-        sale_note: row[mapping.sale_note] || null,
-        admin_tags: row[mapping.admin_tags] ? row[mapping.admin_tags].split(',').map((t: string) => t.trim()).filter(Boolean) : [],
         source: source,
         publisher_id: user.id, // Set to current user
-        is_active: true
+        status: 'pending', // Publisher imports need admin approval
+        submitted_by: user.id,
+        submitted_at: new Date().toISOString(),
+        is_active: false // Not active until approved
       };
+
+      // Triple-check that status is set correctly
+      if (outletData.status !== 'pending') {
+        logStep('ERROR: Status not set to pending!', { status: outletData.status });
+        results.push({
+          row: rowNumber,
+          domain: outletData.domain,
+          success: false,
+          errors: ['Internal error: Status not set correctly'],
+          skipped: false
+        });
+        failureCount++;
+        continue;
+      }
 
       if (!dry_run) {
         try {
+          logStep(`Inserting outlet for row ${rowNumber}`, {
+            domain: outletData.domain,
+            status: outletData.status,
+            is_active: outletData.is_active,
+            publisher_id: outletData.publisher_id,
+            submitted_by: outletData.submitted_by
+          });
+
           // Insert media outlet
           const { data: insertedOutlet, error: insertError } = await supabase
             .from('media_outlets')
             .insert(outletData)
-            .select()
+            .select('id, domain, status, is_active, publisher_id, submitted_by')
             .single();
+
+          logStep(`Insert result`, {
+            insertedOutlet,
+            insertError,
+            expectedStatus: outletData.status,
+            actualStatus: insertedOutlet?.status,
+            outletDataStatus: outletData.status
+          });
+
+          // Double-check the status after insertion
+          if (insertedOutlet && insertedOutlet.status !== 'pending') {
+            logStep('WARNING: Status not set to pending!', {
+              insertedStatus: insertedOutlet.status,
+              expectedStatus: 'pending',
+              outletDataStatus: outletData.status
+            });
+          }
 
           if (insertError) {
             logStep('Insert error', { error: insertError, domain: outletData.domain });
@@ -215,6 +289,8 @@ Deno.serve(async (req) => {
             failureCount++;
             continue;
           }
+
+          logStep(`Successfully inserted outlet for row ${rowNumber}`, { outletId: insertedOutlet.id });
 
           // Create metrics record
           const metricsData = {
@@ -246,12 +322,12 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Create listing
+          // Create listing (inactive until approved)
           const { error: listingError } = await supabase
             .from('listings')
             .insert({
               media_outlet_id: insertedOutlet.id,
-              is_active: true
+              is_active: false // Not active until admin approval
             });
 
           if (listingError) {
@@ -295,6 +371,7 @@ Deno.serve(async (req) => {
     };
 
     logStep('Import completed', response);
+    console.log('[publisher-import-batch] Final response:', response);
 
     return new Response(JSON.stringify(response), {
       status: 200,
