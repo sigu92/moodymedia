@@ -155,10 +155,29 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
   };
 
   const handleApprove = async (submission: MediaOutlet) => {
+    // Client-side validation
     if (marketplacePrice <= 0) {
       toast({
-        title: "Error",
-        description: "Please set a marketplace price",
+        title: "Validation Error",
+        description: "Please set a marketplace price greater than €0",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (marketplacePrice > 10000) {
+      toast({
+        title: "Validation Error",
+        description: "Marketplace price cannot exceed €10,000",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (reviewNotes.length > 2000) {
+      toast({
+        title: "Validation Error",
+        description: "Review notes cannot exceed 2000 characters",
         variant: "destructive"
       });
       return;
@@ -166,23 +185,50 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('media_outlets')
-        .update({
-          status: 'active',
-          price: marketplacePrice,
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: 'admin', // This should be the current admin user
-          review_notes: reviewNotes,
-          is_active: true
-        })
-        .eq('id', submission.id);
+      // Call the admin-approve edge function with proper error handling
+      const { data, error } = await supabase.functions.invoke('admin-approve', {
+        body: {
+          submission_id: submission.id,
+          action: 'approve',
+          marketplace_price: marketplacePrice,
+          review_notes: reviewNotes.trim() || null
+        }
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Admin approve function error:', error);
+
+        // Handle different error types
+        if (error.message?.includes('already been reviewed')) {
+          toast({
+            title: "Concurrent Modification",
+            description: "This submission has already been reviewed by another administrator. Refreshing...",
+            variant: "destructive"
+          });
+          onRefresh(); // Refresh to show current state
+          return;
+        }
+
+        if (error.message?.includes('current status is')) {
+          toast({
+            title: "Invalid Status",
+            description: error.message,
+            variant: "destructive"
+          });
+          onRefresh(); // Refresh to show current state
+          return;
+        }
+
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Unknown error occurred');
+      }
 
       toast({
         title: "Success",
-        description: `${submission.domain} has been approved and added to the marketplace`,
+        description: `${submission.domain} has been approved and is now active on the marketplace`,
       });
 
       setShowReviewModal(false);
@@ -191,23 +237,43 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
       setMarketplacePrice(0);
       onRefresh();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving submission:', error);
-      toast({
-        title: "Error",
-        description: "Failed to approve submission",
-        variant: "destructive"
-      });
+
+      // Handle network/API errors
+      if (error.message?.includes('fetch')) {
+        toast({
+          title: "Network Error",
+          description: "Unable to connect to approval service. Please check your connection and try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Approval Failed",
+          description: error.message || "Failed to approve submission. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleReject = async (submission: MediaOutlet) => {
+    // Client-side validation
     if (!reviewNotes.trim()) {
       toast({
-        title: "Error",
-        description: "Please provide feedback for rejection",
+        title: "Validation Error",
+        description: "Please provide feedback explaining why this submission was rejected",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (reviewNotes.length > 2000) {
+      toast({
+        title: "Validation Error",
+        description: "Review notes cannot exceed 2000 characters",
         variant: "destructive"
       });
       return;
@@ -215,17 +281,45 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('media_outlets')
-        .update({
-          status: 'rejected',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: 'admin', // This should be the current admin user
-          review_notes: reviewNotes
-        })
-        .eq('id', submission.id);
+      // Call the admin-approve edge function with proper error handling
+      const { data, error } = await supabase.functions.invoke('admin-approve', {
+        body: {
+          submission_id: submission.id,
+          action: 'reject',
+          review_notes: reviewNotes.trim()
+        }
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Admin reject function error:', error);
+
+        // Handle different error types
+        if (error.message?.includes('already been reviewed')) {
+          toast({
+            title: "Concurrent Modification",
+            description: "This submission has already been reviewed by another administrator. Refreshing...",
+            variant: "destructive"
+          });
+          onRefresh(); // Refresh to show current state
+          return;
+        }
+
+        if (error.message?.includes('current status is')) {
+          toast({
+            title: "Invalid Status",
+            description: error.message,
+            variant: "destructive"
+          });
+          onRefresh(); // Refresh to show current state
+          return;
+        }
+
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Unknown error occurred');
+      }
 
       toast({
         title: "Submission Rejected",
@@ -237,13 +331,23 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
       setReviewNotes('');
       onRefresh();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting submission:', error);
-      toast({
-        title: "Error",
-        description: "Failed to reject submission",
-        variant: "destructive"
-      });
+
+      // Handle network/API errors
+      if (error.message?.includes('fetch')) {
+        toast({
+          title: "Network Error",
+          description: "Unable to connect to approval service. Please check your connection and try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Rejection Failed",
+          description: error.message || "Failed to reject submission. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -270,59 +374,93 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
   const executeBulkAction = async () => {
     if (selectedSubmissions.length === 0) return;
 
+    // Client-side validation
+    if (bulkAction === 'approve' && bulkPrice <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please set a marketplace price greater than €0",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (bulkAction === 'approve' && bulkPrice > 10000) {
+      toast({
+        title: "Validation Error",
+        description: "Marketplace price cannot exceed €10,000",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (bulkAction === 'reject' && !reviewNotes.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide feedback explaining why these submissions were rejected",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (reviewNotes.length > 2000) {
+      toast({
+        title: "Validation Error",
+        description: "Review notes cannot exceed 2000 characters",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const selectedSubs = filteredAndSortedSubmissions.filter(s =>
         selectedSubmissions.includes(s.id)
       );
 
-      if (bulkAction === 'approve') {
-        // Bulk approve with the same price
-        const updates = selectedSubs.map(submission => ({
-          id: submission.id,
-          status: 'active',
-          price: bulkPrice,
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: 'admin', // This should be the current admin user
-          is_active: true
-        }));
+      const results = [];
+      let successCount = 0;
+      let failureCount = 0;
 
-        for (const update of updates) {
-          const { error } = await supabase
-            .from('media_outlets')
-            .update(update)
-            .eq('id', update.id);
+      // Process each submission individually to handle partial failures gracefully
+      for (const submission of selectedSubs) {
+        try {
+          const { data, error } = await supabase.functions.invoke('admin-approve', {
+            body: {
+              submission_id: submission.id,
+              action: bulkAction,
+              marketplace_price: bulkAction === 'approve' ? bulkPrice : undefined,
+              review_notes: reviewNotes.trim() || null
+            }
+          });
 
-          if (error) throw error;
+          if (error || !data?.success) {
+            console.error(`Failed to process ${submission.domain}:`, error || data?.error);
+            failureCount++;
+            results.push({ domain: submission.domain, success: false, error: error?.message || data?.error });
+          } else {
+            successCount++;
+            results.push({ domain: submission.domain, success: true });
+          }
+        } catch (submissionError: any) {
+          console.error(`Exception processing ${submission.domain}:`, submissionError);
+          failureCount++;
+          results.push({ domain: submission.domain, success: false, error: submissionError.message });
         }
+      }
 
+      // Show results
+      if (successCount > 0) {
         toast({
-          title: "Bulk Approval Complete",
-          description: `Successfully approved ${selectedSubs.length} submissions`,
+          title: bulkAction === 'approve' ? "Bulk Approval Complete" : "Bulk Rejection Complete",
+          description: `${successCount} of ${selectedSubs.length} submissions processed successfully`,
         });
+      }
 
-      } else if (bulkAction === 'reject') {
-        // Bulk reject
-        const updates = selectedSubs.map(submission => ({
-          id: submission.id,
-          status: 'rejected',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: 'admin', // This should be the current admin user
-          review_notes: reviewNotes || 'Bulk rejected by admin'
-        }));
-
-        for (const update of updates) {
-          const { error } = await supabase
-            .from('media_outlets')
-            .update(update)
-            .eq('id', update.id);
-
-          if (error) throw error;
-        }
-
+      if (failureCount > 0) {
         toast({
-          title: "Bulk Rejection Complete",
-          description: `Successfully rejected ${selectedSubs.length} submissions`,
+          title: "Some Actions Failed",
+          description: `${failureCount} submissions could not be processed. Check console for details.`,
+          variant: "destructive"
         });
       }
 
@@ -333,11 +471,11 @@ export function PendingApprovalsTab({ submissions, onRefresh }: PendingApprovals
       setReviewNotes('');
       onRefresh();
 
-    } catch (error) {
-      console.error('Error executing bulk action:', error);
+    } catch (error: any) {
+      console.error('Bulk action error:', error);
       toast({
-        title: "Error",
-        description: "Failed to process bulk action",
+        title: "Bulk Action Failed",
+        description: "Unable to process bulk action. Please check your connection and try again.",
         variant: "destructive"
       });
     } finally {

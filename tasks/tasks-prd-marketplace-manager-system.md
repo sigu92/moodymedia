@@ -70,4 +70,4 @@
   - [x] 5.3 Update publisher components to show appropriate messaging based on submission status
   - [x] 5.4 Add status transition logic to handle approved submissions becoming active listings
   - [x] 5.5 Update any existing admin bulk operations to work with new approval workflow
-  - [ ] 5.6 Add status validation and error handling throughout the submission and approval flows
+  - [x] 5.6 Add status validation and error handling throughout the submission and approval flows
