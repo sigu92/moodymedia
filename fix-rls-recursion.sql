@@ -9,23 +9,33 @@ DROP POLICY IF EXISTS "Admins can delete role assignments" ON public.user_role_a
 DROP POLICY IF EXISTS "System admins can manage all role assignments" ON public.user_role_assignments;
 
 -- Step 2: Create security definer function to check admin status
+CREATE OR REPLACE FUNCTION public.is_platform_admin(_user_id uuid DEFAULT auth.uid())
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_role_assignments
+    WHERE user_id = COALESCE(_user_id, auth.uid())
+    AND role IN ('admin'::app_role, 'system_admin'::app_role)
+  )
+$$;
+
+-- Also create the is_user_admin function for backward compatibility
 CREATE OR REPLACE FUNCTION public.is_user_admin(user_uuid uuid DEFAULT auth.uid())
 RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = 'public'
 AS $$
-DECLARE
-  admin_role_count integer;
-BEGIN
-  -- Direct query without RLS to avoid recursion
-  SELECT COUNT(*) INTO admin_role_count
-  FROM public.user_role_assignments
-  WHERE user_id = user_uuid
-  AND role IN ('admin'::app_role, 'system_admin'::app_role);
-
-  RETURN admin_role_count > 0;
-END;
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_role_assignments
+    WHERE user_id = COALESCE(user_uuid, auth.uid())
+    AND role IN ('admin'::app_role, 'system_admin'::app_role)
+  )
 $$;
 
 -- Step 3: Create new secure RLS policies
