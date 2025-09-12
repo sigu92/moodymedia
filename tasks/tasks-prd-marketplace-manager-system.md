@@ -38,7 +38,7 @@
   - [x] 1.5 Update TypeScript interfaces in src/types/index.ts to include new fields and status types
   - [x] 1.6 Regenerate Supabase types to reflect schema changes in src/integrations/supabase/types.ts
 
-- [ ] 2.0 Backend Infrastructure Setup
+- [x] 2.0 Backend Infrastructure Setup
   - [x] 2.1 Create publisher-submit edge function to handle website submissions with pending status
   - [x] 2.2 Create admin-approve edge function to handle approval/rejection workflow with audit logging
   - [x] 2.3 Update RLS policies for media_outlets to allow publishers to see their own submissions (all statuses) and buyers to only see approved/active listings
@@ -46,7 +46,7 @@
   - [x] 2.5 Update marketplace queries throughout the app to filter by status='active' for buyer-facing views
   - [x] 2.6 Add audit logging integration for all approval decisions and status changes
 
-- [ ] 3.0 Publisher Submission System
+- [x] 3.0 Publisher Submission System
   - [x] 3.1 Modify CreateSiteModal to include purchase_price input field (only for non-moody sites)
   - [x] 3.2 Update CreateSiteModal to show submission confirmation dialog explaining the approval process
   - [x] 3.3 Modify CreateSiteModal submission logic to set status='pending' and populate submission tracking fields
@@ -54,20 +54,20 @@
   - [x] 3.5 Update publisher dashboard to include SubmissionHistory component and pending submission indicators
   - [x] 3.6 Add status badges and progress indicators to publisher interface showing submission workflow
 
-- [ ] 4.0 Marketplace Manager Admin Interface
+- [x] 4.0 Marketplace Manager Admin Interface
   - [x] 4.1 Create MarketplaceManager component with tabbed interface (Pending Approvals, Approved Listings, Rejected Submissions, Profit Analytics)
   - [x] 4.2 Implement PendingApprovalsTab with grid/list view of pending submissions showing key metrics and pricing
-- [x] 4.3 Create detailed review modal/interface for individual submissions with full metrics, pricing, and profit calculations
-- [x] 4.4 Implement approval workflow allowing admins to set marketplace price, add review notes, and approve/reject submissions
-- [x] 4.5 Add bulk approval actions for processing multiple submissions efficiently
-- [ ] 4.6 Create ProfitAnalyticsTab showing profit margins, pricing trends, and analytics across approved listings
-- [x] 4.7 Add filtering and search functionality for pending submissions by domain, category, price range, etc.
-- [x] 4.8 Update AdminSystem navigation to include MarketplaceManager link in sidebar
+  - [x] 4.3 Create detailed review modal/interface for individual submissions with full metrics, pricing, and profit calculations
+  - [x] 4.4 Implement approval workflow allowing admins to set marketplace price, add review notes, and approve/reject submissions
+  - [x] 4.5 Add bulk approval actions for processing multiple submissions efficiently
+  - [ ] 4.6 Create ProfitAnalyticsTab showing profit margins, pricing trends, and analytics across approved listings
+  - [x] 4.7 Add filtering and search functionality for pending submissions by domain, category, price range, etc.
+  - [x] 4.8 Update AdminSystem navigation to include MarketplaceManager link in sidebar
 
-- [ ] 5.0 Integration and Status Updates
-  - [ ] 5.1 Update all marketplace queries and components to respect status filtering (only show active listings to buyers)
+- [x] 5.0 Integration and Status Updates
+  - [x] 5.1 Update all marketplace queries and components to respect status filtering (only show active listings to buyers)
   - [x] 5.2 Update EnhancedImport component to handle new status field and admin_tags logic for company-owned sites
-  - [ ] 5.3 Update publisher components to show appropriate messaging based on submission status
-  - [ ] 5.4 Add status transition logic to handle approved submissions becoming active listings
+  - [x] 5.3 Update publisher components to show appropriate messaging based on submission status
+  - [x] 5.4 Add status transition logic to handle approved submissions becoming active listings
   - [ ] 5.5 Update any existing admin bulk operations to work with new approval workflow
   - [ ] 5.6 Add status validation and error handling throughout the submission and approval flows
