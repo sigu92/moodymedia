@@ -69,5 +69,5 @@
   - [x] 5.2 Update EnhancedImport component to handle new status field and admin_tags logic for company-owned sites
   - [x] 5.3 Update publisher components to show appropriate messaging based on submission status
   - [x] 5.4 Add status transition logic to handle approved submissions becoming active listings
-  - [ ] 5.5 Update any existing admin bulk operations to work with new approval workflow
+  - [x] 5.5 Update any existing admin bulk operations to work with new approval workflow
   - [ ] 5.6 Add status validation and error handling throughout the submission and approval flows

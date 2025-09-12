@@ -33,8 +33,11 @@ interface MediaOutlet {
   category: string;
   source: string;
   is_active: boolean;
+  status: 'pending' | 'active' | 'rejected';
   updated_at: string;
   publisher_id: string;
+  submitted_at: string | null;
+  reviewed_at: string | null;
 }
 
 interface BulkAction {
@@ -61,7 +64,6 @@ export function BulkWebsiteEditor() {
   const [editValue, setEditValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
   
   // Bulk action states
   const [showBulkDialog, setShowBulkDialog] = useState(false);
@@ -76,9 +78,12 @@ export function BulkWebsiteEditor() {
   const fetchWebsites = async () => {
     setLoading(true);
     try {
+      // Only fetch active listings for bulk operations (buyers can only see active listings)
       const { data, error } = await supabase
         .from('media_outlets')
         .select('*')
+        .eq('status', 'active')
+        .eq('is_active', true)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -355,14 +360,11 @@ export function BulkWebsiteEditor() {
   };
 
   const filteredWebsites = websites.filter(website => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       website.domain.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === '' || website.category === filterCategory;
-    const matchesStatus = filterStatus === '' || 
-      (filterStatus === 'active' && website.is_active) ||
-      (filterStatus === 'inactive' && !website.is_active);
-    
-    return matchesSearch && matchesCategory && matchesStatus;
+    const matchesCategory = filterCategory === 'all' || website.category === filterCategory;
+
+    return matchesSearch && matchesCategory;
   });
 
   const categories = [...new Set(websites.map(w => w.category))].filter(Boolean);
@@ -492,13 +494,28 @@ export function BulkWebsiteEditor() {
       )
     },
     {
-      key: 'is_active' as keyof MediaOutlet,
-      header: 'Status',
-      render: (value: boolean) => (
-        <Badge variant={value ? 'success' : 'secondary'}>
-          {value ? 'Active' : 'Inactive'}
-        </Badge>
-      )
+      key: 'status' as keyof MediaOutlet,
+      header: 'Approval Status',
+      render: (value: string, row: MediaOutlet) => {
+        const getStatusBadge = (status: string, isActive: boolean) => {
+          if (!isActive) {
+            return <Badge variant="secondary">Inactive</Badge>;
+          }
+
+          switch (status) {
+            case 'active':
+              return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Active Listing</Badge>;
+            case 'pending':
+              return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Pending Review</Badge>;
+            case 'rejected':
+              return <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Rejected</Badge>;
+            default:
+              return <Badge variant="secondary">Unknown</Badge>;
+          }
+        };
+
+        return getStatusBadge(value, row.is_active);
+      }
     },
     {
       key: 'updated_at' as keyof MediaOutlet,
@@ -517,9 +534,9 @@ export function BulkWebsiteEditor() {
       {/* Header and Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Website Editor</h2>
+          <h2 className="text-2xl font-bold">Active Listings Editor</h2>
           <p className="text-muted-foreground">
-            Manage prices and settings for all media outlets
+            Manage prices and settings for active marketplace listings (approved websites only)
           </p>
         </div>
         
@@ -573,16 +590,6 @@ export function BulkWebsiteEditor() {
                   </SelectContent>
                 </Select>
 
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="All status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>

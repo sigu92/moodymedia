@@ -34,7 +34,7 @@ const AdminSystem = () => {
               </TabsTrigger>
               <TabsTrigger value="websites" className="flex items-center gap-2">
                 <Database className="h-4 w-4" />
-                Websites
+                Active Listings
               </TabsTrigger>
               <TabsTrigger value="import" className="flex items-center gap-2">
                 <FileSpreadsheet className="h-4 w-4" />
