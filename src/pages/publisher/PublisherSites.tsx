@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Upload, Edit2, Trash2, MoreHorizontal, Download, Package, Search, Filter, Zap, Target, TrendingUp, AlertTriangle, CheckCircle, Star, DollarSign, FileSpreadsheet } from "lucide-react";
@@ -285,7 +286,7 @@ export default function PublisherSites() {
     };
 
     const labels = {
-      pending: "Pending",
+      pending: "Pending Review",
       approved: "Approved",
       active: "Active",
       rejected: "Rejected",
@@ -296,6 +297,41 @@ export default function PublisherSites() {
         {labels[status as keyof typeof labels] || status}
       </Badge>
     );
+  };
+
+  const getStatusMessage = (site: MediaOutletWithMetrics) => {
+    switch (site.status) {
+      case 'pending':
+        return {
+          type: 'info' as const,
+          title: 'Under Review',
+          message: 'Your submission is being reviewed by our admin team. Most reviews are completed within 24-48 hours.',
+          action: 'Check the Submissions tab for updates.'
+        };
+      case 'approved':
+        return {
+          type: 'success' as const,
+          title: 'Approved for Marketplace',
+          message: 'Your site has been approved and will be activated in the marketplace soon.',
+          action: 'Monitor the Submissions tab for activation confirmation.'
+        };
+      case 'active':
+        return {
+          type: 'success' as const,
+          title: 'Live on Marketplace',
+          message: 'Your site is now active and available for link building orders.',
+          action: 'Manage pricing and monitor performance in the overview.'
+        };
+      case 'rejected':
+        return {
+          type: 'warning' as const,
+          title: 'Submission Needs Improvement',
+          message: 'Your submission was not approved. Check the Submissions tab for detailed feedback.',
+          action: 'Review admin feedback and resubmit with improvements.'
+        };
+      default:
+        return null;
+    }
   };
 
   const exportToCSV = () => {
@@ -408,6 +444,47 @@ export default function PublisherSites() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {/* Status-Based Alerts */}
+            {(() => {
+              const pendingCount = sites.filter(s => s.status === 'pending').length;
+              const rejectedCount = sites.filter(s => s.status === 'rejected').length;
+              const approvedCount = sites.filter(s => s.status === 'approved').length;
+
+              return (
+                <div className="space-y-4">
+                  {pendingCount > 0 && (
+                    <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+                      <AlertTriangle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800 dark:text-blue-200">
+                        <strong>{pendingCount} site{pendingCount !== 1 ? 's' : ''} under review:</strong> Your submissions are being evaluated by our admin team.
+                        Most reviews are completed within 24-48 hours. Check the Submissions tab for updates.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {rejectedCount > 0 && (
+                    <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-900/20">
+                      <AlertTriangle className="h-4 w-4 text-orange-600" />
+                      <AlertDescription className="text-orange-800 dark:text-orange-200">
+                        <strong>{rejectedCount} submission{rejectedCount !== 1 ? 's' : ''} need{rejectedCount === 1 ? 's' : ''} improvement:</strong> Review admin feedback in the Submissions tab
+                        and consider resubmitting with the suggested changes.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {approvedCount > 0 && (
+                    <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800 dark:text-green-200">
+                        <strong>{approvedCount} site{approvedCount !== 1 ? 's' : ''} approved:</strong> Your approved sites will be activated in the marketplace soon.
+                        Monitor the Submissions tab for activation confirmation.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Enhanced Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="glass-card-clean hover:shadow-medium transition-all duration-300">
@@ -676,7 +753,15 @@ export default function PublisherSites() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(site.status)}
+                          <div className="space-y-2">
+                            {getStatusBadge(site.status)}
+                            {site.status !== 'active' && site.review_notes && (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Has feedback
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Input

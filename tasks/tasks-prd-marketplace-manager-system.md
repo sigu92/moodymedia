@@ -14,7 +14,7 @@
 - `src/pages/publisher/Dashboard.tsx` - Update publisher dashboard with submission status
 - `supabase/functions/admin-approve/index.ts` - New edge function for approvals
 - `src/integrations/supabase/types.ts` - Update generated types for new schema
-- `src/components/publisher/SubmissionHistory.tsx` - New component for tracking submissions
+- `src/components/publisher/SubmissionHistory.tsx` - New component for tracking submissions with enhanced status messaging
 - `src/components/admin/MarketplaceManager.tsx` - New marketplace manager admin interface with tabbed layout
 - `src/components/admin/PendingApprovalsTab.tsx` - Comprehensive pending approvals interface with grid/list views, filtering, and approval workflow
 - `src/components/admin/EnhancedImport.tsx` - Admin import component updated to handle status field mapping
