@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, ShoppingCart, ExternalLink, Info } from "lucide-react";
+import { Heart, ShoppingCart, ExternalLink, Info, Check } from "lucide-react";
 import { MediaWithMetrics } from "@/types";
 import { Link } from "react-router-dom";
 import { NICHES, formatMultiplier } from "./niches";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MarketplaceGridViewProps {
   media: MediaWithMetrics[];
@@ -12,11 +15,60 @@ interface MarketplaceGridViewProps {
   onToggleFavorite: (mediaId: string) => void;
 }
 
-export const MarketplaceGridView = ({ 
-  media, 
-  onAddToCart, 
-  onToggleFavorite 
+export const MarketplaceGridView = ({
+  media,
+  onAddToCart,
+  onToggleFavorite
 }: MarketplaceGridViewProps) => {
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
+  const [addedToCart, setAddedToCart] = useState<string | null>(null);
+  const { user } = useAuth();
+
+  const handleAddToCart = async (item: MediaWithMetrics) => {
+    if (!user) {
+      toast.error("Please sign in to add items to cart", {
+        description: "You need to be authenticated to add items to your cart."
+      });
+      return;
+    }
+
+    // Optimistic UI update - show success immediately (< 500ms target)
+    setAddingToCart(item.id);
+    setAddedToCart(item.id);
+
+    // Show instant toast feedback
+    toast.success("Added to cart!", {
+      description: `${item.domain} has been added to your cart.`,
+      duration: 2000
+    });
+
+    try {
+      // Add to cart with default settings (no niche, multiplier 1.0)
+      await onAddToCart(item.id, undefined, 1.0);
+
+      // Clear loading state after successful operation
+      setTimeout(() => {
+        setAddingToCart(null);
+      }, 200);
+
+      // Clear success state after 2 seconds (reduced from 3)
+      setTimeout(() => {
+        setAddedToCart(null);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+
+      // Rollback optimistic update on error
+      setAddingToCart(null);
+      setAddedToCart(null);
+
+      toast.error("Failed to add to cart", {
+        description: "Please try again.",
+        duration: 3000
+      });
+    }
+  };
   
   const getMetricBadgeVariant = (value: number, type: 'dr' | 'traffic' | 'domains' | 'spam') => {
     switch (type) {
@@ -167,12 +219,31 @@ export const MarketplaceGridView = ({
           <CardFooter className="pt-0 space-y-2">
             <div className="w-full space-y-2">
               <Button
-                onClick={() => onAddToCart(item.id)}
-                className="w-full glass-button-primary transition-all hover:scale-105"
+                onClick={() => handleAddToCart(item)}
+                disabled={addingToCart === item.id}
+                className={`w-full transition-all hover:scale-105 ${
+                  addedToCart === item.id
+                    ? "bg-green-600 hover:bg-green-700 text-white glass-button-success"
+                    : "glass-button-primary"
+                }`}
                 size="sm"
               >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Add to Cart
+                {addingToCart === item.id ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    <span>Adding...</span>
+                  </div>
+                ) : addedToCart === item.id ? (
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4" />
+                    <span>Added!</span>
+                  </div>
+                ) : (
+                  <>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </>
+                )}
               </Button>
               <Button
                 variant="outline"

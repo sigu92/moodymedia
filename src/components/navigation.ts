@@ -50,9 +50,15 @@ export const adminItems: NavigationItem[] = [
 ];
 
 export const getNavigationItems = (userRole: string | null, userRoles?: string[]): NavigationItem[] => {
-  // If user has system admin role, always show admin navigation
+  // System admins see the same navigation as regular users
+  // (they get system admin functionality through the prominent button in sidebar footer)
   if (userRoles?.includes('system_admin')) {
-    return adminItems;
+    // System admins use regular navigation based on their current role
+    if (userRole === 'publisher') {
+      return publisherItems;
+    }
+    // Default to buyer navigation for system admins
+    return buyerItems;
   }
 
   // If user has admin role, show admin navigation
@@ -72,6 +78,15 @@ export const getNavigationItems = (userRole: string | null, userRoles?: string[]
 // Context-aware navigation for dual-role users
 // Shows navigation based on current route context, not currentRole
 export const getContextAwareNavigation = (currentRole: string | null, userRoles?: string[], currentPath?: string): NavigationItem[] => {
+  // If user is system admin, use regular navigation logic (they see same nav as regular users)
+  if (userRoles?.includes('system_admin')) {
+    const effectiveRole = currentRole === 'publisher' ? 'publisher' : 'buyer';
+    const hasDualRoles = userRoles?.includes('buyer') && userRoles?.includes('publisher');
+    if (!hasDualRoles) {
+      return getNavigationItems(effectiveRole, userRoles);
+    }
+  }
+
   // If user doesn't have dual roles, use standard navigation
   const hasDualRoles = userRoles?.includes('buyer') && userRoles?.includes('publisher');
   if (!hasDualRoles) {

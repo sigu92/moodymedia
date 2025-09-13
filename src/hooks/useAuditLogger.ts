@@ -4,7 +4,7 @@ import { MarginType } from '@/utils/marginUtils';
 
 interface AuditLogEntry {
   operationId: string;
-  operationType: 'single_approval' | 'bulk_approval' | 'bulk_margin_application' | 'bulk_rejection';
+  operationType: 'single_approval' | 'bulk_approval' | 'bulk_margin_application' | 'bulk_rejection' | 'bulk_rollback';
   submissionId: string;
   previousPrice?: number;
   newPrice?: number;
@@ -37,10 +37,17 @@ export function useAuditLogger(): UseAuditLoggerReturn {
         return;
       }
 
+      // Generate a proper UUID for operation_id if it's not already one
+      let operationId = entry.operationId;
+      if (typeof operationId === 'string' && !operationId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        // Generate a UUID v4 for bulk operations
+        operationId = crypto.randomUUID ? crypto.randomUUID() : `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      }
+
       const { error } = await supabase
         .from('margin_operation_audit')
         .insert({
-          operation_id: entry.operationId,
+          operation_id: operationId,
           operation_type: entry.operationType,
           submission_id: entry.submissionId,
           admin_user_id: userData.user.id,

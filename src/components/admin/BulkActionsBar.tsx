@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Calculator, X } from 'lucide-react';
-import { BulkMarginSummary } from './PendingApprovalsTab';
+import { BulkMarginSummary } from './BulkMarginSummary';
 
 interface BulkActionsBarProps {
   selectedCount: number;
@@ -53,12 +53,12 @@ export function BulkActionsBar({
                 <Button
                   size="sm"
                   onClick={onApplyMargins}
-                  variant="outline"
+                  variant="default"
                   disabled={loading}
-                  className="border-blue-200 hover:bg-blue-50"
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Calculator className="h-4 w-4 mr-1" />
-                  Apply Margins
+                  Step 1: Apply Margins
                 </Button>
 
                 <Button
@@ -68,7 +68,7 @@ export function BulkActionsBar({
                   disabled={loading}
                 >
                   <CheckCircle className="h-4 w-4 mr-1" />
-                  Bulk Approve
+                  Step 2: Approve & Publish
                 </Button>
 
                 <Button
@@ -78,7 +78,7 @@ export function BulkActionsBar({
                   disabled={loading}
                 >
                   <XCircle className="h-4 w-4 mr-1" />
-                  Bulk Reject
+                  Reject Selected
                 </Button>
               </div>
             </div>

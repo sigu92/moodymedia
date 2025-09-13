@@ -8,6 +8,8 @@ export interface MarginCalculation {
   marginAmount: number; // Amount added/subtracted
   marginPercentage: number; // Percentage markup
   profit: number; // Final profit amount
+  marginType: 'fixed' | 'percentage'; // Type of margin applied
+  isMoody?: boolean; // Whether this is a moody website (100% profit)
 }
 
 export interface MarginType {
@@ -32,7 +34,8 @@ export function calculateFixedMargin(askingPrice: number, fixedAmount: number): 
     finalPrice: Math.max(0, finalPrice), // Ensure non-negative
     marginAmount,
     marginPercentage,
-    profit
+    profit,
+    marginType: 'fixed'
   };
 }
 
@@ -54,7 +57,8 @@ export function calculatePercentageMargin(askingPrice: number, percentage: numbe
     finalPrice: Math.max(0, finalPrice), // Ensure non-negative
     marginAmount,
     marginPercentage,
-    profit
+    profit,
+    marginType: 'percentage'
   };
 }
 
@@ -70,6 +74,40 @@ export function calculateMargin(askingPrice: number, margin: MarginType): Margin
   } else {
     return calculatePercentageMargin(askingPrice, margin.value);
   }
+}
+
+/**
+ * Calculate marketplace price for moody websites (100% profit)
+ * Since moody websites are owned by the platform, the entire sale amount is profit
+ * @param askingPrice - Publisher's asking price (paid to publisher)
+ * @param margin - Margin configuration
+ * @returns MarginCalculation object with 100% profit
+ */
+export function calculateMoodyMargin(askingPrice: number, margin: MarginType): MarginCalculation {
+  let finalPrice: number;
+
+  if (margin.type === 'fixed') {
+    finalPrice = askingPrice + margin.value;
+  } else {
+    // For percentage margins on moody websites, calculate as normal
+    const markupMultiplier = 1 + (margin.value / 100);
+    finalPrice = askingPrice * markupMultiplier;
+  }
+
+  // For moody websites, profit is the entire final price since we own the website
+  const profit = finalPrice;
+  const marginAmount = margin.type === 'fixed' ? margin.value : (finalPrice - askingPrice);
+  const marginPercentage = margin.type === 'fixed' ? (marginAmount / askingPrice) * 100 : margin.value;
+
+  return {
+    originalPrice: askingPrice,
+    finalPrice: Math.max(0, finalPrice),
+    marginAmount,
+    marginPercentage,
+    profit,
+    marginType: margin.type,
+    isMoody: true
+  };
 }
 
 /**

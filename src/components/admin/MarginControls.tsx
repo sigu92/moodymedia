@@ -24,13 +24,17 @@ interface MarginControlsProps {
   onMarginApplied: (calculation: MarginCalculation) => void;
   currentMarketplacePrice?: number;
   disabled?: boolean;
+  isBulkMode?: boolean;
+  selectedSubmissionCount?: number;
 }
 
 export function MarginControls({
   askingPrice,
   onMarginApplied,
   currentMarketplacePrice,
-  disabled = false
+  disabled = false,
+  isBulkMode = false,
+  selectedSubmissionCount = 0
 }: MarginControlsProps) {
   const [customFixedAmount, setCustomFixedAmount] = useState<string>('');
   const [customPercentage, setCustomPercentage] = useState<string>('');
@@ -107,12 +111,31 @@ export function MarginControls({
           <Calculator className="h-5 w-5" />
           Margin Calculator
         </CardTitle>
-        <CardDescription>
-          Set marketplace price based on publisher asking price: {formatCurrency(askingPrice)}
-          {currentMarketplacePrice && currentMarketplacePrice !== askingPrice && (
-            <span className="ml-2 text-muted-foreground">
-              (Current: {formatCurrency(currentMarketplacePrice)})
-            </span>
+        <CardDescription className="space-y-1">
+          {isBulkMode ? (
+            <div>
+              <div className="font-medium">
+                Bulk margin application for {selectedSubmissionCount} submissions
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Each submission will have margins applied to their individual publisher asking prices.
+                The final marketplace price will be: Publisher's asking price + selected margin.
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="font-medium">
+                Publisher's cost: {formatCurrency(askingPrice)} (what we pay the publisher)
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Add margins to determine final marketplace selling price (our profit)
+                {currentMarketplacePrice && currentMarketplacePrice !== askingPrice && (
+                  <span className="ml-2 font-medium text-foreground">
+                    Current selling price: {formatCurrency(currentMarketplacePrice)}
+                  </span>
+                )}
+              </div>
+            </div>
           )}
         </CardDescription>
       </CardHeader>
@@ -230,41 +253,67 @@ export function MarginControls({
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
               <div className="space-y-2">
-                <div className="font-medium">Margin Preview:</div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Publisher Price:</span>
-                    <span className="ml-2 font-medium">{formatCurrency(selectedCalculation.originalPrice)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Marketplace Price:</span>
-                    <span className="ml-2 font-medium">{formatCurrency(selectedCalculation.finalPrice)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Margin Amount:</span>
-                    <span className="ml-2 font-medium">{formatCurrency(selectedCalculation.marginAmount)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Margin %:</span>
-                    <span className="ml-2 font-medium">{formatPercentage(selectedCalculation.marginPercentage)}</span>
-                  </div>
+                <div className="font-medium">
+                  {isBulkMode ? 'Bulk Margin Preview:' : 'Margin Preview:'}
                 </div>
-                <div className="flex items-center gap-2 pt-2">
-                  <span className="text-muted-foreground">Profit:</span>
-                  <Badge
-                    variant={getProfitBadgeVariant(getProfitMarginCategory(selectedCalculation.profit, selectedCalculation.originalPrice))}
-                    className={getProfitBadgeColor(getProfitMarginCategory(selectedCalculation.profit, selectedCalculation.originalPrice))}
-                  >
-                    {formatCurrency(selectedCalculation.profit)} ({formatPercentage(selectedCalculation.marginPercentage)})
-                  </Badge>
-                </div>
+                {isBulkMode ? (
+                  <div className="text-sm">
+                    <div className="mb-2">
+                      <span className="text-muted-foreground">Margin to apply:</span>
+                      <span className="ml-2 font-medium">
+                        {selectedCalculation.marginType === 'fixed'
+                          ? `${formatCurrency(selectedCalculation.marginAmount)} (fixed amount)`
+                          : `${formatPercentage(selectedCalculation.marginPercentage)} (percentage markup)`
+                        }
+                      </span>
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      This margin will be added to each submission's individual publisher asking price.
+                      Final marketplace prices will vary based on each submission's asking price.
+                      {selectedCalculation.marginType === 'percentage' && selectedCalculation.marginPercentage > 300 && (
+                        <div className="text-amber-600 mt-1">
+                          ⚠️ High percentage margin may result in very high prices for expensive submissions.
+                        </div>
+                      )}
+                    </div>
+                  </div>                ) : (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Publisher Price:</span>
+                      <span className="ml-2 font-medium">{formatCurrency(selectedCalculation.originalPrice)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Marketplace Price:</span>
+                      <span className="ml-2 font-medium">{formatCurrency(selectedCalculation.finalPrice)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Margin Amount:</span>
+                      <span className="ml-2 font-medium">{formatCurrency(selectedCalculation.marginAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Margin %:</span>
+                      <span className="ml-2 font-medium">{formatPercentage(selectedCalculation.marginPercentage)}</span>
+                    </div>
+                  </div>
+                )}
+                {!isBulkMode && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <span className="text-muted-foreground">Profit:</span>
+                    <Badge
+                      variant={getProfitBadgeVariant(getProfitMarginCategory(selectedCalculation.profit, selectedCalculation.originalPrice))}
+                      className={getProfitBadgeColor(getProfitMarginCategory(selectedCalculation.profit, selectedCalculation.originalPrice))}
+                    >
+                      {formatCurrency(selectedCalculation.profit)} ({formatPercentage(selectedCalculation.marginPercentage)})
+                    </Badge>
+                  </div>
+                )}
                 <div className="flex gap-2 pt-2">
                   <Button
                     size="sm"
                     onClick={handleApplyMargin}
                     disabled={disabled}
                   >
-                    Apply This Margin
+                    {isBulkMode ? `Apply to ${selectedSubmissionCount} Submissions` : 'Apply This Margin'}
                   </Button>
                   <Button
                     variant="outline"

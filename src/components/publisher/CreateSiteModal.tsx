@@ -29,7 +29,6 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
   const [submittedSite, setSubmittedSite] = useState<any>(null);
   const [formData, setFormData] = useState({
     domain: editingSite?.domain || '',
-    price: editingSite?.price || 200,
     purchase_price: editingSite?.purchase_price || null,
     currency: editingSite?.currency || 'EUR',
     country: editingSite?.country || '',
@@ -115,27 +114,13 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
       newFieldErrors.category = 'Category name cannot exceed 100 characters';
     }
 
-    // Price validation
-    if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
-      errors.push('Marketplace price must be a positive number');
-      newFieldErrors.price = 'Marketplace price must be a positive number';
-    } else if (Number(formData.price) > 10000) {
-      errors.push('Marketplace price cannot exceed €10,000');
-      newFieldErrors.price = 'Marketplace price cannot exceed €10,000';
-    }
-
-    // Purchase price validation (optional)
-    if (formData.purchase_price !== null && formData.purchase_price !== undefined) {
-      if (isNaN(Number(formData.purchase_price))) {
-        errors.push('Purchase price must be a valid number');
-        newFieldErrors.purchase_price = 'Purchase price must be a valid number';
-      } else if (Number(formData.purchase_price) < 0) {
-        errors.push('Purchase price cannot be negative');
-        newFieldErrors.purchase_price = 'Purchase price cannot be negative';
-      } else if (Number(formData.purchase_price) > 50000) {
-        errors.push('Purchase price cannot exceed €50,000');
-        newFieldErrors.purchase_price = 'Purchase price cannot exceed €50,000';
-      }
+    // Publisher's asking price validation (required - becomes platform cost)
+    if (!formData.purchase_price || isNaN(Number(formData.purchase_price)) || Number(formData.purchase_price) <= 0) {
+      errors.push('Your asking price must be a positive number');
+      newFieldErrors.purchase_price = 'Your asking price must be a positive number';
+    } else if (Number(formData.purchase_price) > 10000) {
+      errors.push('Your asking price cannot exceed €10,000');
+      newFieldErrors.purchase_price = 'Your asking price cannot exceed €10,000';
     }
 
     // Optional field validation
@@ -194,10 +179,12 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
     console.log('[CreateSiteModal] Validation passed, proceeding with direct submission');
 
     // Prepare submission data for direct database insertion
+    // Publisher's asking price becomes the purchase_price (platform cost)
+    // Final selling price will be set later by admins adding margins
     const submissionData = {
       domain: formData.domain.trim(),
-      price: parseFloat(formData.price.toString()),
-      purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price.toString()) : null,
+      price: null, // Will be set by admin when adding margins
+      purchase_price: parseFloat(formData.purchase_price!.toString()),
       currency: formData.currency,
       country: formData.country.trim(),
       language: formData.language.trim(),
@@ -333,8 +320,8 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
       };
 
       if (!data?.success) {
-        console.error('[CreateSiteModal] Submission failed:', data?.error);
-        throw new Error(data?.error || 'Submission failed');
+        console.error('[CreateSiteModal] Submission failed:', data?.message);
+        throw new Error(data?.message || 'Submission failed');
       }
 
       console.log('[CreateSiteModal] Submission successful:', data.data);
@@ -357,7 +344,6 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
       // Reset form
       setFormData({
         domain: '',
-        price: 200,
         purchase_price: null,
         currency: 'EUR',
         country: '',
@@ -439,47 +425,30 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
               )}
             </div>
             
+            {/* Publisher's Asking Price - this becomes the platform's cost */}
             <div className="space-y-2">
-              <Label htmlFor="price">Marketplace Price (EUR) *</Label>
+              <Label htmlFor="purchase_price">Your Asking Price (EUR) *</Label>
               <Input
-                id="price"
+                id="purchase_price"
                 type="number"
-                value={formData.price || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value ? Number(e.target.value) : 0 }))}
+                value={formData.purchase_price || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  purchase_price: e.target.value ? Number(e.target.value) : null
+                }))}
                 min="0"
+                step="0.01"
                 required
-                className={`glass-input ${fieldErrors.price ? 'border-red-500 focus:border-red-500' : ''}`}
+                placeholder="What you charge per article"
+                className={`glass-input ${fieldErrors.purchase_price ? 'border-red-500 focus:border-red-500' : ''}`}
               />
-              {fieldErrors.price && (
-                <p className="text-sm text-red-600 mt-1">{fieldErrors.price}</p>
+              {fieldErrors.purchase_price && (
+                <p className="text-sm text-red-600 mt-1">{fieldErrors.purchase_price}</p>
               )}
+              <p className="text-xs text-muted-foreground mt-1">
+                This is what our platform will pay you per article. Admins will add margins to determine the final customer price.
+              </p>
             </div>
-
-            {/* Purchase Price field - only show for non-moody sites */}
-            {formData.domain && !formData.domain.toLowerCase().includes('moody') && (
-              <div className="space-y-2">
-                <Label htmlFor="purchase_price">Your Asking Price (EUR)</Label>
-                <Input
-                  id="purchase_price"
-                  type="number"
-                  value={formData.purchase_price || ''}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    purchase_price: e.target.value ? Number(e.target.value) : null
-                  }))}
-                  min="0"
-                  step="0.01"
-                  placeholder="What you want to charge for this website"
-                  className={`glass-input ${fieldErrors.purchase_price ? 'border-red-500 focus:border-red-500' : ''}`}
-                />
-                {fieldErrors.purchase_price && (
-                  <p className="text-sm text-red-600 mt-1">{fieldErrors.purchase_price}</p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  This is what you'll charge buyers. The marketplace price above is what customers will pay.
-                </p>
-              </div>
-            )}
             
             <div className="space-y-2">
               <Label htmlFor="country">Country *</Label>
@@ -627,7 +596,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
                         className="glass-input"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Price: €{(formData.price * rule.multiplier).toFixed(0)}
+                        Price: €{((formData.purchase_price || 0) * rule.multiplier).toFixed(0)}
                       </p>
                     </div>
                   </div>
@@ -886,7 +855,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
             </Button>
             <Button
               type="button"
-              onClick={handleConfirmedSubmit}
+              onClick={handleSubmit}
               disabled={loading}
               className="glass-button-primary"
             >
