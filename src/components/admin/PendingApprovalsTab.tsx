@@ -37,39 +37,10 @@ import { BulkMarginSummary } from './BulkMarginSummary';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-
-// Bulk Margin Summary Component - Now imported from separate file
-
-interface MediaOutlet {
-  id: string;
-  domain: string;
-  category: string;
-  country: string;
-  language: string;
-  price: number;
-  purchase_price?: number;
-  currency: string;
-  status: 'pending' | 'approved' | 'rejected' | 'active';
-  submitted_at: string;
-  reviewed_at?: string;
-  admin_tags?: string[];
-  submitted_by: string;
-  reviewed_by?: string;
-  review_notes?: string;
-  is_active: boolean;
-  created_at: string;
-  metrics?: {
-    ahrefs_dr: number;
-    moz_da: number;
-    semrush_as: number;
-    spam_score: number;
-    organic_traffic: number;
-    referring_domains: number;
-  };
-}
+import { MediaOutlet } from '@/types';
 
 interface PendingApprovalsTabProps {
-  submissions: MediaOutlet[];
+  submissions: any[];
   onRefresh: () => void;
   selectedUserId?: string | null;
   onUserSelect?: (userId: string | null) => void;
@@ -78,7 +49,7 @@ interface PendingApprovalsTabProps {
 export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, onUserSelect }: PendingApprovalsTabProps) {
   console.log('[PendingApprovalsTab] Props:', { submissionsCount: submissions?.length, selectedUserId, onUserSelect: !!onUserSelect });
 
-  const [pendingSubmissions, setPendingSubmissions] = useState<MediaOutlet[]>([]);
+  const [pendingSubmissions, setPendingSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -90,7 +61,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [selectedSubmission, setSelectedSubmission] = useState<MediaOutlet | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
   const [marketplacePrice, setMarketplacePrice] = useState<number>(0);

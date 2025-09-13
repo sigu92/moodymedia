@@ -10,7 +10,7 @@ function logStep(step: string, data?: any) {
 }
 
 function validateApprovalRequest(data: any) {
-  const errors = [];
+  const errors: string[] = [];
 
   if (!data.submission_id || typeof data.submission_id !== 'string' || data.submission_id.trim() === '') {
     errors.push('Valid submission_id is required');

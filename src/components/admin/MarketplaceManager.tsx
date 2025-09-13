@@ -19,31 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PendingApprovalsTab } from './PendingApprovalsTab';
 import { ProfitAnalyticsTab } from './ProfitAnalyticsTab';
 import { UserSummaryCard } from './UserSummaryCard';
-
-interface MediaOutlet {
-  id: string;
-  domain: string;
-  category: string;
-  price: number;
-  purchase_price?: number;
-  currency: string;
-  status: 'pending' | 'approved' | 'rejected' | 'active';
-  submitted_at: string;
-  reviewed_at?: string;
-  submitted_by: string;
-  reviewed_by?: string;
-  review_notes?: string;
-  is_active: boolean;
-  created_at: string;
-  metrics?: {
-    ahrefs_dr: number;
-    moz_da: number;
-    semrush_as: number;
-    spam_score: number;
-    organic_traffic: number;
-    referring_domains: number;
-  };
-}
+import { MediaOutlet } from '@/types';
 
 interface SubmissionStats {
   pending: number;

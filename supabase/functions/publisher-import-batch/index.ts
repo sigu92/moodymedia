@@ -9,6 +9,14 @@ function logStep(step: string, data?: any) {
   console.log(`[publisher-import-batch] ${step}`, data ? JSON.stringify(data) : '');
 }
 
+interface ImportResult {
+  row: number;
+  domain: string;
+  success: boolean;
+  errors: string[];
+  skipped: boolean;
+}
+
 function normalizeDomain(domain: string): string {
   return domain
     .replace(/^https?:\/\//, '')
@@ -18,7 +26,7 @@ function normalizeDomain(domain: string): string {
 }
 
 function validateRow(row: any, mapping: any) {
-  const errors = [];
+  const errors: string[] = [];
   
   // Check required fields
   if (!row[mapping.domain] || row[mapping.domain].trim() === '') {
@@ -159,7 +167,7 @@ Deno.serve(async (req) => {
     const existingDomains = new Set(existingOutlets?.map(o => normalizeDomain(o.domain)) || []);
     logStep('Existing domains loaded', { count: existingDomains.size });
 
-    const results = [];
+    const results: ImportResult[] = [];
     let successCount = 0;
     let failureCount = 0;
     let skippedCount = 0;
