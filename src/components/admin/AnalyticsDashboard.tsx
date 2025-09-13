@@ -265,7 +265,7 @@ export const AnalyticsDashboard = () => {
                         cy="50%"
                         outerRadius={80}
                         dataKey="count"
-                        label={({ category, count }) => `${category}: ${count}`}
+                        label={({ name, value }) => `${name}: ${value}`}
                       >
                         {categoryChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />

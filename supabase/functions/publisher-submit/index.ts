@@ -18,7 +18,7 @@ function normalizeDomain(domain: string): string {
 }
 
 function validateSubmission(data: any) {
-  const errors = [];
+  const errors: string[] = [];
 
   // Domain validation
   if (!data.domain || typeof data.domain !== 'string' || data.domain.trim() === '') {

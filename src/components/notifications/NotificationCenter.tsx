@@ -6,11 +6,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useNotifications } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
-import { 
-  Bell, 
-  Check, 
-  CheckCheck, 
-  Trash2, 
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  CheckCircle,
+  Trash2,
   Settings,
   Package,
   Gift,
