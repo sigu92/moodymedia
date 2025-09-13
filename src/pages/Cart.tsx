@@ -5,23 +5,38 @@ import { Separator } from "@/components/ui/separator";
 import { Trash2, ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCart } from "@/hooks/useCart";
+import { useSettingsStatus } from "@/hooks/useSettings";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Cart = () => {
   const { cartItems, loading, removeFromCart } = useCart();
   const { isComplete } = useSettingsStatus();
+  const { user } = useAuth();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.finalPrice || item.price), 0);
   const vatRate = 0.25; // 25% VAT
   const vatAmount = subtotal * vatRate;
   const total = subtotal + vatAmount;
 
   const handleCheckout = async () => {
-    if (cartItems.length === 0) return;
-    
+    // Filter out read-only items (recovered from backup)
+    const checkoutItems = cartItems.filter(item => !item.readOnly);
+
+    if (checkoutItems.length === 0) {
+      if (cartItems.length > 0) {
+        toast({
+          title: "Cannot Checkout",
+          description: "All cart items are read-only. Please refresh the page to restore functionality.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
     if (!isComplete) {
       toast({
         title: "Settings Required",
@@ -33,32 +48,43 @@ const Cart = () => {
 
     setCheckoutLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { cartItems },
-      });
+      // Check if we're in development mode (no Stripe key configured)
+      // In development, bypass Edge Function and create mock checkout directly
+      const isDevelopment = !import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+                           import.meta.env.DEV;
 
-      if (error) {
-        throw error;
-      }
-
-      if (data?.url) {
-        if (data.mock) {
-          // For mock checkout, show a message and redirect after a delay
-          toast({
-            title: "Mock Checkout Created",
-            description: "Redirecting to mock payment success page...",
-          });
-          
-          // Redirect to mock success page after 1 second
-          setTimeout(() => {
-            window.location.href = data.url;
-          }, 1000);
-        } else {
-          // Open real Stripe checkout in a new tab
-          window.open(data.url, '_blank');
-        }
+      if (isDevelopment) {
+        // Development mode: Create mock orders directly in database
+        await createMockCheckout(checkoutItems);
       } else {
-        throw new Error('No checkout URL received');
+        // Production mode: Use Edge Function
+        const { data, error } = await supabase.functions.invoke('create-checkout', {
+          body: { cartItems: checkoutItems },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data?.url) {
+          if (data.mock) {
+            // For mock checkout, show a message and redirect after a delay
+            toast({
+              title: "Mock Checkout Created",
+              description: "Redirecting to mock payment success page...",
+            });
+
+            // Redirect to mock success page after 1 second
+            setTimeout(() => {
+              window.location.href = data.url;
+            }, 1000);
+          } else {
+            // Open real Stripe checkout in a new tab
+            window.open(data.url, '_blank');
+          }
+        } else {
+          throw new Error('No checkout URL received');
+        }
       }
     } catch (error) {
       console.error('Checkout error:', error);
@@ -69,6 +95,52 @@ const Cart = () => {
       });
     } finally {
       setCheckoutLoading(false);
+    }
+  };
+
+  const createMockCheckout = async (checkoutItems: any[]) => {
+    try {
+      // Create orders directly in database for development
+      const orders = checkoutItems.map(item => ({
+        buyer_id: user?.id,
+        media_outlet_id: item.mediaOutletId,
+        status: "requested",
+        price: item.finalPrice || item.price,
+        currency: item.currency,
+        stripe_session_id: `mock_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        niche_id: item.nicheId,
+        base_price: item.basePrice || item.price,
+        price_multiplier: item.priceMultiplier || 1.0,
+        final_price: item.finalPrice || item.price
+      }));
+
+      const { error: insertError } = await supabase
+        .from('orders')
+        .insert(orders);
+
+      if (insertError) throw insertError;
+
+      // Store cart items in localStorage as backup (will be cleared after successful payment)
+      localStorage.setItem(`cart_backup_${user?.id}`, JSON.stringify({
+        cartItems,
+        timestamp: Date.now(),
+        sessionId: mockSessionId
+      }));
+
+      toast({
+        title: "Mock Checkout Created",
+        description: `${orders.length} order(s) created successfully. Complete payment to clear cart.`,
+      });
+
+      // Redirect to payment success page with mock data
+      const mockSessionId = `mock_session_${Date.now()}`;
+      setTimeout(() => {
+        window.location.href = `/payment-success?session_id=${mockSessionId}&mock=true`;
+      }, 1000);
+
+    } catch (error) {
+      console.error('Mock checkout error:', error);
+      throw new Error('Failed to create mock orders');
     }
   };
 
@@ -109,34 +181,48 @@ const Cart = () => {
             <div className="lg:col-span-2 space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Cart Items ({cartItems.length})</CardTitle>
+                  <CardTitle>
+                    Cart Items ({cartItems.filter(item => !item.readOnly).length}
+                    {cartItems.some(item => item.readOnly) && ` + ${cartItems.filter(item => item.readOnly).length} read-only`})
+                  </CardTitle>
                   <CardDescription>Selected media outlets for publication</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={item.id} className={`flex items-center justify-between p-4 border rounded-lg ${item.readOnly ? 'bg-muted/50 border-muted' : ''}`}>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-medium">{item.domain}</h3>
                           <Badge variant="outline">{item.category}</Badge>
+                          {item.readOnly && (
+                            <Badge variant="secondary" className="text-xs">
+                              Read-only
+                            </Badge>
+                          )}
                         </div>
-                        
+
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>Publication opportunity</span>
+                          {item.readOnly && (
+                            <span className="text-orange-600">
+                              • Recovered from backup - limited functionality
+                            </span>
+                          )}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="font-medium">€{item.price}</p>
+                          <p className="font-medium">€{item.finalPrice || item.price}</p>
                           <p className="text-sm text-muted-foreground">{item.currency}</p>
                         </div>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-destructive hover:text-destructive"
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`text-destructive hover:text-destructive ${item.readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                           onClick={() => removeFromCart(item.id)}
+                          disabled={item.readOnly}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -171,19 +257,24 @@ const Cart = () => {
                     <span>€{total.toFixed(2)}</span>
                   </div>
                   
-                  <Button 
-                    className="w-full mt-6" 
+                  <Button
+                    className="w-full mt-6"
                     onClick={handleCheckout}
-                    disabled={checkoutLoading || cartItems.length === 0}
+                    disabled={checkoutLoading || cartItems.filter(item => !item.readOnly).length === 0}
                   >
                     {checkoutLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Creating Checkout...
                       </>
+                    ) : cartItems.filter(item => !item.readOnly).length === 0 && cartItems.length > 0 ? (
+                      <>
+                        Restore Cart Functionality
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </>
                     ) : (
                       <>
-                        Proceed to Checkout
+                        Proceed to Checkout ({cartItems.filter(item => !item.readOnly).length} items)
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </>
                     )}

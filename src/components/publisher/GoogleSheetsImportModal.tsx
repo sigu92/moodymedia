@@ -51,11 +51,24 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
         .trim();
 
       // Check for duplicate domain
-      const { data: existingOutlet } = await supabase
+      const { data: existingOutlet, error: duplicateCheckError } = await supabase
         .from('media_outlets')
         .select('id, domain, status, publisher_id')
         .eq('domain', normalizedDomain)
-        .single();
+        .maybeSingle();
+
+      if (duplicateCheckError) {
+        console.error(`[DirectBatchImport] Error checking for duplicate domain ${normalizedDomain}:`, duplicateCheckError);
+        results.results.push({
+          row: rowNumber,
+          domain: normalizedDomain,
+          success: false,
+          errors: ['Database error while checking for duplicates'],
+          skipped: false
+        });
+        results.failed++;
+        continue;
+      }
 
       if (existingOutlet) {
         results.results.push({
@@ -76,7 +89,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
           row: rowNumber,
           domain: normalizedDomain,
           success: false,
-          errors: ['Publisher asking price field is missing'],
+            errors: ['Publisher asking price (platform cost) field is missing'],
           skipped: false
         });
         results.failed++;
@@ -84,10 +97,12 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
       }
 
       // Prepare outlet data - map template fields to our schema
+      // Publisher's uploaded price becomes the purchase_price (cost to platform)
+      // Final selling price (price) will be set later by admins adding margins
       const outletData = {
         domain: normalizedDomain,
-        price: parseFloat(row.price) || 0, // Publisher's asking price (initial marketplace price)
-        purchase_price: parseFloat(row.price) || null, // Publisher's asking price from template
+        price: null, // Will be set by admin when adding margins
+        purchase_price: parseFloat(row.price) || 0, // Publisher's asking price = platform cost
         currency: row.currency || 'EUR',
         country: (row.country || '').toString().trim() || '',
         language: (row.language || '').toString().trim() || '',
@@ -247,9 +262,15 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
 
     setLoading(true);
     try {
+      // More robust URL validation for Google Sheets
       const sheetIdMatch = googleSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
       if (!sheetIdMatch) {
-        throw new Error('Invalid Google Sheets URL');
+        throw new Error('Invalid Google Sheets URL. Please ensure you\'re using a URL that contains "/spreadsheets/d/" followed by the sheet ID.');
+      }
+
+      // Additional validation - check if URL looks like a valid Google Sheets URL
+      if (!googleSheetUrl.includes('docs.google.com/spreadsheets')) {
+        throw new Error('URL must be from Google Sheets (docs.google.com/spreadsheets)');
       }
 
       const sheetId = sheetIdMatch[1];

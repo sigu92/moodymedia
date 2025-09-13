@@ -10,6 +10,7 @@ interface ProfitMarginDisplayProps {
   showLabels?: boolean;
   compact?: boolean;
   className?: string;
+  isMoody?: boolean; // Whether this is a moody website (100% profit)
 }
 
 export function ProfitMarginDisplay({
@@ -17,11 +18,13 @@ export function ProfitMarginDisplay({
   sellingPrice,
   showLabels = true,
   compact = false,
-  className = ''
+  className = '',
+  isMoody = false
 }: ProfitMarginDisplayProps) {
   // Calculate profit metrics
-  const profit = sellingPrice - costPrice;
-  const marginPercentage = costPrice > 0 ? (profit / costPrice) * 100 : 0;
+  // For moody websites, profit is the entire selling price since we own the website
+  const profit = isMoody ? sellingPrice : (sellingPrice - costPrice);
+  const marginPercentage = isMoody ? 100 : (costPrice > 0 ? (profit / costPrice) * 100 : 0);
   const profitCategory = getProfitMarginCategory(profit, costPrice);
 
   // Get styling based on profit category
@@ -142,13 +145,24 @@ export function ProfitMarginDisplay({
 }
 
 // Utility component for table cell display
-export function ProfitMarginCell({ costPrice, sellingPrice }: { costPrice: number; sellingPrice: number }) {
+export function ProfitMarginCell({
+  costPrice,
+  sellingPrice,
+  adminTags
+}: {
+  costPrice: number;
+  sellingPrice: number;
+  adminTags?: string[];
+}) {
+  const isMoody = adminTags?.includes('moody') || false;
+
   return (
     <ProfitMarginDisplay
       costPrice={costPrice}
       sellingPrice={sellingPrice}
       showLabels={false}
       compact={true}
+      isMoody={isMoody}
     />
   );
 }

@@ -75,6 +75,9 @@ export function useBulkOperations(): UseBulkOperationsReturn {
         throw new Error('No submissions found');
       }
 
+      // Generate batch_id once before the loop for consistent batch identification
+      const batchId = submissionIds.length > 1 ? 'bulk-margins-' + Date.now() : null;
+
       // Process each submission
       for (let i = 0; i < submissions.length; i++) {
         const submission = submissions[i];
@@ -90,7 +93,10 @@ export function useBulkOperations(): UseBulkOperationsReturn {
           }));
 
           // Calculate new price based on margin
+          // Note: Moody websites use the same price calculation, but profit is calculated differently (100% of sale)
           let newPrice: number;
+          const isMoody = submission.admin_tags?.includes('moody') || false;
+
           if (margin.type === 'fixed') {
             newPrice = (submission.purchase_price || 0) + margin.value;
           } else {
@@ -118,7 +124,7 @@ export function useBulkOperations(): UseBulkOperationsReturn {
               operationType: submissionIds.length === 1 ? 'single_approval' : 'bulk_margin_application',
               submissionId: submission.id,
               previousPrice: submission.price,
-              newPrice: finalPrice,
+              newPrice: newPrice,
               purchasePrice: submission.purchase_price,
               marginType: margin.type,
               marginValue: margin.value,
@@ -128,8 +134,9 @@ export function useBulkOperations(): UseBulkOperationsReturn {
               bulkOperationCount: submissionIds.length,
               bulkOperationIndex: i + 1,
               metadata: {
-                batch_id: submissionIds.length > 1 ? 'bulk-margins-' + Date.now() : null,
-                applied_by_margin_controls: true
+                batch_id: batchId,
+                applied_by_margin_controls: true,
+                is_moody: isMoody
               }
             });
           }
@@ -171,6 +178,107 @@ export function useBulkOperations(): UseBulkOperationsReturn {
     }
   }, [toast]);
 
+  const performDirectApproval = async (
+    submissionId: string,
+    submission: any,
+    reviewNotes?: string
+  ): Promise<boolean> => {
+    try {
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated for direct approval');
+
+      // Get current submission data
+      const { data: currentSubmission, error: fetchError } = await supabase
+        .from('media_outlets')
+        .select('*')
+        .eq('id', submissionId)
+        .single();
+
+      if (fetchError || !currentSubmission) {
+        throw new Error('Submission not found');
+      }
+
+      if (currentSubmission.status !== 'pending') {
+        throw new Error(`Submission status is '${currentSubmission.status}', not 'pending'`);
+      }
+
+      if (currentSubmission.reviewed_by && currentSubmission.reviewed_at) {
+        throw new Error('Submission already reviewed by another administrator');
+      }
+
+      // Update the media outlet directly
+      const { data: updatedSubmission, error: updateError } = await supabase
+        .from('media_outlets')
+        .update({
+          reviewed_by: userData.user.id,
+          reviewed_at: new Date().toISOString(),
+          review_notes: reviewNotes || null,
+          status: 'active',
+          price: submission.price, // Ensure price is set
+          is_active: true
+        })
+        .eq('id', submissionId)
+        .eq('status', 'pending')
+        .is('reviewed_by', null)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw new Error('Failed to update submission: ' + updateError.message);
+      }
+
+      if (!updatedSubmission) {
+        throw new Error('Concurrent modification detected');
+      }
+
+      // Activate the listing
+      const { error: listingError } = await supabase
+        .from('listings')
+        .update({ is_active: true })
+        .eq('media_outlet_id', submissionId);
+
+      if (listingError) {
+        console.warn('Listing activation failed:', listingError);
+      }
+
+      // Create notification (don't fail if RLS blocks this)
+      try {
+        const notificationData = {
+          user_id: currentSubmission.publisher_id,
+          type: 'submission_status',
+          title: `Website Approved: ${currentSubmission.domain}`,
+          message: `Great news! Your website ${currentSubmission.domain} has been approved and is now live on the marketplace.`,
+          data: {
+            submission_id: submissionId,
+            domain: currentSubmission.domain,
+            action: 'approve',
+            marketplace_price: submission.price,
+            review_notes: reviewNotes,
+            reviewed_at: new Date().toISOString()
+          }
+        };
+
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert(notificationData);
+
+        if (notificationError) {
+          console.warn('Notification creation failed (RLS policy?):', notificationError);
+          // Don't fail the approval for notification issues
+        }
+      } catch (notificationError) {
+        console.warn('Notification creation exception:', notificationError);
+        // Continue with approval even if notification fails
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Direct approval failed:', error);
+      return false;
+    }
+  };
+
   const approveBulk = useCallback(async (
     submissionIds: string[],
     marketplacePrice: number,
@@ -179,8 +287,51 @@ export function useBulkOperations(): UseBulkOperationsReturn {
   ): Promise<boolean> => {
     if (submissionIds.length === 0) return false;
 
+    // First, filter to only submissions that have margins applied
+    const { data: submissions, error: fetchError } = await supabase
+      .from('media_outlets')
+      .select('id, price, purchase_price')
+      .in('id', submissionIds);
+
+    if (fetchError) {
+      toast({
+        title: "Error",
+        description: `Failed to check submission status: ${fetchError.message}`,
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (!submissions) {
+      toast({
+        title: "Error",
+        description: "No submissions found",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Only approve submissions that have margins applied (price set and different from purchase_price)
+    const submissionsWithMargins = submissions.filter(s =>
+      s.price && s.price > 0 && s.price !== s.purchase_price
+    );
+
+    if (submissionsWithMargins.length === 0) {
+      toast({
+        title: "No Margins Applied",
+        description: "Please apply margins to selected websites before approving them.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    const validSubmissionIds = submissionsWithMargins.map(s => s.id);
+
+    // Generate batch_id once before the loop for consistent batch identification
+    const batchId = validSubmissionIds.length > 1 ? 'bulk-approval-' + Date.now() : null;
+
     setIsProcessing(true);
-    setProgress({ completed: 0, total: submissionIds.length, currentOperation: 'Approving submissions...' });
+    setProgress({ completed: 0, total: validSubmissionIds.length, currentOperation: 'Approving submissions with margins...' });
     const operationResults: BulkOperationResult[] = [];
 
     try {
@@ -188,49 +339,106 @@ export function useBulkOperations(): UseBulkOperationsReturn {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('Not authenticated');
 
-      // Process each submission
-      for (let i = 0; i < submissionIds.length; i++) {
-        const submissionId = submissionIds[i];
+      // Check if we're in development mode
+      const isDevelopment = !import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.DEV;
+
+      // Process each submission that has margins applied
+      for (let i = 0; i < validSubmissionIds.length; i++) {
+        const submissionId = validSubmissionIds[i];
+        const submission = submissionsWithMargins.find(s => s.id === submissionId);
         const result: BulkOperationResult = {
           success: false,
           submissionId
         };
 
+        if (!submission || !submission.price) {
+          result.error = 'Submission missing price data';
+          operationResults.push(result);
+          setProgress(prev => ({ ...prev, completed: i + 1 }));
+          continue;
+        }
+
         try {
           setProgress(prev => ({
             ...prev,
-            currentOperation: `Approving ${i + 1}/${submissionIds.length}: ${submissionId.slice(0, 8)}...`
+            currentOperation: `Approving ${i + 1}/${validSubmissionIds.length}: ${submissionId.slice(0, 8)}...`
           }));
 
-          // Call the admin-approve edge function
-          const { error } = await supabase.functions.invoke('admin-approve', {
-            body: {
-              submission_id: submissionId,
-              action: 'approve',
-              marketplace_price: marketplacePrice,
-              review_notes: reviewNotes || null
-            }
-          });
+          let approvalSuccess = false;
+          let edgeFunctionSuccess = false;
 
-          if (error) {
-            result.error = error.message;
+          if (isDevelopment) {
+            // Development mode: Use direct approval
+            console.log(`Using direct approval for ${submissionId} (development mode)`);
+            approvalSuccess = await performDirectApproval(submissionId, submission, reviewNotes);
           } else {
+            // Production mode: Try Edge Function first, then fallback
+            edgeFunctionSuccess = false; // Reset for each submission
+            try {
+              const { error } = await supabase.functions.invoke('admin-approve', {
+                body: {
+                  submission_id: submissionId,
+                  action: 'approve',
+                  marketplace_price: submission.price, // Use the price already set in Step 1
+                  review_notes: reviewNotes || null
+                }
+              });
+
+              if (!error) {
+                edgeFunctionSuccess = true;
+                approvalSuccess = true;
+
+                // Log successful Edge Function approval
+                await auditLogger.logMarginOperation({
+                  operationId: validSubmissionIds.length === 1 ? submissionId : batchId || submissionId,
+                  operationType: validSubmissionIds.length === 1 ? 'single_approval' : 'bulk_approval',
+                  submissionId,
+                  newPrice: submission.price,
+                  reviewNotes,
+                  bulkOperationCount: validSubmissionIds.length,
+                  bulkOperationIndex: i + 1,
+                  metadata: {
+                    batch_id: batchId,
+                    marketplace_price: submission.price,
+                    method: 'edge_function'
+                  }
+                });
+              } else {
+                console.warn(`Edge Function failed for ${submissionId}, falling back to direct approval:`, error.message);
+              }
+            } catch (edgeError) {
+              console.warn(`Edge Function call failed for ${submissionId}, falling back to direct approval:`, edgeError);
+            }
+
+            // Fallback: Direct approval if Edge Function fails
+            if (!edgeFunctionSuccess) {
+              console.log(`Falling back to direct approval for ${submissionId}`);
+              approvalSuccess = await performDirectApproval(submissionId, submission, reviewNotes);
+            }
+          }
+
+          if (approvalSuccess) {
             result.success = true;
 
-            // Log successful approval
-            await auditLogger.logMarginOperation({
-              operationId: submissionIds.length === 1 ? submissionId : 'bulk-approval-' + Date.now(),
-              operationType: submissionIds.length === 1 ? 'single_approval' : 'bulk_approval',
-              submissionId,
-              newPrice: marketplacePrice,
-              reviewNotes,
-              bulkOperationCount: submissionIds.length,
-              bulkOperationIndex: i + 1,
-              metadata: {
-                batch_id: submissionIds.length > 1 ? 'bulk-approval-' + Date.now() : null,
-                marketplace_price: marketplacePrice
-              }
-            });
+            // Log successful approval (for development mode or fallback)
+            if (isDevelopment || !edgeFunctionSuccess) {
+              await auditLogger.logMarginOperation({
+                operationId: validSubmissionIds.length === 1 ? submissionId : batchId || submissionId,
+                operationType: validSubmissionIds.length === 1 ? 'single_approval' : 'bulk_approval',
+                submissionId,
+                newPrice: submission.price,
+                reviewNotes,
+                bulkOperationCount: validSubmissionIds.length,
+                bulkOperationIndex: i + 1,
+                metadata: {
+                  batch_id: batchId,
+                  marketplace_price: submission.price,
+                  method: isDevelopment ? 'direct_approval_dev' : 'direct_approval_fallback'
+                }
+              });
+            }
+          } else {
+            result.error = 'Approval failed';
           }
 
         } catch (err) {
@@ -239,7 +447,7 @@ export function useBulkOperations(): UseBulkOperationsReturn {
 
         operationResults.push(result);
         setProgress(prev => ({ ...prev, completed: i + 1 }));
-        onProgress?.(i + 1, submissionIds.length);
+        onProgress?.(i + 1, validSubmissionIds.length);
       }
 
       setResults(operationResults);
@@ -250,7 +458,7 @@ export function useBulkOperations(): UseBulkOperationsReturn {
       if (successCount > 0) {
         toast({
           title: "Bulk Approval Complete",
-          description: `Successfully approved ${successCount} submissions${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
+          description: `Successfully approved ${successCount} submissions and published them to the marketplace${failureCount > 0 ? `. ${failureCount} failed` : ''}`,
           variant: successCount === operationResults.length ? "default" : "destructive"
         });
       }
@@ -282,6 +490,9 @@ export function useBulkOperations(): UseBulkOperationsReturn {
     const operationResults: BulkOperationResult[] = [];
 
     try {
+      // Generate batch_id once before the loop for consistent batch identification
+      const batchId = submissionIds.length > 1 ? 'bulk-rejection-' + Date.now() : null;
+
       // Process each submission
       for (let i = 0; i < submissionIds.length; i++) {
         const submissionId = submissionIds[i];
@@ -312,14 +523,14 @@ export function useBulkOperations(): UseBulkOperationsReturn {
 
             // Log successful rejection
             await auditLogger.logMarginOperation({
-              operationId: submissionIds.length === 1 ? submissionId : 'bulk-rejection-' + Date.now(),
+              operationId: submissionIds.length === 1 ? submissionId : batchId || submissionId,
               operationType: submissionIds.length === 1 ? 'single_approval' : 'bulk_rejection',
               submissionId,
               reviewNotes,
               bulkOperationCount: submissionIds.length,
               bulkOperationIndex: i + 1,
               metadata: {
-                batch_id: submissionIds.length > 1 ? 'bulk-rejection-' + Date.now() : null,
+                batch_id: batchId,
                 rejection_reason: reviewNotes
               }
             });
@@ -453,10 +664,10 @@ export function useBulkOperations(): UseBulkOperationsReturn {
         .from('margin_operation_audit')
         .update({
           operation_status: 'rolled_back',
-          metadata: supabase.sql`metadata || ${JSON.stringify({
+          metadata: {
             rolled_back_at: new Date().toISOString(),
             rolled_back_by: userData.user.id
-          })}`
+          }
         })
         .eq('operation_id', operationId);
 

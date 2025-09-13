@@ -21,7 +21,9 @@ import {
   User,
   Calendar,
   Globe,
-  BarChart3
+  BarChart3,
+  Calculator,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -31,91 +33,12 @@ import { BulkActionsBar } from './BulkActionsBar';
 import { useBulkOperations } from '@/hooks/useBulkOperations';
 import { MarginControls } from './MarginControls';
 import { BulkOperationErrorBoundary } from './BulkOperationErrorBoundary';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
+import { BulkMarginSummary } from './BulkMarginSummary';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calculator } from 'lucide-react';
 
-// Bulk Margin Summary Component
-function BulkMarginSummary({
-  selectedSubmissions,
-  allSubmissions
-}: {
-  selectedSubmissions: string[];
-  allSubmissions: MediaOutlet[];
-}) {
-  const selectedData = allSubmissions.filter(s => selectedSubmissions.includes(s.id));
-
-  const totals = selectedData.reduce(
-    (acc, submission) => {
-      const costPrice = submission.purchase_price || 0;
-      const sellingPrice = submission.price || costPrice;
-
-      return {
-        totalCost: acc.totalCost + costPrice,
-        totalRevenue: acc.totalRevenue + sellingPrice,
-        totalProfit: acc.totalProfit + (sellingPrice - costPrice),
-        count: acc.count + 1
-      };
-    },
-    { totalCost: 0, totalRevenue: 0, totalProfit: 0, count: 0 }
-  );
-
-  const avgMargin = totals.totalCost > 0 ? (totals.totalProfit / totals.totalCost) * 100 : 0;
-
-  const getMarginCategory = (margin: number) => {
-    if (margin < 0) return 'loss';
-    if (margin >= 100) return 'excellent';
-    if (margin >= 50) return 'good';
-    if (margin >= 20) return 'fair';
-    return 'poor';
-  };
-
-  const category = getMarginCategory(avgMargin);
-  const categoryColors = {
-    excellent: 'text-green-600 bg-green-50 border-green-200',
-    good: 'text-blue-600 bg-blue-50 border-blue-200',
-    fair: 'text-yellow-600 bg-yellow-50 border-yellow-200',
-    poor: 'text-orange-600 bg-orange-50 border-orange-200',
-    loss: 'text-red-600 bg-red-50 border-red-200'
-  };
-
-  return (
-    <div className="mb-4 p-3 rounded-lg border bg-muted/30">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div>
-          <div className="text-muted-foreground">Total Cost</div>
-          <div className="font-semibold">€{totals.totalCost.toFixed(0)}</div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">Total Revenue</div>
-          <div className="font-semibold">€{totals.totalRevenue.toFixed(0)}</div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">Total Profit</div>
-          <div className={`font-semibold ${totals.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            €{totals.totalProfit.toFixed(0)}
-          </div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">Avg Margin</div>
-          <div className={`font-semibold px-2 py-1 rounded border text-xs ${categoryColors[category as keyof typeof categoryColors]}`}>
-            {avgMargin.toFixed(1)}%
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Bulk Margin Summary Component - Now imported from separate file
 
 interface MediaOutlet {
   id: string;
@@ -129,6 +52,7 @@ interface MediaOutlet {
   status: 'pending' | 'approved' | 'rejected' | 'active';
   submitted_at: string;
   reviewed_at?: string;
+  admin_tags?: string[];
   submitted_by: string;
   reviewed_by?: string;
   review_notes?: string;
@@ -152,6 +76,8 @@ interface PendingApprovalsTabProps {
 }
 
 export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, onUserSelect }: PendingApprovalsTabProps) {
+  console.log('[PendingApprovalsTab] Props:', { submissionsCount: submissions?.length, selectedUserId, onUserSelect: !!onUserSelect });
+
   const [pendingSubmissions, setPendingSubmissions] = useState<MediaOutlet[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -163,7 +89,6 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
   const [showMarginDialog, setShowMarginDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
-  const [confirmPrice, setConfirmPrice] = useState<number>(0);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedSubmission, setSelectedSubmission] = useState<MediaOutlet | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -213,9 +138,14 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
 
   const handleMarginApplied = async (marginCalculation: any) => {
     // Apply the margin to all selected submissions
+    const marginType = marginCalculation.marginType || 'fixed';
+    const marginValue = marginType === 'fixed'
+      ? marginCalculation.marginAmount
+      : marginCalculation.marginPercentage;
+
     const success = await bulkOps.applyMarginsToSelection(
       selectedSubmissions,
-      { type: 'fixed', value: marginCalculation.marginAmount }, // This could be improved to detect margin type
+      { type: marginType, value: marginValue },
       (completed, total) => {
         console.log(`Applied margins to ${completed}/${total} submissions`);
       }
@@ -230,7 +160,6 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
   // Updated bulk approve with confirmation
   const handleBulkApprove = () => {
     setConfirmAction('approve');
-    setConfirmPrice(100); // Default price
     setShowConfirmDialog(true);
   };
 
@@ -250,7 +179,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
     if (confirmAction === 'approve') {
       success = await bulkOps.approveBulk(
         selectedSubmissions,
-        confirmPrice,
+        0, // Not used in new workflow - prices already set
         reviewNotes,
         (completed, total) => {
           console.log(`Approved ${completed}/${total} submissions`);
@@ -278,7 +207,14 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
       const matchesSearch = submission.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            submission.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || submission.category === categoryFilter;
-      return matchesSearch && matchesCategory;
+      const matchesUser = !selectedUserId || submission.submitted_by === selectedUserId;
+
+      const result = matchesSearch && matchesCategory && matchesUser;
+      if (!result && selectedUserId) {
+        console.log('[PendingApprovalsTab] Filtering out submission:', submission.domain, 'user:', submission.submitted_by, 'selectedUserId:', selectedUserId);
+      }
+
+      return result;
     })
     .sort((a, b) => {
       let aValue: any, bValue: any;
@@ -526,16 +462,6 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
     setShowReviewModal(true);
   };
 
-  const handleBulkApprove = () => {
-    setBulkAction('approve');
-    setBulkPrice(100); // Default price
-    setShowBulkPricing(true);
-  };
-
-  const handleBulkReject = () => {
-    setBulkAction('reject');
-    setShowBulkPricing(true);
-  };
 
   const executeBulkAction = async () => {
     if (selectedSubmissions.length === 0) return;
@@ -685,7 +611,8 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
                   <TableHead>Domain</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Asking Price</TableHead>
-                  <TableHead>Profit Margin</TableHead>
+                  <TableHead>Marketplace Price</TableHead>
+                  <TableHead>Profit</TableHead>
                   <TableHead>DR</TableHead>
                   <TableHead>Traffic</TableHead>
                   <TableHead>Submitted</TableHead>
@@ -722,10 +649,18 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
                       </div>
                     </TableCell>
                     <TableCell>
-                      {submission.purchase_price ? (
+                      <div className="text-sm">
+                        <div className="font-semibold">
+                          €{(submission.price && submission.price > 0) ? submission.price : (submission.purchase_price || 'N/A')}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {submission.purchase_price && (submission.price || submission.purchase_price) ? (
                         <ProfitMarginCell
                           costPrice={submission.purchase_price}
                           sellingPrice={submission.price || submission.purchase_price}
+                          adminTags={submission.admin_tags}
                         />
                       ) : (
                         <span className="text-muted-foreground text-sm">N/A</span>
@@ -838,6 +773,11 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
   useEffect(() => {
     setShowBulkActions(selectedSubmissions.length > 0);
   }, [selectedSubmissions]);
+
+  // Debug logging for filtered submissions
+  useEffect(() => {
+    console.log('[PendingApprovalsTab] Filtered submissions:', filteredAndSortedSubmissions.length, 'selectedUserId:', selectedUserId);
+  }, [filteredAndSortedSubmissions.length, selectedUserId]);
 
   return (
     <div className="space-y-6">
@@ -1114,7 +1054,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
                     <MarginControls
                       askingPrice={selectedSubmission.purchase_price}
                       onMarginApplied={(calculation) => {
-                        setMarketplacePrice(calculation.marketplacePrice);
+                        setMarketplacePrice(calculation.finalPrice);
                       }}
                       currentMarketplacePrice={marketplacePrice}
                       disabled={loading}
@@ -1262,16 +1202,21 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
               <Calculator className="h-5 w-5" />
               Apply Margins to {selectedSubmissions.length} Submissions
             </DialogTitle>
-            <DialogDescription>
-              Set profit margins for all selected submissions. The margin will be added to each publisher's asking price.
+            <DialogDescription className="space-y-1">
+              <div>Apply profit margins to selected submissions.</div>
+              <div className="text-sm text-muted-foreground">
+                Publisher's uploaded price = cost to platform • Added margin = platform profit • Final price = customer pays
+              </div>
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-4">
             <MarginControls
-              askingPrice={100} // This is just for display, actual prices will be calculated per submission
+              askingPrice={0} // Not used in bulk mode - margins applied to each submission's individual asking price
               onMarginApplied={handleMarginApplied}
               disabled={bulkOps.isProcessing}
+              isBulkMode={true}
+              selectedSubmissionCount={selectedSubmissions.length}
             />
           </div>
 
@@ -1292,31 +1237,16 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {confirmAction === 'approve' ? 'Bulk Approve Submissions' : 'Bulk Reject Submissions'}
+              {confirmAction === 'approve' ? 'Step 2: Approve & Publish Submissions' : 'Bulk Reject Submissions'}
             </DialogTitle>
             <DialogDescription>
-              This will {confirmAction === 'approve' ? 'approve' : 'reject'} {selectedSubmissions.length} submissions.
-              {confirmAction === 'approve' && ' All submissions will be set to the specified marketplace price.'}
-              {confirmAction === 'reject' && ' All publishers will receive the rejection feedback.'}
+              {confirmAction === 'approve'
+                ? `This will approve and publish all selected submissions that have margins applied. Only submissions with set marketplace prices will be processed.`
+                : `This will reject ${selectedSubmissions.length} selected submissions. All publishers will receive the rejection feedback.`
+              }
             </DialogDescription>
           </DialogHeader>
 
-          {confirmAction === 'approve' && (
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="confirm-price">Marketplace Price (€)</Label>
-                <Input
-                  id="confirm-price"
-                  type="number"
-                  value={confirmPrice}
-                  onChange={(e) => setConfirmPrice(Number(e.target.value))}
-                  placeholder="Enter marketplace price"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
-          )}
 
           <div className="space-y-2">
             <Label htmlFor="bulk-notes">
@@ -1341,9 +1271,19 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
               <div className="text-sm">
                 <strong>Summary:</strong>
                 <ul className="mt-2 space-y-1">
-                  <li>• {selectedSubmissions.length} submissions will be {confirmAction === 'approve' ? 'approved' : 'rejected'}</li>
-                  {confirmAction === 'approve' && <li>• Marketplace price will be set to €{confirmPrice}</li>}
-                  {confirmAction === 'reject' && <li>• Publishers will receive rejection feedback</li>}
+                  {confirmAction === 'approve' ? (
+                    <>
+                      <li>• Only submissions with applied margins will be approved and published</li>
+                      <li>• Submissions without margins will be skipped</li>
+                      <li>• Marketplace prices are already set from Step 1</li>
+                      <li>• Websites will go live on the marketplace immediately</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• {selectedSubmissions.length} submissions will be rejected</li>
+                      <li>• Publishers will receive rejection feedback</li>
+                    </>
+                  )}
                 </ul>
               </div>
             </AlertDescription>

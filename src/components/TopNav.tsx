@@ -21,7 +21,7 @@ import logoImage from '@/assets/moody-media-logo-new.png';
 
 export function TopNav() {
   const { user, userRoles, currentRole, signOut } = useAuth();
-  const { cartItems } = useCart();
+  const { cartItems, cartCount } = useCart();
   const { unreadCount } = useNotifications();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -62,7 +62,7 @@ export function TopNav() {
   };
 
   const getCartBadgeCount = () => {
-    return cartItems.length > 0 ? cartItems.length : undefined;
+    return cartCount > 0 ? cartCount : undefined;
   };
 
   const getNotificationBadgeCount = () => {

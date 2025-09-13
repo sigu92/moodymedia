@@ -22,6 +22,58 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Simple CSV parser that handles quoted fields
+const parseCSVText = (csvText: string): string[][] => {
+  const lines: string[][] = [];
+  let currentLine: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < csvText.length) {
+    const char = csvText[i];
+    const nextChar = csvText[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        // Escaped quote
+        currentField += '"';
+        i += 2;
+        continue;
+      } else {
+        // Toggle quote state
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      // Field separator
+      currentLine.push(currentField.trim());
+      currentField = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      // Line separator
+      if (currentField || currentLine.length > 0) {
+        currentLine.push(currentField.trim());
+        lines.push(currentLine);
+        currentLine = [];
+        currentField = '';
+      }
+      if (char === '\r' && nextChar === '\n') {
+        i++; // Skip \n after \r
+      }
+    } else {
+      currentField += char;
+    }
+    i++;
+  }
+
+  // Handle last field/line
+  if (currentField || currentLine.length > 0) {
+    currentLine.push(currentField.trim());
+    lines.push(currentLine);
+  }
+
+  return lines.filter(line => line.some(field => field.trim() !== ''));
+};
+
 // Helper function for direct batch import (no edge functions)
 const performDirectBatchImport = async (rows: any[], source: string, userId: string) => {
   const results = {
@@ -46,11 +98,24 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
         .trim();
 
       // Check for duplicate domain
-      const { data: existingOutlet } = await supabase
+      const { data: existingOutlet, error: duplicateCheckError } = await supabase
         .from('media_outlets')
         .select('id, domain, status, publisher_id')
         .eq('domain', normalizedDomain)
-        .single();
+        .maybeSingle();
+
+      if (duplicateCheckError) {
+        console.error(`[DirectBatchImport] Error checking for duplicate domain ${normalizedDomain}:`, duplicateCheckError);
+        results.results.push({
+          row: rowNumber,
+          domain: normalizedDomain,
+          success: false,
+          error: 'Database error while checking for duplicates',
+          skipped: false
+        });
+        results.failed++;
+        continue;
+      }
 
       if (existingOutlet) {
         results.results.push({
@@ -65,10 +130,12 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
       }
 
       // Prepare outlet data
+      // Publisher's uploaded price becomes the purchase_price (cost to platform)
+      // Final selling price (price) will be set later by admins adding margins
       const outletData = {
         domain: normalizedDomain,
-        price: parseFloat(row.price) || 0,
-        purchase_price: row.purchase_price ? parseFloat(row.purchase_price) : null,
+        price: null, // Will be set by admin when adding margins
+        purchase_price: parseFloat(String(row.price)) || 0, // Publisher's asking price = platform cost
         currency: row.currency || 'EUR',
         country: row.country?.trim() || '',
         language: row.language?.trim() || '',
@@ -314,14 +381,14 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const lines = text.split('\n').filter(line => line.trim());
-      
+      const lines = parseCSVText(text);
+
       if (lines.length < 2) {
         toast.error('CSV file must contain at least a header and one data row');
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const headers = lines[0].map(h => h.trim().toLowerCase());
       const requiredHeaders = ['domain', 'category', 'price', 'currency', 'country', 'language'];
       
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
@@ -331,9 +398,9 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
       }
 
       const data: ImportRow[] = lines.slice(1).map((line, index) => {
-        const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const values = line; // line is already an array from parseCSV
         const row: any = {};
-        
+
         headers.forEach((header, i) => {
           row[header] = values[i] || '';
         });
@@ -341,8 +408,8 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
         return {
           domain: row.domain,
           category: row.category,
-          price: parseFloat(row.price) || 0, // Publisher's asking price (initial marketplace price)
-          purchase_price: parseFloat(row.price) || null, // Publisher's asking price
+          price: parseFloat(String(row.price)) || 0, // Publisher's asking price (initial marketplace price)
+          purchase_price: parseFloat(String(row.price)) || null, // Publisher's asking price
           currency: row.currency || 'EUR',
           country: row.country,
           language: row.language,
@@ -353,7 +420,7 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
           accepts_no_license_status: row.accepts_no_license_status || 'no',
           sponsor_tag_status: row.sponsor_tag_status || 'no',
           sponsor_tag_type: row.sponsor_tag_type || 'text',
-          sale_price: row.sale_price ? parseFloat(row.sale_price) : undefined,
+          sale_price: row.sale_price ? parseFloat(String(row.sale_price)) : undefined,
           sale_note: row.sale_note || ''
         };
       });
@@ -375,7 +442,7 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
       // Required field validation
       if (!row.domain) rowErrors.push('Domain is required');
       if (!row.category) rowErrors.push('Category is required');
-      if (!row.price || parseFloat(row.price) <= 0) rowErrors.push('Publisher asking price must be greater than 0');
+      if (!row.price || parseFloat(String(row.price)) <= 0) rowErrors.push('Publisher asking price (platform cost) must be greater than 0');
       if (!row.country) rowErrors.push('Country is required');
       if (!row.language) rowErrors.push('Language is required');
 

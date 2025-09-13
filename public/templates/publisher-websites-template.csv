@@ -1,3 +1,6 @@
+# Publisher Website Template
+# price = Publisher's asking price (what platform pays the publisher)
+# All margins added by admins will be profit for the platform
 domain,category,price,currency,country,language,lead_time_days,guidelines,niches,is_active,accepts_no_license_status,sponsor_tag_status,sponsor_tag_type,sale_price,sale_note,ahrefs_dr,moz_da,semrush_as,spam_score,organic_traffic,referring_domains
 example1.com,Blog,250,EUR,SE,Swedish,7,"No adult content, quality articles only","Technology,Health",true,no,yes,text,200,"Limited time offer",35,28,40,15,5000,150
 example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business,Finance",true,depends,no,text,,,42,31,38,12,8500,220

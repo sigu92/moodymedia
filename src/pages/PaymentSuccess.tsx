@@ -48,7 +48,29 @@ export default function PaymentSuccess() {
     }
 
     try {
-      // Verify payment first
+      // Handle mock sessions created directly in cart (development mode)
+      if (isMock) {
+        console.log('Processing mock payment created directly in cart');
+        setPaymentData({
+          success: true,
+          orders: 0, // Will be determined when loading orders
+          amount: 0,
+          mock: true
+        });
+        setVerifying(false);
+
+        if (user) {
+          // Clear cart after successful mock payment
+          await clearCartAfterSuccessfulPayment(sessionId);
+
+          // Load orders created directly in cart
+          await loadOrdersFromPayment();
+          toast.success("Mock orders created successfully. Cart cleared.");
+        }
+        return;
+      }
+
+      // Verify real payment
       const { data, error } = await supabase.functions.invoke('verify-payment', {
         body: { sessionId },
       });
@@ -65,19 +87,67 @@ export default function PaymentSuccess() {
       setVerifying(false);
 
       if (data.success && user) {
+        // Clear cart after successful payment
+        await clearCartAfterSuccessfulPayment(sessionId);
+
         // Load recent orders after successful payment
         await loadOrdersFromPayment();
-        
+
         if (data.mock) {
-          toast.success(`${data.orders} demo order(s) created successfully.`);
+          toast.success(`${data.orders} demo order(s) created successfully. Cart cleared.`);
         } else {
-          toast.success(`${data.orders} order(s) created successfully.`);
+          toast.success(`${data.orders} order(s) created successfully. Cart cleared.`);
         }
       }
     } catch (error) {
       console.error('Payment verification failed:', error);
       setVerifying(false);
       setLoading(false);
+    }
+  };
+
+  const clearCartAfterSuccessfulPayment = async (sessionId: string) => {
+    if (!user) return;
+
+    try {
+      // Clear cart items from database
+      const { error: clearError } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (clearError) {
+        console.warn('Failed to clear cart from database:', clearError);
+        // Don't fail the payment success for cart clearing issues
+      } else {
+        console.log('Cart cleared successfully after payment');
+      }
+
+      // Remove localStorage backup
+      localStorage.removeItem(`cart_backup_${user.id}`);
+
+      // Also remove any other cart backups that might be older than 1 hour
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cart_backup_')) {
+          try {
+            const backupData = JSON.parse(localStorage.getItem(key) || '{}');
+            if (backupData.timestamp && Date.now() - backupData.timestamp > 60 * 60 * 1000) { // 1 hour
+              keysToRemove.push(key);
+            }
+          } catch (e) {
+            // Invalid backup data, remove it
+            keysToRemove.push(key);
+          }
+        }
+      }
+
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    } catch (error) {
+      console.warn('Error clearing cart after payment:', error);
+      // Don't fail payment success for cart clearing issues
     }
   };
 

@@ -130,7 +130,7 @@ export function MarketplaceManager() {
       const userGroupsArray = Array.from(userGroupsMap.values())
         .sort((a, b) => b.pendingCount - a.pendingCount);
 
-      console.log('[MarketplaceManager] Loaded user groups:', userGroupsArray.length);
+      console.log('[MarketplaceManager] Loaded user groups:', userGroupsArray.length, userGroupsArray);
       setUserGroups(userGroupsArray);
 
     } catch (error) {
@@ -412,20 +412,29 @@ export function MarketplaceManager() {
       </div>
 
       {/* User Groups Summary */}
-      {userGroups.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">User Submissions</h3>
-            {selectedUserId && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleUserSelect(null)}
-              >
-                Show All Users
-              </Button>
-            )}
-          </div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">User Submissions</h3>
+          {selectedUserId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleUserSelect(null)}
+            >
+              Show All Users
+            </Button>
+          )}
+        </div>
+
+        {userGroups.length === 0 ? (
+          <Card className="p-6 text-center">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h4 className="text-lg font-semibold mb-2">No Pending Submissions</h4>
+            <p className="text-muted-foreground">
+              There are currently no pending submissions from users. New submissions will appear here grouped by user.
+            </p>
+          </Card>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {userGroups.map((userGroup) => (
               <UserSummaryCard
@@ -437,8 +446,8 @@ export function MarketplaceManager() {
               />
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Main Interface */}
       <Card className="glass-card-clean shadow-medium">

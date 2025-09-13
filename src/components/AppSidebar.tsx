@@ -6,7 +6,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logoImage from '@/assets/moody-media-logo-new.png';
-import { getNavigationItems } from "./navigation";
+import { getContextAwareNavigation } from "./navigation";
 import { RoleIndicator } from "./RoleIndicator";
 import { RoleSwitcher } from "./RoleSwitcher";
 import { User, LogOut, Settings, RotateCcw, Shield } from "lucide-react";
@@ -47,7 +47,7 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   
 
-  const navigationItems = getNavigationItems(currentRole, userRoles);
+  const navigationItems = getContextAwareNavigation(currentRole, userRoles, currentPath);
 
   const isActive = (path: string) => {
     if (path === "/dashboard") {
@@ -205,18 +205,9 @@ export function AppSidebar() {
         )}
 
 
-        {/* Role Indicator and Switcher - Unified role management */}
+        {/* Role Switcher - Show for users who can switch roles */}
         {user && (
           <div className="flex flex-col gap-2 px-2">
-            {/* Role Indicator - Show current role */}
-            <div className="flex items-center justify-center">
-              <RoleIndicator
-                size="sm"
-                showIcon={state !== "collapsed"}
-                className={state === "collapsed" ? "px-1" : ""}
-              />
-            </div>
-
             {/* Role Switcher - Show for publishers (can switch to buyer mode) */}
             <RoleSwitcher
               variant="outline"
@@ -283,11 +274,11 @@ export function AppSidebar() {
                   Profile Settings
                 </NavLink>
               </DropdownMenuItem>
-              {hasRole('admin') && (
+              {(hasRole('admin') || isSystemAdmin) && (
                 <DropdownMenuItem asChild>
                   <NavLink to="/admin" className="flex items-center gap-2 cursor-pointer">
                     <Settings className="h-4 w-4" />
-                    Admin Panel
+                    {isSystemAdmin ? 'System Admin' : 'Admin Panel'}
                   </NavLink>
                 </DropdownMenuItem>
               )}
