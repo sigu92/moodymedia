@@ -25,14 +25,42 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    // Initialize Supabase client with proper environment variable validation
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    if (!supabaseUrl) {
+      throw new Error('SUPABASE_URL environment variable is not configured')
+    }
+    
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseServiceKey) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is not configured')
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization')!
-    const token = authHeader.replace('Bearer ', '')
+    // Get and validate the authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header is required' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header must start with "Bearer "' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    const token = authHeader.slice(7) // Remove "Bearer " prefix
 
     // Get user from token
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
@@ -64,10 +92,10 @@ serve(async (req) => {
       expand: ['payment_intent', 'payment_intent.payment_method', 'customer']
     })
 
-    // Extract relevant information
-    const paymentIntent = session.payment_intent as any
-    const paymentMethod = paymentIntent?.payment_method as any
-    const customer = session.customer as any
+    // Extract relevant information with proper type safety
+    const paymentIntent = session.payment_intent as Stripe.PaymentIntent | null
+    const paymentMethod = paymentIntent?.payment_method as Stripe.PaymentMethod | null
+    const customer = session.customer as Stripe.Customer | null
 
     const sessionData = {
       id: session.id,
@@ -90,7 +118,7 @@ serve(async (req) => {
       payment_method: paymentMethod ? {
         id: paymentMethod.id,
         type: paymentMethod.type,
-        card: paymentMethod.card ? {
+        card: paymentMethod.type === 'card' && paymentMethod.card ? {
           brand: paymentMethod.card.brand,
           last4: paymentMethod.card.last4,
           exp_month: paymentMethod.card.exp_month,
@@ -101,8 +129,8 @@ serve(async (req) => {
       // Customer details
       customer: customer ? {
         id: customer.id,
-        email: customer.email,
-        name: customer.name,
+        email: customer.email ?? null,
+        name: customer.name ?? null,
       } : null,
       
       // Metadata

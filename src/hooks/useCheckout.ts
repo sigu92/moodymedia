@@ -175,12 +175,26 @@ export const useCheckout = (): UseCheckoutReturn => {
       const orderNumber = generateOrderNumber();
       const orderTotals = calculateOrderTotals(storedCartItems);
 
+      // Build lookup map for O(1) access instead of O(n) find per cart item
+      const formItemsLookup = new Map();
+      if (storedFormData.cartItems) {
+        storedFormData.cartItems.forEach((fi: any) => {
+          formItemsLookup.set(fi.id, fi);
+        });
+      }
+
       const orderItems: OrderItem[] = storedCartItems.map((cartItem: any) => {
-        const formItem = storedFormData.cartItems?.find((fi: any) => fi.id === cartItem.id);
+        const formItem = formItemsLookup.get(cartItem.id);
+        
+        // Log warning if domain is missing to surface data issues
+        if (!cartItem.domain) {
+          console.warn(`Cart item ${cartItem.id} is missing domain information`, cartItem);
+        }
+        
         return {
           id: cartItem.id,
           mediaOutletId: cartItem.mediaOutletId,
-          domain: cartItem.domain || 'Unknown Domain',
+          domain: cartItem.domain ?? '',
           category: cartItem.category || 'General',
           price: cartItem.finalPrice || cartItem.price,
           quantity: cartItem.quantity || 1,

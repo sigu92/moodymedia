@@ -25,14 +25,42 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    // Initialize Supabase client with proper environment variable validation
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    if (!supabaseUrl) {
+      throw new Error('SUPABASE_URL environment variable is not configured')
+    }
+    
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseServiceKey) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is not configured')
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization')!
-    const token = authHeader.replace('Bearer ', '')
+    // Get and validate the authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header is required' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header must start with "Bearer "' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    const token = authHeader.slice(7) // Remove "Bearer " prefix
 
     // Get user from token
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
@@ -59,16 +87,16 @@ serve(async (req) => {
       )
     }
 
-    // Check if customer already exists in Stripe by email
-    const existingCustomers = await stripe.customers.list({
-      email: email,
+    // Check if customer already exists in Stripe by email using search API for better performance
+    const searchResponse = await stripe.customers.search({
+      query: `email:"${email}"`,
       limit: 1,
     })
 
     let customer
-    if (existingCustomers.data.length > 0) {
+    if (searchResponse.data.length > 0) {
       // Customer exists, return existing customer
-      customer = existingCustomers.data[0]
+      customer = searchResponse.data[0]
       
       // Update metadata if provided
       if (metadata && Object.keys(metadata).length > 0) {
@@ -94,7 +122,7 @@ serve(async (req) => {
     }
 
     // Log customer creation/retrieval
-    console.log(`Stripe customer ${existingCustomers.data.length > 0 ? 'retrieved' : 'created'}:`, {
+    console.log(`Stripe customer ${searchResponse.data.length > 0 ? 'retrieved' : 'created'}:`, {
       customerId: customer.id,
       email: customer.email,
       name: customer.name,
