@@ -30,20 +30,34 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     // Track error for analytics
     try {
       const analyticsData = JSON.parse(localStorage.getItem('analytics') || '[]');
-      analyticsData.push({
+      
+      // Check if running in development mode
+      const isDev = import.meta.env?.DEV || process.env.NODE_ENV === 'development';
+      
+      const analyticsEvent = {
         event: 'error',
         category: 'error',
         action: 'javascript_error',
-        label: error.message,
+        label: error.message?.substring(0, 200) || 'Unknown error', // Truncate error message
         timestamp: new Date().toISOString(),
         sessionId: this.getSessionId(),
-        metadata: {
+        redacted: !isDev,
+        metadata: isDev ? {
+          // Full details only in development
           stack: error.stack,
           componentStack: errorInfo.componentStack,
           url: window.location.href,
           userAgent: navigator.userAgent
+        } : {
+          // Redacted/minimal details in production
+          stackHash: this.hashString(error.stack || ''),
+          componentStackHash: this.hashString(errorInfo.componentStack || ''),
+          urlOrigin: window.location.origin,
+          browserName: this.getBrowserName()
         }
-      });
+      };
+      
+      analyticsData.push(analyticsEvent);
 
       // Keep only last 100 events
       if (analyticsData.length > 100) {
@@ -72,6 +86,26 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       sessionStorage.setItem('sessionId', sessionId);
     }
     return sessionId;
+  };
+
+  private hashString = (str: string): string => {
+    // Simple hash function for production anonymization
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
+  };
+
+  private getBrowserName = (): string => {
+    const userAgent = navigator.userAgent;
+    if (userAgent.includes('Chrome')) return 'Chrome';
+    if (userAgent.includes('Firefox')) return 'Firefox';
+    if (userAgent.includes('Safari')) return 'Safari';
+    if (userAgent.includes('Edge')) return 'Edge';
+    return 'Unknown';
   };
 
   render() {

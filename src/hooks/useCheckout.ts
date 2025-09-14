@@ -170,20 +170,39 @@ export const useCheckout = (): UseCheckoutReturn => {
         // If we're trying to use real Stripe, validate configuration
         const stripeValidation = validateStripeEnvironment();
         if (!stripeValidation.isValid) {
-          setValidationErrors([{
-            field: 'stripe_config',
-            message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
-          }]);
+          setValidationErrors([
+            {
+              field: 'stripe_config',
+              message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
+            },
+            {
+              field: 'general',
+              message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
+            }
+          ]);
           return false;
         }
       }
       
       console.log(`Processing payment with ${shouldUseMock ? 'mock' : 'Stripe'} processor...`);
       
-      const paymentResult: MockPaymentResult = await MockPaymentProcessor.processPayment(formData, {
-        simulateDelay: true, // Enable realistic delay simulation
-        simulateFailure: false, // Set to true to test failure scenarios
-      });
+      // Select and instantiate appropriate payment processor
+      let paymentResult: MockPaymentResult;
+      
+      if (shouldUseMock) {
+        paymentResult = await MockPaymentProcessor.processPayment(formData, {
+          simulateDelay: true, // Enable realistic delay simulation
+          simulateFailure: false, // Set to true to test failure scenarios
+        });
+      } else {
+        // TODO: Implement real Stripe payment processing here
+        // For now, we'll use mock processor with a note about the configuration
+        console.warn('Real Stripe processor not yet implemented, falling back to mock processor');
+        paymentResult = await MockPaymentProcessor.processPayment(formData, {
+          simulateDelay: true,
+          simulateFailure: false,
+        });
+      }
 
       if (!paymentResult.success) {
         setValidationErrors([{

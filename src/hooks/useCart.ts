@@ -119,6 +119,38 @@ export const useCart = () => {
   const operationLockRef = useRef<string | null>(null);
   const autoBackupIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Helper function to safely map outlet niche rules
+  const mapOutletNicheRules = (rules: unknown[]) => {
+    if (!Array.isArray(rules)) return [];
+    
+    return rules
+      .map((rule: any) => {
+        // Validate rule structure
+        if (!rule || typeof rule !== 'object') return null;
+        
+        const nicheSlug = rule?.niches?.slug;
+        const nicheLabel = rule?.niches?.label;
+        
+        // Only include rules with valid niche data
+        if (typeof nicheSlug !== 'string' || !nicheSlug.trim() ||
+            typeof nicheLabel !== 'string' || !nicheLabel.trim()) {
+          return null;
+        }
+        
+        // Parse and sanitize multiplier
+        const rawMultiplier = Number(rule?.multiplier ?? 1);
+        const multiplier = Number.isFinite(rawMultiplier) && rawMultiplier > 0 ? rawMultiplier : 1;
+        
+        return {
+          nicheSlug: nicheSlug.trim(),
+          nicheLabel: nicheLabel.trim(),
+          accepted: !!rule?.accepted,
+          multiplier,
+        };
+      })
+      .filter((rule): rule is NonNullable<typeof rule> => rule !== null);
+  };
+
   // Enhanced cart persistence functions
   const createBackup = useCallback((items: CartItem[]): CartBackup => {
     const backup: CartBackup = {
@@ -380,14 +412,7 @@ export const useCart = () => {
         finalPrice: Number(item.final_price || item.price),
         nicheName: item.niches?.label,
         outletNicheRules: Array.isArray(item.media_outlets?.outlet_niche_rules)
-          ? (item.media_outlets.outlet_niche_rules as any[])
-              .map((r) => ({
-                nicheSlug: r?.niches?.slug as string,
-                nicheLabel: r?.niches?.label as string,
-                accepted: !!r?.accepted,
-                multiplier: Number(r?.multiplier ?? 1),
-              }))
-              .filter((r) => !!r.nicheSlug && !!r.nicheLabel)
+          ? mapOutletNicheRules(item.media_outlets.outlet_niche_rules)
           : undefined,
       }));
 
@@ -829,8 +854,16 @@ export const useCart = () => {
     }
   };
 
-  const clearAllCartData = async () => {
-    if (!user) return;
+  const clearAllCartData = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    // Acquire operation lock
+    const operationId = `clear_all_cart_${Date.now()}`;
+    const lockAcquired = acquireOperationLock(operationId);
+    if (!lockAcquired) {
+      console.warn('Failed to acquire lock for clearAllCartData');
+      return false;
+    }
     
     try {
       // Clear database
@@ -846,8 +879,18 @@ export const useCart = () => {
         title: "Cart Reset",
         description: "All cart data has been cleared from database and localStorage",
       });
+      
+      return true;
     } catch (error) {
       console.error('Error clearing all cart data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear cart data. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      releaseOperationLock();
     }
   };
 
