@@ -1,11 +1,51 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Zod schema for request body validation
+const LineItemSchema = z.object({
+  price_data: z.object({
+    currency: z.string().default('eur'),
+    product_data: z.object({
+      name: z.string(),
+      description: z.string().optional(),
+      metadata: z.record(z.string()).optional(),
+    }),
+    unit_amount: z.number().positive(),
+  }).optional(),
+  price: z.string().optional(),
+  quantity: z.number().positive().default(1),
+});
+
+const ShippingAddressCollectionSchema = z.object({
+  allowed_countries: z.array(z.string()).default(['US', 'CA', 'GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'SE', 'NO', 'DK', 'FI']),
+});
+
+const AutomaticTaxSchema = z.object({
+  enabled: z.boolean(),
+});
+
+const CreateCheckoutRequestSchema = z.object({
+  line_items: z.array(LineItemSchema).min(1, "At least one line item is required"),
+  customer_id: z.string().optional(),
+  customer_email: z.string().email().optional(),
+  success_url: z.string().url().optional(),
+  cancel_url: z.string().url().optional(),
+  metadata: z.record(z.string()).optional(),
+  mode: z.enum(['payment', 'setup', 'subscription']).default('payment'),
+  billing_address_collection: z.enum(['auto', 'required']).default('required'),
+  shipping_address_collection: ShippingAddressCollectionSchema.optional(),
+  payment_method_types: z.array(z.string()).default(['card']),
+  allow_promotion_codes: z.boolean().default(true),
+  automatic_tax: AutomaticTaxSchema.optional(),
+  currency: z.string().default('eur'),
+});
 
 // Helper logging function
 const logStep = (step: string, details?: any) => {
@@ -58,26 +98,43 @@ serve(async (req) => {
     
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get request body
-    const { 
-      line_items, 
-      customer_id, 
-      customer_email, 
-      success_url, 
-      cancel_url, 
-      metadata,
-      mode = 'payment',
-      billing_address_collection = 'required',
-      shipping_address_collection,
-      payment_method_types = ['card'],
-      allow_promotion_codes = true,
-      automatic_tax,
-      currency = 'eur'
-    } = await req.json();
+    // Validate request body
+    const requestBody = await req.json();
     
-    if (!line_items || line_items.length === 0) {
-      throw new Error("No line items provided");
+    let validatedData;
+    try {
+      validatedData = CreateCheckoutRequestSchema.parse(requestBody);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessage = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+        logStep("Validation error", { errors: error.errors });
+        return new Response(JSON.stringify({ 
+          error: `Invalid request data: ${errorMessage}`,
+          details: error.errors 
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+      throw error;
     }
+
+    // Extract validated data
+    const {
+      line_items,
+      customer_id,
+      customer_email,
+      success_url,
+      cancel_url,
+      metadata,
+      mode,
+      billing_address_collection,
+      shipping_address_collection,
+      payment_method_types,
+      allow_promotion_codes,
+      automatic_tax,
+      currency
+    } = validatedData;
 
     logStep("Line items received", { itemCount: line_items.length });
 
