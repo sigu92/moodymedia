@@ -17,6 +17,10 @@ import {
   handleStripeError
 } from '@/utils/stripeUtils';
 import { customerManager } from '@/utils/customerUtils';
+import { errorHandler, ErrorContext } from '@/utils/errorHandling';
+import { paymentRetry } from '@/utils/paymentRetry';
+import { paymentAnalytics } from '@/utils/paymentAnalytics';
+import { cartRecovery } from '@/utils/cartRecovery';
 
 export type CheckoutStep = 'cart-review' | 'billing-payment' | 'content-upload' | 'confirmation';
 
@@ -146,9 +150,65 @@ export const useCheckout = (): UseCheckoutReturn => {
       };
     } catch (error) {
       console.error('Error processing Stripe payment:', error);
+      
+      // Create error context
+      const errorContext: ErrorContext = {
+        userId: user?.id,
+        sessionId: undefined,
+        amount: calculateOrderTotals(cartItems).totalWithVAT,
+        currency: 'EUR',
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      };
+
+      // Handle error with comprehensive error system
+      const errorDetails = errorHandler.display(error, errorContext, {
+        showToast: true,
+        includeErrorCode: true
+      });
+
+      // Track analytics
+      await paymentAnalytics.track('payment_failed', {
+        userId: user?.id,
+        amount: errorContext.amount,
+        currency: errorContext.currency,
+        errorDetails,
+        metadata: { stage: 'session_creation' }
+      });
+
+      // Create retry session if error is retryable
+      if (errorDetails.retryable) {
+        const retrySession = paymentRetry.createSession(error, errorContext);
+        
+        // Schedule auto-retry for appropriate errors
+        if (errorHandler.shouldRetry(errorDetails, 1)) {
+          paymentRetry.scheduleAutoRetry(retrySession.sessionId, async () => {
+            return await this.processStripePayment(formData);
+          });
+        }
+      }
+
+      // Track cart abandonment for certain error types
+      if (errorDetails.category === 'user_action_required' || 
+          errorDetails.severity === 'high') {
+        await cartRecovery.trackAbandonment(
+          user?.id || '',
+          errorContext.sessionId || `session_${Date.now()}`,
+          cartItems,
+          formData.billingInfo,
+          errorDetails,
+          {
+            totalAmount: errorContext.amount || 0,
+            currency: errorContext.currency || 'EUR',
+            lastAttemptAt: errorContext.timestamp
+          }
+        );
+      }
+
       return {
         success: false,
-        error: handleStripeError(error),
+        error: errorDetails.userMessage,
         requiresRedirect: false,
       };
     }

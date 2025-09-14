@@ -38,6 +38,7 @@ import LinkMonitoring from "./pages/LinkMonitoring";
 import Settings from "./pages/Settings";
 import { CheckoutSuccess } from "./pages/CheckoutSuccess";
 import { CheckoutCancel } from "./pages/CheckoutCancel";
+import { CheckoutRecover } from "./pages/CheckoutRecover";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const AppLayout = () => {
     '/orders',
     '/checkout/success',
     '/checkout/cancel',
+    '/checkout/recover',
     '/price-analytics',
     '/link-monitoring',
     '/referral'  // Referral can be accessed by both buyers and publishers
@@ -159,6 +161,7 @@ const AppLayout = () => {
               {/* Checkout flow routes */}
               <Route path="/checkout/success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
               <Route path="/checkout/cancel" element={<ProtectedRoute><CheckoutCancel /></ProtectedRoute>} />
+              <Route path="/checkout/recover" element={<ProtectedRoute><CheckoutRecover /></ProtectedRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
