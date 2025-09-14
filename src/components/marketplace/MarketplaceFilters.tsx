@@ -61,18 +61,21 @@ export const MarketplaceFilters = ({ filterOptions, onFiltersChange, activeFilte
   return (
     <div className="mb-6">
       {/* Modern Filter Header */}
-      <div 
-        className={`
-          relative overflow-hidden
-          bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50
-          border border-gray-200/60 rounded-xl
-          shadow-sm hover:shadow-md
-          transition-all duration-300 ease-out
-          cursor-pointer group
-          ${isOpen ? 'shadow-lg border-blue-300/50' : 'hover:border-gray-300/80'}
-        `}
-        onClick={() => setIsOpen(!isOpen)}
-      >
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <button 
+            className={`
+              relative overflow-hidden w-full
+              bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50
+              border border-gray-200/60 rounded-xl
+              shadow-sm hover:shadow-md
+              transition-all duration-300 ease-out
+              cursor-pointer group
+              ${isOpen ? 'shadow-lg border-blue-300/50' : 'hover:border-gray-300/80'}
+            `}
+            aria-expanded={isOpen}
+            aria-controls="marketplace-filters-content"
+          >
         {/* Animated background gradient */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
@@ -140,12 +143,15 @@ export const MarketplaceFilters = ({ filterOptions, onFiltersChange, activeFilte
           </div>
         </div>
 
-        {/* Subtle border animation */}
-        <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
-      </div>
-      
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2">
+            {/* Subtle border animation */}
+            <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
+          </button>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent 
+          id="marketplace-filters-content"
+          className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2"
+        >
           <div className="mt-4 bg-white border border-gray-200/60 rounded-xl shadow-sm">
             <div className="p-6 space-y-6">
             {/* Enhanced Search */}

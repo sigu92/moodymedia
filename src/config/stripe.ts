@@ -15,7 +15,20 @@ const getStripeSecretKey = (): string | undefined => {
 
 const getUseStripePayments = (): boolean => {
   const value = import.meta.env.VITE_USE_STRIPE_PAYMENTS;
-  return value === 'true' || value === true;
+  
+  // Short-circuit if already a boolean
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  
+  // Handle undefined/null
+  if (value == null) {
+    return false;
+  }
+  
+  // Normalize string value and check for truthy values
+  const normalizedValue = String(value).trim().toLowerCase();
+  return ['true', '1', 'yes', 'y'].includes(normalizedValue);
 };
 
 const getIsTestMode = (): boolean => {
