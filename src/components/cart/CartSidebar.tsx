@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { announceToScreenReader } from '@/utils/accessibility';
 import { X, ShoppingBag, Trash2, Plus, Minus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -16,7 +17,7 @@ interface CartSidebarProps {
 }
 
 export function CartSidebar({ id, open, onOpenChange, onOpenCheckout }: CartSidebarProps) {
-  const { cartItems, loading, removeFromCart, updateCartItemQuantity, refetch } = useCart();
+  const { cartItems, loading, removeFromCart, updateCartItemQuantity, refetch, clearAllCartData } = useCart();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -40,7 +41,10 @@ export function CartSidebar({ id, open, onOpenChange, onOpenCheckout }: CartSide
       const price = item.finalPrice ?? item.price ?? 0;
       return sum + (price * quantity);
     }, 0);
-  const vatRate = 0.25; // 25% VAT
+  // VAT rate configurable with fallback
+  const defaultVatRate = 0.25;
+  const configuredVat = Number((import.meta as any)?.env?.VITE_VAT_RATE ?? defaultVatRate);
+  const vatRate = Number.isFinite(configuredVat) && configuredVat >= 0 ? configuredVat : defaultVatRate;
   const vatAmount = subtotal * vatRate;
   const total = subtotal + vatAmount;
 
@@ -92,27 +96,7 @@ export function CartSidebar({ id, open, onOpenChange, onOpenCheckout }: CartSide
   useEffect(() => {
     if (open) {
       // Announce cart opening to screen readers
-      const announcement = document.createElement('div');
-      announcement.setAttribute('aria-live', 'polite');
-      announcement.setAttribute('aria-atomic', 'true');
-      announcement.style.position = 'absolute';
-      announcement.style.left = '-10000px';
-      announcement.style.width = '1px';
-      announcement.style.height = '1px';
-      announcement.style.overflow = 'hidden';
-      announcement.textContent = `Shopping cart opened with ${cartItems.length} items`;
-
-      // Store reference for cleanup
-      announcementElementRef.current = announcement;
-      document.body.appendChild(announcement);
-
-      // Set timeout to remove announcement
-      announcementTimeoutRef.current = setTimeout(() => {
-        if (announcementElementRef.current && document.body.contains(announcementElementRef.current)) {
-          document.body.removeChild(announcementElementRef.current);
-          announcementElementRef.current = null;
-        }
-      }, 1000);
+      announceToScreenReader(`Shopping cart opened with ${cartItems.length} items`, 'polite');
 
       // Focus close button when sidebar opens (with delay for animation)
       const focusTimeout = setTimeout(() => {
@@ -224,18 +208,7 @@ export function CartSidebar({ id, open, onOpenChange, onOpenCheckout }: CartSide
 
   // Announce quantity changes to screen readers
   const announceQuantityChange = (itemName: string, newQuantity: number) => {
-    const announcement = `${itemName} quantity updated to ${newQuantity}`;
-    const ariaLive = document.createElement('div');
-    ariaLive.setAttribute('aria-live', 'polite');
-    ariaLive.setAttribute('aria-atomic', 'true');
-    ariaLive.style.position = 'absolute';
-    ariaLive.style.left = '-10000px';
-    ariaLive.style.width = '1px';
-    ariaLive.style.height = '1px';
-    ariaLive.style.overflow = 'hidden';
-    ariaLive.textContent = announcement;
-    document.body.appendChild(ariaLive);
-    setTimeout(() => document.body.removeChild(ariaLive), 1000);
+    announceToScreenReader(`${itemName} quantity updated to ${newQuantity}`, 'polite');
   };
 
   const handleRemoveItem = async (itemId: string) => {
@@ -346,6 +319,16 @@ export function CartSidebar({ id, open, onOpenChange, onOpenCheckout }: CartSide
               <p className={`text-muted-foreground ${isMobile ? 'text-sm' : 'text-base'}`}>
                 Add some websites to get started with your content marketing campaign.
               </p>
+              {import.meta.env?.DEV && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={clearAllCartData}
+                  className="mt-4"
+                >
+                  [DEV] Force Clear All Cart Data
+                </Button>
+              )}
             </div>
           ) : (
             <div className={isMobile ? 'space-y-3' : 'space-y-4'}>
@@ -476,7 +459,7 @@ export function CartSidebar({ id, open, onOpenChange, onOpenCheckout }: CartSide
                 <span>{formatPrice(subtotal)}</span>
               </div>
               <div className={`flex justify-between ${isMobile ? 'text-sm' : 'text-base'}`}>
-                <span>VAT (25%)</span>
+                <span>VAT ({Math.round(vatRate * 100)}%)</span>
                 <span>{formatPrice(vatAmount)}</span>
               </div>
               <Separator />

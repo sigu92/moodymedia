@@ -299,22 +299,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl h-[95vh] max-h-[90vh] overflow-hidden flex flex-col sm:w-[90vw] md:w-[80vw] lg:w-[70vw] xl:w-[60vw]">
+      <DialogContent className="w-[95vw] max-w-5xl h-[95vh] max-h-[90vh] overflow-hidden flex flex-col sm:w-[90vw] md:w-[85vw] lg:w-[80vw] xl:w-[75vw]">
         <DialogHeader className="flex-shrink-0 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold sm:text-xl">
-              Checkout
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              disabled={isLoading || isSubmitting}
-              className="h-8 w-8 p-0 flex-shrink-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-lg font-semibold sm:text-xl">
+            Checkout
+          </DialogTitle>
 
           <ProgressIndicator
             currentStep={currentStepIndex + 1}
@@ -328,7 +317,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           />
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 relative">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 relative min-h-0">
           {renderValidationErrors()}
           {renderStepContent()}
           {renderLoadingOverlay()}

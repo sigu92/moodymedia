@@ -19,8 +19,7 @@ export interface MockPaymentProcessorOptions {
  */
 export class MockPaymentProcessor {
   private static readonly SIMULATED_PROCESSING_TIME = 3000; // 3 seconds
-  private static readonly FAILURE_RATE = 0.1; // 10% failure rate for testing
-  private static enableRandomFailures = false; // Disabled by default for deterministic testing
+  // Random failure removed for deterministic tests
 
   /**
    * Process a mock payment
@@ -41,7 +40,7 @@ export class MockPaymentProcessor {
     }
 
     // Simulate controlled failures for testing
-    const shouldFail = simulateFailure || (this.enableRandomFailures && Math.random() < this.FAILURE_RATE);
+    const shouldFail = simulateFailure;
 
     if (shouldFail) {
       return this.simulateFailure(failureReason);

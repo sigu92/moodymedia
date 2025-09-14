@@ -215,7 +215,7 @@ class CleanupManager {
     this.items.set(item.id, item);
 
     // Log for debugging in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env?.DEV) {
       console.log(`Registered cleanup item: ${item.id} (${item.type})`);
     }
   }

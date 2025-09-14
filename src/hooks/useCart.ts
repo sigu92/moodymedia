@@ -18,6 +18,15 @@ export interface CartItem {
   finalPrice?: number;
   nicheName?: string;
   readOnly?: boolean; // For items recovered from backup when database is unavailable
+  // Outlet-specific niche acceptance and multipliers from DB
+  outletNicheRules?: Array<{
+    nicheSlug: string;
+    nicheLabel: string;
+    accepted: boolean;
+    multiplier: number;
+  }>;
+  // Optional fallback: outlet-level accepted niches list
+  outletAcceptedNiches?: string[];
 }
 
 export interface CartBackup {
@@ -239,6 +248,7 @@ export const useCart = () => {
   const restoreCartFromBackup = async (backupItems: CartItem[]): Promise<{ restored: CartItem[]; failed: { mediaOutletId: string; reason: string }[] }> => {
     const restoredItems: CartItem[] = [];
     const failedItems: { mediaOutletId: string; reason: string }[] = [];
+    const insertedIds: string[] = [];
 
     for (const backupItem of backupItems) {
       try {
@@ -281,7 +291,8 @@ export const useCart = () => {
           continue;
         }
 
-        // Add successfully restored item
+        // Track inserted id for potential rollback and add successfully restored item
+        insertedIds.push(data.id);
         restoredItems.push({
           id: data.id,
           mediaOutletId: data.media_outlet_id,
@@ -300,10 +311,19 @@ export const useCart = () => {
       } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown error during restore';
         console.warn('Error restoring cart item:', backupItem.mediaOutletId, error);
-        failedItems.push({
-          mediaOutletId: backupItem.mediaOutletId,
-          reason
-        });
+        failedItems.push({ mediaOutletId: backupItem.mediaOutletId, reason });
+
+        // Roll back any previously inserted items in this restore attempt
+        if (insertedIds.length > 0) {
+          try {
+            await supabase.from('cart_items').delete().in('id', insertedIds);
+          } catch (rollbackError) {
+            console.warn('Rollback of restored cart items failed:', rollbackError);
+          }
+          // Empty restored since we rolled back
+          restoredItems.length = 0;
+        }
+        break;
       }
     }
 
@@ -323,7 +343,16 @@ export const useCart = () => {
           *,
           media_outlets!inner (
             domain,
-            category
+            category,
+            niches,
+            outlet_niche_rules (
+              accepted,
+              multiplier,
+              niches (
+                slug,
+                label
+              )
+            )
           ),
           niches (
             slug,
@@ -350,6 +379,16 @@ export const useCart = () => {
         priceMultiplier: Number(item.price_multiplier || 1.0),
         finalPrice: Number(item.final_price || item.price),
         nicheName: item.niches?.label,
+        outletNicheRules: Array.isArray(item.media_outlets?.outlet_niche_rules)
+          ? (item.media_outlets.outlet_niche_rules as any[])
+              .map((r) => ({
+                nicheSlug: r?.niches?.slug as string,
+                nicheLabel: r?.niches?.label as string,
+                accepted: !!r?.accepted,
+                multiplier: Number(r?.multiplier ?? 1),
+              }))
+              .filter((r) => !!r.nicheSlug && !!r.nicheLabel)
+          : undefined,
       }));
 
       // Enhanced cart recovery with better backup management
@@ -385,12 +424,16 @@ export const useCart = () => {
         }
       }
 
+      setCartItems(items);
+      
       // Auto-backup current cart state
       if (items.length > 0) {
         saveBackup(items);
+      } else {
+        // Clear backup when cart is empty
+        const backupKey = `cart_backup_${user.id}`;
+        localStorage.removeItem(backupKey);
       }
-
-      setCartItems(items);
     } catch (error) {
       console.error('Error fetching cart items:', error);
 
@@ -526,8 +569,7 @@ export const useCart = () => {
 
       await fetchCartItems();
 
-      // Auto-backup after successful addition
-      setTimeout(() => saveBackup(cartItems), 100);
+      // Auto-backup will be handled in fetchCartItems when it updates cartItems
 
       toast({
         title: "Added to cart",
@@ -584,13 +626,16 @@ export const useCart = () => {
 
       if (error) throw error;
 
-      setCartItems(items => items.filter(item => item.id !== cartItemId));
-
-      // Auto-backup after successful removal
-      setTimeout(() => {
-        const updatedItems = cartItems.filter(item => item.id !== cartItemId);
-        saveBackup(updatedItems);
-      }, 100);
+      setCartItems(items => {
+        const updatedItems = items.filter(item => item.id !== cartItemId);
+        
+        // Auto-backup after successful removal
+        setTimeout(() => {
+          saveBackup(updatedItems);
+        }, 100);
+        
+        return updatedItems;
+      });
 
       toast({
         title: "Removed from cart",
@@ -637,7 +682,9 @@ export const useCart = () => {
       setCartItems([]);
 
       // Remove backup after successful clear
-      localStorage.removeItem(`cart_backup_${user.id}`);
+      setTimeout(() => {
+        localStorage.removeItem(`cart_backup_${user.id}`);
+      }, 100);
 
       toast({
         title: "Cart cleared",
@@ -782,6 +829,28 @@ export const useCart = () => {
     }
   };
 
+  const clearAllCartData = async () => {
+    if (!user) return;
+    
+    try {
+      // Clear database
+      await supabase.from('cart_items').delete().eq('user_id', user.id);
+      
+      // Clear backup
+      localStorage.removeItem(`cart_backup_${user.id}`);
+      
+      // Clear state
+      setCartItems([]);
+      
+      toast({
+        title: "Cart Reset",
+        description: "All cart data has been cleared from database and localStorage",
+      });
+    } catch (error) {
+      console.error('Error clearing all cart data:', error);
+    }
+  };
+
   return {
     cartItems,
     loading,
@@ -789,6 +858,7 @@ export const useCart = () => {
     removeFromCart,
     updateCartItemQuantity,
     clearCart,
+    clearAllCartData, // Debug utility
     refetch: fetchCartItems,
     cartCount: cartItems.length
   };

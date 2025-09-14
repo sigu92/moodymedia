@@ -8,9 +8,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface CartIconProps {
   onClick?: () => void;
   className?: string;
+  isOpen?: boolean;
 }
 
-export function CartIcon({ onClick, className }: CartIconProps) {
+export function CartIcon({ onClick, className, isOpen = false }: CartIconProps) {
   const { cartCount } = useCart();
   const isMobile = useIsMobile();
   const [isAnimating, setIsAnimating] = useState(false);
@@ -46,8 +47,8 @@ export function CartIcon({ onClick, className }: CartIconProps) {
       className={`relative ${isMobile ? 'h-8 w-8' : 'h-9 w-9'} ${
         isAnimating ? 'animate-pulse' : ''
       } transition-all duration-200 hover:scale-110 ${className}`}
-      aria-label={`Shopping cart${cartCount > 0 ? ` with ${cartCount} items` : ', empty'}`}
-      aria-expanded={false}
+      aria-label={`Shopping cart, ${cartCount === 0 ? 'no items' : cartCount === 1 ? '1 item' : `${cartCount} items`}`}
+      aria-expanded={isOpen}
       aria-haspopup="dialog"
       aria-describedby="cart-badge"
     >

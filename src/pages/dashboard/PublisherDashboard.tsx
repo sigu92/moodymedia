@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
 import SEOHead from "@/components/SEOHead";
 import { SubmissionHistory } from "@/components/publisher/SubmissionHistory";
+import type { Order } from "@/types";
 interface AnalyticsData {
   totalEarnings: number;
   thisMonthEarnings: number;
@@ -51,7 +52,7 @@ interface AnalyticsData {
     target: number;
     trend: 'up' | 'down' | 'stable';
   }[];
-  recentOrders: Order[];
+  recentOrders: any[];
   recommendations: {
     type: 'success' | 'warning' | 'info';
     title: string;
