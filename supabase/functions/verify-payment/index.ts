@@ -150,14 +150,38 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Retrieve the checkout session
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    // Retrieve the checkout session with expanded data
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['payment_intent', 'payment_intent.payment_method']
+    });
+    
     logStep("Session retrieved", { 
       sessionId, 
       status: session.payment_status,
       amount: session.amount_total 
     });
 
+    // Return session details for verification
+    const paymentIntent = session.payment_intent as any;
+    const paymentMethod = paymentIntent?.payment_method as any;
+
+    return new Response(JSON.stringify({
+      status: session.status,
+      payment_status: session.payment_status,
+      payment_intent_id: paymentIntent?.id,
+      customer_id: session.customer,
+      payment_method_type: paymentMethod?.type,
+      payment_method_last4: paymentMethod?.card?.last4,
+      amount_total: session.amount_total,
+      currency: session.currency,
+      metadata: session.metadata,
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+
+    // Legacy order creation logic - moved to handleStripeReturn in frontend
+    /*
     if (session.payment_status === "paid") {
       // Parse cart items from metadata
       const cartItems = JSON.parse(session.metadata?.cart_items || "[]");
@@ -220,6 +244,7 @@ serve(async (req) => {
         status: 200,
       });
     }
+    */
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in verify-payment", { message: errorMessage });

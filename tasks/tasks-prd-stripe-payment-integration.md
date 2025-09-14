@@ -16,6 +16,11 @@
 - `supabase/functions/verify-payment/index.ts` - Enhanced payment verification with webhook support
 - `supabase/functions/stripe-webhook/index.ts` - New webhook endpoint for payment events
 - `supabase/migrations/add_stripe_payment_fields.sql` - Database schema updates for Stripe integration
+- `supabase/migrations/add_stripe_payment_status_enum_values.sql` - Order status enum updates for payment flow
+- `supabase/migrations/ensure_stripe_session_id_field.sql` - Stripe session ID field configuration and indexing
+- `supabase/migrations/create_stripe_field_indexes.sql` - Performance indexes for Stripe-related fields
+- `supabase/migrations/add_payment_attempt_tracking.sql` - Payment retry tracking and failure management
+- `supabase/migrations/update_rls_policies_stripe_fields_fixed.sql` - RLS policies for secure Stripe data access
 
 ### Configuration & Environment
 - `.env` - Updated with Stripe environment variables (VITE_STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, VITE_USE_STRIPE_PAYMENTS)
@@ -56,13 +61,13 @@
   - [x] 2.5 Add payment_attempt_count field for retry tracking
   - [x] 2.6 Update RLS policies for new Stripe-related fields
 
-- [ ] 3.0 Core Stripe Integration
-  - [ ] 3.1 Create src/utils/stripeUtils.ts with helper functions for session creation
-  - [ ] 3.2 Update useCheckout hook to integrate Stripe session creation
-  - [ ] 3.3 Replace MockPaymentProcessor calls with real Stripe processing
-  - [ ] 3.4 Implement customer creation and management in Stripe
-  - [ ] 3.5 Add cart item validation before Stripe session creation
-  - [ ] 3.6 Create error mapping for Stripe error codes to user-friendly messages
+- [x] 3.0 Core Stripe Integration
+  - [x] 3.1 Create src/utils/stripeUtils.ts with helper functions for session creation
+  - [x] 3.2 Update useCheckout hook to integrate Stripe session creation
+  - [x] 3.3 Replace MockPaymentProcessor calls with real Stripe processing
+  - [x] 3.4 Implement customer creation and management in Stripe
+  - [x] 3.5 Add cart item validation before Stripe session creation
+  - [x] 3.6 Create error mapping for Stripe error codes to user-friendly messages
 
 - [ ] 4.0 Checkout Flow Enhancement  
   - [ ] 4.1 Update Step2BillingPayment.tsx to handle Stripe checkout redirection

@@ -6,10 +6,30 @@ import { MockPaymentProcessor, MockPaymentResult } from '@/utils/mockPaymentProc
 import { stripeConfig, validateStripeEnvironment } from '@/config/stripe';
 import { useOrders, OrderItem } from '@/hooks/useOrders';
 import { generateOrderNumber } from '@/hooks/useOrders';
+import { 
+  createStripeSession, 
+  createOrGetStripeCustomer,
+  validateCartForStripe,
+  convertCartToStripeLineItems,
+  generateCheckoutUrls,
+  createSessionMetadata,
+  calculateOrderTotals,
+  handleStripeError
+} from '@/utils/stripeUtils';
 
 export type CheckoutStep = 'cart-review' | 'billing-payment' | 'content-upload' | 'confirmation';
 
 const CHECKOUT_STEPS: CheckoutStep[] = ['cart-review', 'billing-payment', 'content-upload', 'confirmation'];
+
+// Interface for Stripe payment results
+export interface StripePaymentResult {
+  success: boolean;
+  sessionId?: string;
+  checkoutUrl?: string;
+  customerId?: string;
+  error?: string;
+  requiresRedirect: boolean;
+}
 
 export interface UseCheckoutReturn {
   // State
@@ -26,6 +46,10 @@ export interface UseCheckoutReturn {
   updateFormData: (data: Partial<CheckoutFormData>) => void;
   submitCheckout: () => Promise<boolean>;
   resetCheckout: () => void;
+
+  // Stripe-specific actions
+  processStripePayment: (formData: CheckoutFormData) => Promise<StripePaymentResult>;
+  handleStripeReturn: (sessionId: string) => Promise<boolean>;
 
   // Validation
   validateCurrentStep: () => CheckoutValidationError[];
@@ -44,6 +68,179 @@ export const useCheckout = (): UseCheckoutReturn => {
   const { user } = useAuth();
   const { cartItems, clearCart } = useCart();
   const { createOrder } = useOrders();
+
+  // Process Stripe payment by creating checkout session
+  const processStripePayment = useCallback(async (formData: CheckoutFormData): Promise<StripePaymentResult> => {
+    try {
+      // Validate cart for Stripe processing
+      const cartValidation = validateCartForStripe(cartItems);
+      if (!cartValidation.isValid) {
+        return {
+          success: false,
+          error: cartValidation.errors.join(', '),
+          requiresRedirect: false,
+        };
+      }
+
+      // Create or get Stripe customer
+      const customerEmail = formData.billingInfo?.email || user?.email;
+      if (!customerEmail) {
+        return {
+          success: false,
+          error: 'Customer email is required for payment processing',
+          requiresRedirect: false,
+        };
+      }
+
+      const customer = await createOrGetStripeCustomer(
+        customerEmail,
+        `${formData.billingInfo?.firstName || ''} ${formData.billingInfo?.lastName || ''}`.trim(),
+        {
+          user_id: user?.id || '',
+          company: formData.billingInfo?.company || '',
+        }
+      );
+
+      // Convert cart items to Stripe line items
+      const lineItems = convertCartToStripeLineItems(cartItems);
+
+      // Generate checkout URLs
+      const baseUrl = window.location.origin;
+      const { successUrl, cancelUrl } = generateCheckoutUrls(baseUrl);
+
+      // Create session metadata
+      const metadata = createSessionMetadata(formData, user?.id);
+
+      // Create Stripe checkout session
+      const sessionData = await createStripeSession({
+        lineItems,
+        customerId: customer.id,
+        customerEmail,
+        successUrl,
+        cancelUrl,
+        metadata,
+        mode: 'payment',
+        billingAddressCollection: 'required',
+        shippingAddressCollection: {
+          allowed_countries: ['US', 'CA', 'GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'SE', 'NO', 'DK', 'FI'],
+        },
+      });
+
+      return {
+        success: true,
+        sessionId: sessionData.sessionId,
+        checkoutUrl: sessionData.url,
+        customerId: sessionData.customerId,
+        requiresRedirect: true,
+      };
+    } catch (error) {
+      console.error('Error processing Stripe payment:', error);
+      return {
+        success: false,
+        error: handleStripeError(error),
+        requiresRedirect: false,
+      };
+    }
+  }, [cartItems, user]);
+
+  // Handle return from Stripe checkout
+  const handleStripeReturn = useCallback(async (sessionId: string): Promise<boolean> => {
+    try {
+      // Verify payment completion
+      const { verifyPaymentCompletion } = await import('@/utils/stripeUtils');
+      const paymentVerification = await verifyPaymentCompletion(sessionId);
+
+      if (!paymentVerification.isCompleted) {
+        setValidationErrors([{
+          field: 'payment',
+          message: 'Payment was not completed. Please try again.'
+        }]);
+        return false;
+      }
+
+      // Retrieve pending order data from session storage
+      const pendingOrderData = sessionStorage.getItem('pending_order_data');
+      if (!pendingOrderData) {
+        setValidationErrors([{
+          field: 'general',
+          message: 'Order data not found. Please start checkout again.'
+        }]);
+        return false;
+      }
+
+      const orderData = JSON.parse(pendingOrderData);
+      const { formData: storedFormData, cartItems: storedCartItems } = orderData;
+
+      // Create order record with Stripe payment details
+      const orderNumber = generateOrderNumber();
+      const orderTotals = calculateOrderTotals(storedCartItems);
+
+      const orderItems: OrderItem[] = storedCartItems.map((cartItem: any) => {
+        const formItem = storedFormData.cartItems?.find((fi: any) => fi.id === cartItem.id);
+        return {
+          id: cartItem.id,
+          mediaOutletId: cartItem.mediaOutletId,
+          domain: cartItem.domain || 'Unknown Domain',
+          category: cartItem.category || 'General',
+          price: cartItem.finalPrice || cartItem.price,
+          quantity: cartItem.quantity || 1,
+          contentOption: formItem?.contentOption || 'self-provided',
+          niche: cartItem.nicheName,
+          uploadedFiles: [],
+          googleDocsLinks: [],
+        };
+      });
+
+      const orderResult = await createOrder({
+        orderNumber,
+        publisherId: orderItems[0]?.mediaOutletId || '', // This needs to be corrected
+        items: orderItems,
+        billingInfo: storedFormData.billingInfo,
+        contentPreferences: storedFormData.contentPreferences,
+        notes: storedFormData.notes,
+        paymentMethod: 'stripe',
+        paymentId: paymentVerification.paymentIntentId,
+        status: 'paid',
+        subtotal: orderTotals.subtotal,
+        vatAmount: orderTotals.vatAmount,
+        totalAmount: orderTotals.total,
+        // Stripe-specific fields
+        stripeSessionId: sessionId,
+        stripeCustomerId: paymentVerification.customerId,
+        stripePaymentIntentId: paymentVerification.paymentIntentId,
+        paymentMethodType: paymentVerification.paymentMethodType,
+        paymentMethodLast4: paymentVerification.paymentMethodLast4,
+      });
+
+      if (!orderResult.success) {
+        setValidationErrors([{
+          field: 'general',
+          message: orderResult.error || 'Failed to create order after successful payment. Please contact support.'
+        }]);
+        return false;
+      }
+
+      // Clear cart and session storage
+      await clearCart();
+      sessionStorage.removeItem('stripe_session_id');
+      sessionStorage.removeItem('pending_order_data');
+
+      console.log('Order created successfully after Stripe payment:', {
+        orderId: orderResult.orderId,
+        orderNumber,
+        paymentIntentId: paymentVerification.paymentIntentId,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error handling Stripe return:', error);
+      setValidationErrors([{
+        field: 'general',
+        message: 'Failed to process payment completion. Please contact support.'
+      }]);
+      return false;
+    }
+  }, [createOrder, clearCart]);
 
   // State - initialize formData synchronously with cart items to avoid race condition
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('cart-review');
@@ -187,37 +384,63 @@ export const useCheckout = (): UseCheckoutReturn => {
       console.log(`Processing payment with ${shouldUseMock ? 'mock' : 'Stripe'} processor...`);
       
       // Select and instantiate appropriate payment processor
-      let paymentResult: MockPaymentResult;
-      
       if (shouldUseMock) {
-        paymentResult = await MockPaymentProcessor.processPayment(formData, {
+        // Use mock payment processor for development/testing
+        const paymentResult: MockPaymentResult = await MockPaymentProcessor.processPayment(formData, {
           simulateDelay: true, // Enable realistic delay simulation
           simulateFailure: false, // Set to true to test failure scenarios
         });
+
+        if (!paymentResult.success) {
+          setValidationErrors([{
+            field: 'payment',
+            message: paymentResult.error || 'Payment processing failed. Please try again.'
+          }]);
+          return false;
+        }
+
+        // Log successful mock payment for debugging
+        console.log('Mock payment processed successfully:', {
+          paymentId: paymentResult.paymentId,
+          paymentMethod: formData.paymentMethod?.type,
+          simulatedDelay: paymentResult.simulatedDelay,
+        });
       } else {
-        // TODO: Implement real Stripe payment processing here
-        // For now, we'll use mock processor with a note about the configuration
-        console.warn('Real Stripe processor not yet implemented, falling back to mock processor');
-        paymentResult = await MockPaymentProcessor.processPayment(formData, {
-          simulateDelay: true,
-          simulateFailure: false,
+        // Use real Stripe payment processing
+        const stripeResult = await processStripePayment(formData);
+
+        if (!stripeResult.success) {
+          setValidationErrors([{
+            field: 'payment',
+            message: stripeResult.error || 'Payment processing failed. Please try again.'
+          }]);
+          return false;
+        }
+
+        // For Stripe payments, we need to redirect to checkout
+        if (stripeResult.requiresRedirect && stripeResult.checkoutUrl) {
+          console.log('Redirecting to Stripe checkout:', stripeResult.checkoutUrl);
+          
+          // Store session data for later verification
+          if (stripeResult.sessionId) {
+            sessionStorage.setItem('stripe_session_id', stripeResult.sessionId);
+            sessionStorage.setItem('pending_order_data', JSON.stringify({
+              formData,
+              cartItems,
+              timestamp: Date.now(),
+            }));
+          }
+
+          // Redirect to Stripe checkout
+          window.location.href = stripeResult.checkoutUrl;
+          return true; // Return true as the redirect is successful
+        }
+
+        console.log('Stripe payment session created:', {
+          sessionId: stripeResult.sessionId,
+          customerId: stripeResult.customerId,
         });
       }
-
-      if (!paymentResult.success) {
-        setValidationErrors([{
-          field: 'payment',
-          message: paymentResult.error || 'Payment processing failed. Please try again.'
-        }]);
-        return false;
-      }
-
-      // Log successful payment for debugging
-      console.log('Payment processed successfully:', {
-        paymentId: paymentResult.paymentId,
-        paymentMethod: formData.paymentMethod?.type,
-        simulatedDelay: paymentResult.simulatedDelay,
-      });
 
       // Create order record in database
       console.log('Creating order record...');
@@ -327,6 +550,10 @@ export const useCheckout = (): UseCheckoutReturn => {
     updateFormData,
     submitCheckout,
     resetCheckout,
+
+    // Stripe-specific actions
+    processStripePayment,
+    handleStripeReturn,
 
     // Validation
     validateCurrentStep,
