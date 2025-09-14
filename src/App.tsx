@@ -40,6 +40,8 @@ import { CheckoutSuccess } from "./pages/CheckoutSuccess";
 import { CheckoutCancel } from "./pages/CheckoutCancel";
 import { CheckoutRecover } from "./pages/CheckoutRecover";
 import { OrderConfirmationPage } from "./components/orders/OrderConfirmationPage";
+import { TestModeIndicator } from "./components/development/TestModeIndicator";
+import { PaymentSimulator } from "./components/development/PaymentSimulator";
 
 const queryClient = new QueryClient();
 
@@ -167,6 +169,11 @@ const AppLayout = () => {
               <Route path="/orders/:orderId/confirmation" element={<ProtectedRoute><OrderConfirmationPage /></ProtectedRoute>} />
               <Route path="/orders/confirmation/:orderId" element={<ProtectedRoute><OrderConfirmationPage /></ProtectedRoute>} />
               
+              {/* Development routes */}
+              {process.env.NODE_ENV === 'development' && (
+                <Route path="/dev/payment-simulator" element={<ProtectedRoute><PaymentSimulator /></ProtectedRoute>} />
+              )}
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
@@ -182,6 +189,8 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        {/* Development tools - only in development mode */}
+        {process.env.NODE_ENV === 'development' && <TestModeIndicator />}
         <AuthProvider>
         <BrowserRouter>
           <Routes>
