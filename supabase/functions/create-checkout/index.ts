@@ -59,67 +59,83 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // Get request body
-    const { cartItems } = await req.json();
-    if (!cartItems || cartItems.length === 0) {
-      throw new Error("No cart items provided");
+    const { 
+      line_items, 
+      customer_id, 
+      customer_email, 
+      success_url, 
+      cancel_url, 
+      metadata,
+      mode = 'payment',
+      billing_address_collection = 'required',
+      shipping_address_collection,
+      payment_method_types = ['card'],
+      allow_promotion_codes = true,
+      automatic_tax,
+      currency = 'eur'
+    } = await req.json();
+    
+    if (!line_items || line_items.length === 0) {
+      throw new Error("No line items provided");
     }
 
-    logStep("Cart items received", { itemCount: cartItems.length });
+    logStep("Line items received", { itemCount: line_items.length });
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Check if customer exists
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      logStep("Existing customer found", { customerId });
-    } else {
-      logStep("Creating new customer");
-    }
-
-    // Create line items from cart
-    const lineItems = cartItems.map((item: any) => ({
-      price_data: {
-        currency: item.currency.toLowerCase(),
-        product_data: {
-          name: `Publication on ${item.domain}${item.nicheName ? ` (${item.nicheName})` : ''}`,
-          description: `${item.category} - DR ${item.metrics?.dr || 'N/A'}${item.priceMultiplier > 1 ? ` - ${item.priceMultiplier}x multiplier` : ''}`,
-        },
-        unit_amount: Math.round((item.finalPrice || item.price) * 100), // Convert to cents
-      },
-      quantity: 1,
-    }));
-
-    logStep("Line items created", { itemCount: lineItems.length });
+    // Use provided customer_id or customer_email
+    const finalCustomerId = customer_id;
+    const finalCustomerEmail = customer_email || user.email;
+    
+    logStep("Customer info", { customerId: finalCustomerId, email: finalCustomerEmail });
 
     // Create checkout session
-    const origin = req.headers.get("origin") || "http://localhost:3000";
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
-      line_items: lineItems,
-      mode: "payment",
-      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/cart?canceled=true`,
+    const sessionConfig: any = {
+      line_items,
+      mode,
+      success_url: success_url || `${req.headers.get("origin") || "http://localhost:3000"}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel_url || `${req.headers.get("origin") || "http://localhost:3000"}/cart?canceled=true`,
+      payment_method_types,
+      billing_address_collection,
       metadata: {
         user_id: user.id,
-        cart_items: JSON.stringify(cartItems.map((item: any) => ({
-          mediaOutletId: item.mediaOutletId,
-          price: item.price,
-          currency: item.currency,
-          nicheId: item.nicheId,
-          basePrice: item.basePrice,
-          priceMultiplier: item.priceMultiplier,
-          finalPrice: item.finalPrice
-        }))),
+        ...metadata,
       },
-    });
+    };
+
+    // Add customer information
+    if (finalCustomerId) {
+      sessionConfig.customer = finalCustomerId;
+    } else if (finalCustomerEmail) {
+      sessionConfig.customer_email = finalCustomerEmail;
+    }
+
+    // Add shipping address collection if provided
+    if (shipping_address_collection) {
+      sessionConfig.shipping_address_collection = shipping_address_collection;
+    }
+
+    // Add promotion codes support
+    if (allow_promotion_codes) {
+      sessionConfig.allow_promotion_codes = allow_promotion_codes;
+    }
+
+    // Add automatic tax if configured
+    if (automatic_tax) {
+      sessionConfig.automatic_tax = automatic_tax;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    return new Response(JSON.stringify({ 
+      sessionId: session.id,
+      url: session.url,
+      customerId: session.customer,
+      paymentIntentId: session.payment_intent,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
