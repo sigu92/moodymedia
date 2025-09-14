@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, CreditCard, Building, FileText, Save, Loader2, CheckCircle } from 'lucide-react';
+import { AlertCircle, CreditCard, Building, FileText, Save, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
 import { StripeLogo, PayPalLogo, FortnoxLogo } from '@/components/ui/payment-logos';
 import { useCheckout } from '@/hooks/useCheckout';
 import { stripeConfig } from '@/config/stripe';
@@ -15,6 +15,7 @@ import { useSettingsStatus } from '@/hooks/useSettings';
 import { CheckoutValidationError } from '@/utils/checkoutUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useCart } from '@/hooks/useCart';
 
 interface Step2BillingPaymentProps {
   onValidationChange?: (isValid: boolean) => void;
@@ -45,8 +46,9 @@ interface PaymentMethodData {
 
 export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onValidationChange }) => {
   const { user, session, signOut } = useAuth();
-  const { formData, updateFormData, validationErrors } = useCheckout();
+  const { formData, updateFormData, validationErrors, processStripePayment, isSubmitting } = useCheckout();
   const { settings, loading: settingsLoading } = useSettingsStatus();
+  const { cartItems } = useCart();
 
   // Form state
   const [billingForm, setBillingForm] = useState<BillingFormData>({
@@ -72,6 +74,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
 
   const [isLoading, setIsLoading] = useState(false);
   const [billingSaved, setBillingSaved] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Load existing billing data from user settings or checkout form
   useEffect(() => {
@@ -259,6 +262,73 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
   const getFieldError = (fieldName: string): string | undefined => {
     const error = validationErrors.find(error => error.field === fieldName);
     return error?.message;
+  };
+
+  const handleStripePayment = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to complete your payment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      toast({
+        title: "Empty Cart",
+        description: "Your cart is empty. Please add items before checking out.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      // Update form data to ensure it's current
+      const currentFormData = {
+        billingInfo: {
+          firstName: billingForm.firstName,
+          lastName: billingForm.lastName,
+          company: billingForm.company,
+          email: billingForm.email,
+          phone: billingForm.phone,
+          address: billingForm.address,
+          taxId: billingForm.taxId,
+        },
+        paymentMethod: {
+          type: paymentMethod.type,
+          poNumber: paymentMethod.type === 'fortnox' ? paymentMethod.poNumber : undefined,
+        },
+      };
+
+      updateFormData(currentFormData);
+
+      // Process Stripe payment - this will redirect to Stripe checkout
+      const result = await processStripePayment({
+        ...formData,
+        ...currentFormData,
+      });
+
+      if (!result.success) {
+        toast({
+          title: "Payment Error",
+          description: result.error || "Failed to create payment session. Please try again.",
+          variant: "destructive",
+        });
+      }
+      // If successful, user will be redirected to Stripe checkout
+    } catch (error) {
+      console.error('Stripe payment error:', error);
+      toast({
+        title: "Payment Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   if (settingsLoading) {
@@ -627,16 +697,46 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
 
         {/* Payment Method Info */}
         {paymentMethod.type === 'stripe' && (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
             <div className="flex items-start gap-2">
               <CreditCard className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-blue-800">
                 <p className="font-medium">Secure Payment Processing</p>
                 <p className="mt-1">
-                  Your payment information is securely processed by Stripe. We accept all major credit and debit cards.
+                  {stripeConfig.shouldUseMockPayments() 
+                    ? 'This is a simulated payment for testing purposes. No real transaction will be processed.'
+                    : 'Your payment information is securely processed by Stripe. We accept all major credit and debit cards.'
+                  }
                 </p>
               </div>
             </div>
+            
+            {/* Pay with Stripe Button */}
+            <Button
+              onClick={handleStripePayment}
+              disabled={isProcessingPayment || isSubmitting || !billingForm.firstName || !billingForm.lastName || !billingForm.email || !billingForm.address.street}
+              className="w-full"
+              size="lg"
+            >
+              {isProcessingPayment ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating Payment Session...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  {stripeConfig.shouldUseMockPayments() ? 'Continue with Mock Payment' : 'Pay with Stripe'}
+                  <ExternalLink className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+            
+            {(!billingForm.firstName || !billingForm.lastName || !billingForm.email || !billingForm.address.street) && (
+              <p className="text-xs text-amber-600">
+                Please complete all required billing information fields before proceeding with payment.
+              </p>
+            )}
           </div>
         )}
 

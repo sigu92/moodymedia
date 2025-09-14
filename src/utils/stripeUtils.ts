@@ -529,3 +529,99 @@ export const getStripeErrorCategory = (error: any): 'card' | 'auth' | 'config' |
 
   return 'unknown';
 };
+
+/**
+ * Cleans up expired or abandoned Stripe sessions
+ */
+export const cleanupExpiredSessions = (): void => {
+  try {
+    const sessionId = sessionStorage.getItem('stripe_session_id');
+    const pendingOrderData = sessionStorage.getItem('pending_order_data');
+    
+    if (sessionId && pendingOrderData) {
+      const orderData = JSON.parse(pendingOrderData);
+      const sessionTimestamp = orderData.timestamp;
+      
+      // Clean up sessions older than 1 hour (3600000 ms)
+      const EXPIRY_TIME = 60 * 60 * 1000;
+      const now = Date.now();
+      
+      if (sessionTimestamp && (now - sessionTimestamp) > EXPIRY_TIME) {
+        sessionStorage.removeItem('stripe_session_id');
+        sessionStorage.removeItem('pending_order_data');
+        console.log('Cleaned up expired Stripe session:', sessionId);
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up expired sessions:', error);
+    // Clean up anyway if there's a parsing error
+    sessionStorage.removeItem('stripe_session_id');
+    sessionStorage.removeItem('pending_order_data');
+  }
+};
+
+/**
+ * Sets up automatic session cleanup on page load
+ */
+export const initializeSessionCleanup = (): void => {
+  // Clean up expired sessions immediately
+  cleanupExpiredSessions();
+  
+  // Set up periodic cleanup every 5 minutes
+  const cleanupInterval = setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
+  
+  // Clean up interval when page unloads
+  window.addEventListener('beforeunload', () => {
+    clearInterval(cleanupInterval);
+  });
+  
+  // Clean up abandoned sessions when page becomes visible again
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      cleanupExpiredSessions();
+    }
+  });
+};
+
+/**
+ * Checks if there's a pending Stripe session that might have timed out
+ */
+export const checkPendingSession = (): {
+  hasPendingSession: boolean;
+  isExpired: boolean;
+  sessionId?: string;
+  minutesOld?: number;
+} => {
+  try {
+    const sessionId = sessionStorage.getItem('stripe_session_id');
+    const pendingOrderData = sessionStorage.getItem('pending_order_data');
+    
+    if (!sessionId || !pendingOrderData) {
+      return { hasPendingSession: false, isExpired: false };
+    }
+    
+    const orderData = JSON.parse(pendingOrderData);
+    const sessionTimestamp = orderData.timestamp;
+    
+    if (!sessionTimestamp) {
+      return { hasPendingSession: true, isExpired: true, sessionId };
+    }
+    
+    const now = Date.now();
+    const ageMs = now - sessionTimestamp;
+    const minutesOld = Math.floor(ageMs / (60 * 1000));
+    
+    // Consider sessions older than 30 minutes as potentially expired
+    const isExpired = ageMs > (30 * 60 * 1000);
+    
+    return {
+      hasPendingSession: true,
+      isExpired,
+      sessionId,
+      minutesOld,
+    };
+  } catch (error) {
+    console.error('Error checking pending session:', error);
+    return { hasPendingSession: false, isExpired: true };
+  }
+};
