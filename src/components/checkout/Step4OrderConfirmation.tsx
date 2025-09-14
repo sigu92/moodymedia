@@ -12,6 +12,7 @@ import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, calculateItemTotal, calculateSubtotal, calculateVAT, calculateTotal } from '@/utils/checkoutUtils';
 import { toast } from '@/hooks/use-toast';
+import { stripeConfig } from '@/config/stripe';
 
 interface Step4OrderConfirmationProps {
   onValidationChange?: (isValid: boolean) => void;
@@ -27,6 +28,12 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
   const { formData, submitCheckout, validationErrors, isSubmitting } = useCheckout();
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<{
+    stripeReceiptUrl?: string;
+    paymentIntentId?: string;
+    paymentMethodType?: string;
+    paymentMethodLast4?: string;
+  }>({});
 
   // Generate robust order ID once using crypto.randomUUID
   const [orderNumber] = useState<string>(() => {
@@ -41,6 +48,34 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
     const isValid = acceptTerms && cartItems.length > 0;
     onValidationChange?.(isValid);
   }, [acceptTerms, cartItems, onValidationChange]);
+
+  // Load payment details from session storage (if returning from Stripe)
+  useEffect(() => {
+    const loadPaymentDetails = () => {
+      const sessionId = sessionStorage.getItem('stripe_session_id');
+      const pendingOrderData = sessionStorage.getItem('pending_order_data');
+      
+      if (sessionId && pendingOrderData) {
+        try {
+          const orderData = JSON.parse(pendingOrderData);
+          // In a real app, we would fetch the session details from Stripe
+          // For now, we'll set mock data if in test mode
+          if (stripeConfig.isTestMode || stripeConfig.shouldUseMockPayments()) {
+            setPaymentDetails({
+              paymentIntentId: `pi_test_${Date.now()}`,
+              paymentMethodType: 'card',
+              paymentMethodLast4: '4242',
+              stripeReceiptUrl: `https://pay.stripe.com/receipts/test_${sessionId}`,
+            });
+          }
+        } catch (error) {
+          console.error('Error loading payment details:', error);
+        }
+      }
+    };
+
+    loadPaymentDetails();
+  }, []);
 
   const handleOrderSubmit = async () => {
     if (!acceptTerms) {
@@ -305,35 +340,107 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
         </CardHeader>
         <CardContent>
           {formData.paymentMethod ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {formData.paymentMethod.type === 'stripe' && (
-                  <>
-                    <CreditCard className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium">Credit Card / Debit Card</span>
-                  </>
-                )}
-                {formData.paymentMethod.type === 'paypal' && (
-                  <>
-                    <Building className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium">PayPal</span>
-                  </>
-                )}
-                {formData.paymentMethod.type === 'invoice' && (
-                  <>
-                    <FileText className="h-5 w-5 text-green-600" />
-                    <div>
-                      <span className="font-medium">Invoice Payment</span>
-                      {formData.paymentMethod.poNumber && (
-                        <p className="text-sm text-muted-foreground">
-                          PO Number: {formData.paymentMethod.poNumber}
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {formData.paymentMethod.type === 'stripe' && (
+                    <>
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <span className="font-medium">
+                          {paymentDetails.paymentMethodType === 'card' ? 'Credit/Debit Card' : 'Stripe Payment'}
+                        </span>
+                        {paymentDetails.paymentMethodLast4 && (
+                          <p className="text-sm text-muted-foreground">
+                            •••• •••• •••• {paymentDetails.paymentMethodLast4}
+                          </p>
+                        )}
+                        {stripeConfig.isTestMode && (
+                          <Badge variant="secondary" className="text-xs ml-2">Test Mode</Badge>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {formData.paymentMethod.type === 'paypal' && (
+                    <>
+                      <Building className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium">PayPal</span>
+                    </>
+                  )}
+                  {formData.paymentMethod.type === 'fortnox' && (
+                    <>
+                      <FileText className="h-5 w-5 text-green-600" />
+                      <div>
+                        <span className="font-medium">Invoice Payment</span>
+                        {formData.paymentMethod.poNumber && (
+                          <p className="text-sm text-muted-foreground">
+                            PO Number: {formData.paymentMethod.poNumber}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <Badge variant="secondary">Ready</Badge>
               </div>
-              <Badge variant="secondary">Ready</Badge>
+
+              {/* Stripe Payment Details */}
+              {formData.paymentMethod.type === 'stripe' && (
+                <div className="space-y-3">
+                  {paymentDetails.paymentIntentId && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-medium text-blue-800 mb-2">Payment Information</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Payment ID:</span>
+                          <span className="font-mono text-blue-800">{paymentDetails.paymentIntentId}</span>
+                        </div>
+                        {paymentDetails.paymentMethodType && (
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">Method:</span>
+                            <span className="text-blue-800 capitalize">{paymentDetails.paymentMethodType}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentDetails.stripeReceiptUrl && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <h4 className="font-medium text-green-800 mb-2">Receipt</h4>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-green-700">
+                          Your Stripe receipt is available for download
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(paymentDetails.stripeReceiptUrl, '_blank')}
+                          className="text-green-700 border-green-300 hover:bg-green-100"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View Receipt
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!stripeConfig.shouldUseMockPayments() && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-gray-800">Secure Payment Processed</p>
+                          <p className="text-gray-600 mt-1">
+                            Your payment has been securely processed by Stripe. 
+                            You will receive an email confirmation shortly.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-4">

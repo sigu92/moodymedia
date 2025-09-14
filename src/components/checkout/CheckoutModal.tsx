@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X, ArrowLeft, ArrowRight, AlertCircle, Loader2, CheckCircle2, Clock } from 'lucide-react';
+import { X, ArrowLeft, ArrowRight, AlertCircle, Loader2, CheckCircle2, Clock, CreditCard, ExternalLink } from 'lucide-react';
 import { ProgressIndicator } from './ProgressIndicator';
 import {
   LazyStep1CartReview,
@@ -13,6 +13,7 @@ import { useCart } from '@/hooks/useCart';
 import { useCheckout } from '@/hooks/useCheckout';
 import { CheckoutValidationError } from '@/utils/checkoutUtils';
 import { useToast } from '@/hooks/use-toast';
+import { stripeConfig } from '@/config/stripe';
 
 export interface CheckoutModalProps {
   open: boolean;
@@ -109,10 +110,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setProgressMessage('Processing your order...');
     setEstimatedTime(3);
 
-    // Simulate progress updates
-    const progressSteps = [
+    // Determine if using Stripe or mock payments
+    const isUsingStripe = !stripeConfig.shouldUseMockPayments();
+
+    // Stripe-specific progress steps
+    const progressSteps = isUsingStripe ? [
       { message: 'Validating order details...', time: 2 },
-      { message: 'Processing payment...', time: 2 },
+      { message: 'Creating Stripe checkout session...', time: 3 },
+      { message: 'Redirecting to Stripe checkout...', time: 2 },
+    ] : [
+      { message: 'Validating order details...', time: 2 },
+      { message: 'Processing mock payment...', time: 2 },
       { message: 'Creating order records...', time: 2 },
       { message: 'Sending confirmation...', time: 1 },
     ];
@@ -125,12 +133,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     const success = await submitCheckout();
     if (success) {
-      setProgressMessage('Order completed successfully!');
-      setEstimatedTime(null);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setShowLoadingOverlay(false);
-      onOpenChange(false);
-      onComplete?.();
+      if (isUsingStripe) {
+        setProgressMessage('Redirecting to Stripe...');
+        setEstimatedTime(null);
+        // Don't close the overlay immediately for Stripe - user will be redirected
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        setProgressMessage('Order completed successfully!');
+        setEstimatedTime(null);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setShowLoadingOverlay(false);
+        onOpenChange(false);
+        onComplete?.();
+      }
     } else {
       setShowLoadingOverlay(false);
       setProgressMessage('');
@@ -163,13 +178,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const renderLoadingOverlay = () => {
     if (!showLoadingOverlay) return null;
 
+    const isStripeFlow = progressMessage?.includes('Stripe') || progressMessage?.includes('checkout session');
+    const isRedirecting = progressMessage?.includes('Redirecting');
+
     return (
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
         <div className="bg-background border rounded-lg p-6 shadow-lg max-w-sm w-full mx-4">
           <div className="flex flex-col items-center text-center space-y-4">
             <div className="relative">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <CheckCircle2 className="h-6 w-6 text-green-600 absolute top-3 left-3 opacity-0 animate-pulse" />
+              {isStripeFlow ? (
+                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+                  <CreditCard className="h-6 w-6 text-blue-600" />
+                </div>
+              ) : (
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              )}
+              
+              {isRedirecting && (
+                <ExternalLink className="h-4 w-4 text-blue-600 absolute -top-1 -right-1 animate-bounce" />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -177,17 +204,41 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {progressMessage || 'Processing...'}
               </h3>
 
-              {estimatedTime && (
+              {isStripeFlow && (
+                <p className="text-sm text-muted-foreground">
+                  {stripeConfig.isTestMode ? 
+                    'Using Stripe test mode - no real payment will be processed' :
+                    'Secure payment processing via Stripe'
+                  }
+                </p>
+              )}
+
+              {estimatedTime && !isRedirecting && (
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
                   <span>Estimated time: {estimatedTime}s</span>
                 </div>
               )}
 
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }} />
-              </div>
+              {isRedirecting ? (
+                <div className="w-full bg-blue-100 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full animate-pulse transition-all duration-1000" style={{ width: '90%' }} />
+                </div>
+              ) : (
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
+              )}
             </div>
+
+            {isRedirecting && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  You will be redirected to Stripe's secure checkout page. 
+                  Do not close this window.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
