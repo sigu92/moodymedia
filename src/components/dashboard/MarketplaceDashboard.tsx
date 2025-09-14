@@ -14,11 +14,17 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DashboardStats } from "@/hooks/useDashboard";
+import { Order, MediaOutlet } from "@/types";
+
+interface FavoritedMediaItem {
+  id: string;
+  media_outlets: Pick<MediaOutlet, 'domain' | 'category' | 'price' | 'currency'>;
+}
 
 interface MarketplaceDashboardProps {
   stats: DashboardStats;
-  recentOrders: any[];
-  favoritedMedia: any[];
+  recentOrders: Order[];
+  favoritedMedia: FavoritedMediaItem[];
 }
 
 const MarketplaceDashboard = ({ stats, recentOrders, favoritedMedia }: MarketplaceDashboardProps) => {

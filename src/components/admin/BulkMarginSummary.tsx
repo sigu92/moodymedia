@@ -20,8 +20,9 @@ export function BulkMarginSummary({
   const selectedData = allSubmissions.filter(s => selectedSubmissions.includes(s.id));
 
   // Only calculate margins for submissions that have prices set (margins applied)
+  // Include items with intentionally set 0% margins (price === purchase_price)
   const submissionsWithMargins = selectedData.filter(s =>
-    s.price && s.price > 0 && s.price !== s.purchase_price
+    s.price && s.price > 0 && s.purchase_price !== undefined
   );
 
   const totals = submissionsWithMargins.reduce(

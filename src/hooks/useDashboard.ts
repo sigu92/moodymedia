@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { Order, MediaOutlet } from '@/types';
+
+interface FavoritedMediaItem {
+  id: string;
+  media_outlets: Pick<MediaOutlet, 'domain' | 'category' | 'price' | 'currency'>;
+}
 
 export interface DashboardStats {
   orders: {
@@ -43,8 +49,8 @@ export const useDashboard = () => {
     cart: { items: 0, value: 0 }
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [favoritedMedia, setFavoritedMedia] = useState<any[]>([]);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [favoritedMedia, setFavoritedMedia] = useState<FavoritedMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, userRoles } = useAuth();
 

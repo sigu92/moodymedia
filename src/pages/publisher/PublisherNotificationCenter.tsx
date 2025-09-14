@@ -27,6 +27,11 @@ interface NotificationPreference {
   priority: 'high' | 'medium' | 'low';
 }
 
+interface PublisherNotificationData {
+  priority?: 'high' | 'medium' | 'low';
+  actionUrl?: string;
+}
+
 interface RealtimeNotification {
   id: string;
   type: string;
@@ -36,7 +41,7 @@ interface RealtimeNotification {
   timestamp: string;
   read: boolean;
   actionUrl?: string;
-  metadata?: any;
+  metadata?: unknown;
 }
 
 export default function PublisherNotificationCenter() {
@@ -190,10 +195,10 @@ export default function PublisherNotificationCenter() {
         type: notif.type,
         title: notif.title,
         message: notif.message,
-        priority: (notif.data as any)?.priority || 'medium',
+        priority: (notif.data as PublisherNotificationData)?.priority || 'medium',
         timestamp: notif.created_at,
         read: notif.read,
-        actionUrl: (notif.data as any)?.actionUrl,
+        actionUrl: (notif.data as PublisherNotificationData)?.actionUrl,
         metadata: notif.data
       })) || [];
 

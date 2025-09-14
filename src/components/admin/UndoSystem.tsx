@@ -8,14 +8,14 @@ interface UndoAction {
   id: string;
   websiteId: string;
   field: string;
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
   timestamp: Date;
   domain: string;
 }
 
 interface UndoSystemProps {
-  onUndo: (websiteId: string, field: string, value: any) => void;
+  onUndo: (websiteId: string, field: string, value: unknown) => void;
   recentActions: UndoAction[];
   onUndoAction: (actionId: string) => void;
 }

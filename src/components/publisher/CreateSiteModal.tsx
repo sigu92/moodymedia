@@ -12,12 +12,43 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { CheckCircle, Clock, DollarSign, Shield } from "lucide-react";
 import { SubmissionProgressIndicator } from "./SubmissionProgressIndicator";
+import { MediaOutlet } from "@/types";
+
+interface SubmittedSite {
+  domain: string;
+  submitted_at: string;
+}
+
+interface SiteSubmissionData {
+  domain: string;
+  price: number | null;
+  purchase_price: number;
+  currency: string;
+  country: string;
+  language: string;
+  category: string;
+  niches: string[];
+  guidelines: string | null;
+  lead_time_days: number | null;
+  accepts_no_license: boolean;
+  accepts_no_license_status: string;
+  sponsor_tag_status: string;
+  sponsor_tag_type: string;
+  metrics: {
+    ahrefs_dr: number;
+    moz_da: number;
+    semrush_as: number;
+    spam_score: number;
+    organic_traffic: number;
+    referring_domains: number;
+  };
+}
 
 interface CreateSiteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSiteCreated: () => void;
-  editingSite?: any;
+  editingSite?: MediaOutlet;
 }
 
 export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite }: CreateSiteModalProps) {
@@ -26,7 +57,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
   const [loading, setLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [submittedSite, setSubmittedSite] = useState<any>(null);
+  const [submittedSite, setSubmittedSite] = useState<SubmittedSite | null>(null);
   const [formData, setFormData] = useState({
     domain: editingSite?.domain || '',
     purchase_price: editingSite?.purchase_price || null,
@@ -81,7 +112,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         newFieldErrors.domain = 'Domain cannot exceed 253 characters';
       } else {
         // Basic domain format validation
-        const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+        const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
         if (!domainRegex.test(normalizedDomain)) {
           errors.push('Invalid domain format');
           newFieldErrors.domain = 'Invalid domain format';
@@ -145,9 +176,9 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
     return errors;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     console.log('[CreateSiteModal] handleSubmit called');
-    e.preventDefault();
+    e?.preventDefault();
 
     if (!user) {
       console.log('[CreateSiteModal] No user found');
@@ -210,7 +241,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
     await performDirectSubmission(submissionData);
   };
 
-  const performDirectSubmission = async (submissionData: any): Promise<void> => {
+  const performDirectSubmission = async (submissionData: SiteSubmissionData): Promise<void> => {
     if (!user) return;
 
     setLoading(true);
@@ -307,36 +338,25 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         throw new Error('Failed to create marketplace listing');
       }
 
-      // Mock successful response
-      const data = {
-        success: true,
-        message: 'Website submitted successfully for admin approval',
-        data: {
-          id: outletResult.id,
-          domain: outletResult.domain,
-          status: 'pending',
-          submitted_at: outletResult.submitted_at
-        }
-      };
-
-      if (!data?.success) {
-        console.error('[CreateSiteModal] Submission failed:', data?.message);
-        throw new Error(data?.message || 'Submission failed');
-      }
-
-      console.log('[CreateSiteModal] Submission successful:', data.data);
+      // Use actual database result instead of mocked response
+      console.log('[CreateSiteModal] Submission successful:', {
+        id: outletResult.id,
+        domain: outletResult.domain,
+        status: outletResult.status,
+        submitted_at: outletResult.submitted_at
+      });
 
       // Success - show confirmation and update UI
       setSubmittedSite({
-        id: data.data.id,
-        domain: data.data.domain,
-        status: data.data.status,
-        submitted_at: data.data.submitted_at
+        id: outletResult.id,
+        domain: outletResult.domain,
+        status: outletResult.status,
+        submitted_at: outletResult.submitted_at
       });
       setShowSuccess(true);
 
       // Track successful submission
-      trackUserAction('site_submission_success', data.data.domain, 1);
+      trackUserAction('site_submission_success', outletResult.domain, 1);
 
       toast.success('Website submitted successfully for admin review!');
       onSiteCreated();
@@ -372,7 +392,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         forex: { accepted: false, multiplier: 1.8 }
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting website:', error);
 
       // Track submission error

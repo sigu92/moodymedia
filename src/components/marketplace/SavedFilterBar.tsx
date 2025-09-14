@@ -10,16 +10,35 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface SearchFilters {
+  ahrefsDrMin?: string;
+  ahrefsDrMax?: string;
+  mozDaMin?: string;
+  mozDaMax?: string;
+  spamScoreMin?: string;
+  spamScoreMax?: string;
+  organicTrafficMin?: string;
+  organicTrafficMax?: string;
+  country?: string;
+  language?: string;
+  category?: string;
+  niches?: string[];
+  priceMin?: string;
+  priceMax?: string;
+  isActive?: boolean;
+  hasGuidelines?: boolean;
+}
+
 interface SavedFilter {
   id: string;
   name: string;
-  query: any;
+  query: SearchFilters;
   created_at: string;
 }
 
 interface SavedFilterBarProps {
-  currentFilters: any;
-  onLoadFilter: (filters: any) => void;
+  currentFilters: SearchFilters;
+  onLoadFilter: (filters: SearchFilters) => void;
   onResetFilters: () => void;
 }
 

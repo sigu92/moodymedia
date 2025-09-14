@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Calculator, X } from 'lucide-react';
 import { BulkMarginSummary } from './BulkMarginSummary';
+import { MediaOutlet } from '@/types';
 
 interface BulkActionsBarProps {
   selectedCount: number;
   selectedSubmissions: string[];
-  allSubmissions: any[];
+  allSubmissions: MediaOutlet[];
   onBulkApprove: () => void;
   onBulkReject: () => void;
   onApplyMargins: () => void;

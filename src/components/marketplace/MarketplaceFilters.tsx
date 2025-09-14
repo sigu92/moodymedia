@@ -11,17 +11,33 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { FilterOptions } from "@/types";
 import { NICHES } from "./niches";
 
+interface ActiveFilters {
+  search?: string;
+  country?: string;
+  language?: string;
+  category?: string;
+  maxPrice?: string;
+  minDR?: string;
+  minOrganicTraffic?: string;
+  maxSpamScore?: string;
+  acceptedNiches?: string[];
+  acceptsNoLicense?: string;
+  sponsorTag?: string;
+  onSale?: boolean;
+  showLowMetricSites?: boolean;
+}
+
 interface MarketplaceFiltersProps {
   filterOptions: FilterOptions;
-  onFiltersChange: (filters: any) => void;
-  activeFilters: any;
+  onFiltersChange: (filters: ActiveFilters) => void;
+  activeFilters: ActiveFilters;
 }
 
 export const MarketplaceFilters = ({ filterOptions, onFiltersChange, activeFilters }: MarketplaceFiltersProps) => {
   const [isOpen, setIsOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState(activeFilters.search || "");
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: string, value: string | string[] | boolean) => {
     const newFilters = { ...activeFilters, [key]: value };
     onFiltersChange(newFilters);
   };

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Trash2, ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useCart } from "@/hooks/useCart";
+import { useCart, CartItem } from "@/hooks/useCart";
 import { useSettingsStatus } from "@/hooks/useSettings";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +17,10 @@ const Cart = () => {
   const { user } = useAuth();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.finalPrice || item.price), 0);
+  // Calculate subtotal excluding read-only items (same filter as checkout)
+  const subtotal = cartItems
+    .filter(item => !item.readOnly)
+    .reduce((sum, item) => sum + (item.finalPrice || item.price), 0);
   const vatRate = 0.25; // 25% VAT
   const vatAmount = subtotal * vatRate;
   const total = subtotal + vatAmount;
@@ -98,16 +101,25 @@ const Cart = () => {
     }
   };
 
-  const createMockCheckout = async (checkoutItems: any[]) => {
+  const createMockCheckout = async (checkoutItems: CartItem[]) => {
+    // Validate user authentication early
+    if (!user || !user.id) {
+      toast.error('You must be logged in to checkout');
+      throw new Error('User not authenticated');
+    }
+
     try {
+      // Generate a single mock session ID for this checkout
+      const mockSessionId = `mock_session_${Date.now()}`;
+
       // Create orders directly in database for development
       const orders = checkoutItems.map(item => ({
-        buyer_id: user?.id,
+        buyer_id: user.id,
         media_outlet_id: item.mediaOutletId,
         status: "requested",
         price: item.finalPrice || item.price,
         currency: item.currency,
-        stripe_session_id: `mock_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        stripe_session_id: mockSessionId,
         niche_id: item.nicheId,
         base_price: item.basePrice || item.price,
         price_multiplier: item.priceMultiplier || 1.0,
@@ -120,9 +132,9 @@ const Cart = () => {
 
       if (insertError) throw insertError;
 
-      // Store cart items in localStorage as backup (will be cleared after successful payment)
-      localStorage.setItem(`cart_backup_${user?.id}`, JSON.stringify({
-        cartItems,
+      // Store checkout items in localStorage as backup (will be cleared after successful payment)
+      localStorage.setItem(`cart_backup_${user.id}`, JSON.stringify({
+        cartItems: checkoutItems,
         timestamp: Date.now(),
         sessionId: mockSessionId
       }));
@@ -133,7 +145,6 @@ const Cart = () => {
       });
 
       // Redirect to payment success page with mock data
-      const mockSessionId = `mock_session_${Date.now()}`;
       setTimeout(() => {
         window.location.href = `/payment-success?session_id=${mockSessionId}&mock=true`;
       }, 1000);

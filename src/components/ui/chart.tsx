@@ -90,11 +90,11 @@ ${colorConfig
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
 interface TooltipPayload {
-  value?: any;
+  value?: unknown;
   name?: string;
   dataKey?: string;
   color?: string;
-  payload?: any;
+  payload?: unknown;
 }
 
 const ChartTooltipContent = React.forwardRef<
@@ -102,14 +102,14 @@ const ChartTooltipContent = React.forwardRef<
   React.ComponentProps<"div"> & {
     active?: boolean;
     payload?: TooltipPayload[];
-    label?: any;
+    label?: unknown;
     hideLabel?: boolean;
     hideIndicator?: boolean;
     indicator?: "line" | "dot" | "dashed";
     nameKey?: string;
     labelKey?: string;
-    labelFormatter?: (label: any, payload: TooltipPayload[]) => React.ReactNode;
-    formatter?: (value: any, name: any, props: any, index: number, payload: any) => React.ReactNode;
+    labelFormatter?: (label: unknown, payload: TooltipPayload[]) => React.ReactNode;
+    formatter?: (value: unknown, name: unknown, props: unknown, index: number, payload: unknown) => React.ReactNode;
     color?: string;
     labelClassName?: string;
   }

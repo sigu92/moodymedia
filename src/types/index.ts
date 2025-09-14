@@ -74,7 +74,7 @@ export interface SavedFilter {
   id: string;
   userId: string;
   name: string;
-  query: Record<string, any>;
+  query: Record<string, unknown>;
   createdAt: string;
 }
 

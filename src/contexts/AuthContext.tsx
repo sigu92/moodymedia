@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -7,8 +7,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, role?: string, referralCode?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, role?: string, referralCode?: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   userRoles: string[];
   currentRole: string | null;
@@ -413,7 +413,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           attempts++;
           console.log(`🔄 ATTEMPT ${attempts}/${maxAttempts}...`);
 
-          const result = await supabase.rpc('handle_secure_user_signup' as any, {
+          const result = await supabase.rpc('handle_secure_user_signup', {
             p_user_id: data.user.id,
             p_email: email,
             p_role: role,

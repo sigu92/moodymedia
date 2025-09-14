@@ -2,7 +2,8 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MarginType } from '@/utils/marginUtils';
-import { useAuditLogger } from '@/hooks/useAuditLogger';
+import { useAuditLogger, AuditLogEntry } from '@/hooks/useAuditLogger';
+import { MediaOutlet } from '@/types';
 
 interface BulkOperationResult {
   success: boolean;
@@ -180,7 +181,7 @@ export function useBulkOperations(): UseBulkOperationsReturn {
 
   const performDirectApproval = async (
     submissionId: string,
-    submission: any,
+    submission: MediaOutlet,
     reviewNotes?: string
   ): Promise<boolean> => {
     try {
@@ -339,8 +340,13 @@ export function useBulkOperations(): UseBulkOperationsReturn {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('Not authenticated');
 
-      // Check if we're in development mode
-      const isDevelopment = !import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.DEV;
+      // Check if we're in development mode using explicit build-time environment
+      const isDevelopment = import.meta.env.MODE === 'development';
+
+      // Log warning if required environment variables are missing
+      if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
+        console.warn('[useBulkOperations] VITE_STRIPE_PUBLISHABLE_KEY is not configured');
+      }
 
       // Process each submission that has margins applied
       for (let i = 0; i < validSubmissionIds.length; i++) {
@@ -608,7 +614,7 @@ export function useBulkOperations(): UseBulkOperationsReturn {
       }
 
       // Group by submission_id and get the most recent change for each
-      const submissionsToRollback = new Map<string, any>();
+      const submissionsToRollback = new Map<string, AuditLogEntry>();
       auditRecords.forEach(record => {
         if (!submissionsToRollback.has(record.submission_id) ||
             new Date(record.operation_timestamp) > new Date(submissionsToRollback.get(record.submission_id).operation_timestamp)) {

@@ -1,21 +1,22 @@
-import { 
-  Home, 
-  Search, 
-  ShoppingCart, 
-  FileText, 
-  Gift, 
+import {
+  Home,
+  Search,
+  ShoppingCart,
+  FileText,
+  Gift,
   Settings,
   Users,
   BarChart3,
   Package,
   CreditCard,
-  Bell
+  Bell,
+  type LucideIcon
 } from "lucide-react";
 
 export interface NavigationItem {
   title: string;
   url: string;
-  icon: any;
+  icon: LucideIcon;
   roles?: string[];
 }
 

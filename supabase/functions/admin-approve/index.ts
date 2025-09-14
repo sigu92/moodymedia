@@ -175,7 +175,14 @@ Deno.serve(async (req) => {
     const beforeData = { ...currentSubmission };
     const now = new Date().toISOString();
 
-    let updateData: any = {
+    let updateData: {
+      reviewed_by: string;
+      reviewed_at: string;
+      review_notes: string | null;
+      status?: string;
+      price?: number;
+      is_active?: boolean;
+    } = {
       reviewed_by: user.id,
       reviewed_at: now,
       review_notes: approvalData.review_notes || null

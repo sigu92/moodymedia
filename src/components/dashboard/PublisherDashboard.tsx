@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DashboardStats } from "@/hooks/useDashboard";
+import { Order } from "@/types";
 
 interface PublisherDashboardProps {
   stats: DashboardStats;
-  recentOrders: any[];
+  recentOrders: Order[];
 }
 
 const PublisherDashboard = ({ stats, recentOrders }: PublisherDashboardProps) => {

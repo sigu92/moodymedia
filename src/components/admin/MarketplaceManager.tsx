@@ -45,13 +45,13 @@ export function MarketplaceManager() {
   const [stats, setStats] = useState<SubmissionStats>({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     await Promise.all([loadUserGroups(), loadSubmissions()]);
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadUserGroups = async () => {
     try {
@@ -106,7 +106,17 @@ export function MarketplaceManager() {
       const userGroupsArray = Array.from(userGroupsMap.values())
         .sort((a, b) => b.pendingCount - a.pendingCount);
 
-      console.log('[MarketplaceManager] Loaded user groups:', userGroupsArray.length, userGroupsArray);
+      // Only log detailed user group info in development
+      if (import.meta.env.DEV) {
+        console.log('[MarketplaceManager] Loaded user groups:', userGroupsArray.length, 'groups');
+        console.log('[MarketplaceManager] User group summary:', userGroupsArray.map(g => ({
+          userId: g.userId,
+          pendingCount: g.pendingCount,
+          totalSubmissions: g.totalSubmissions
+        })));
+      } else {
+        console.log('[MarketplaceManager] Loaded user groups:', userGroupsArray.length, 'groups');
+      }
       setUserGroups(userGroupsArray);
 
     } catch (error) {

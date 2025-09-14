@@ -110,7 +110,7 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       console.log('🔍 DEBUG: About to call add_publisher_role RPC');
 
       // Step 1: Call the secure RPC function to add publisher role
-      const { data, error } = await supabase.rpc('add_publisher_role' as any, {
+      const { data, error } = await supabase.rpc('add_publisher_role', {
         p_user_id: userId
       });
 
@@ -184,7 +184,7 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
       // Create/update profile using secure function (before comprehensive completion)
       console.log('🔄 Creating/updating profile...');
-      const { data: profileResult, error: profileError } = await supabase.rpc('update_onboarding_profile' as any, {
+      const { data: profileResult, error: profileError } = await supabase.rpc('update_onboarding_profile', {
         p_user_id: user.id,
         p_display_name: profileData.displayName.trim(),
         p_bio: profileData.bio?.trim() || null,
@@ -244,7 +244,7 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }
 
         console.log('🔄 Creating media outlet...');
-        const { data: mediaOutletResult, error: mediaOutletError } = await supabase.rpc('create_onboarding_media_outlet' as any, {
+        const { data: mediaOutletResult, error: mediaOutletError } = await supabase.rpc('create_onboarding_media_outlet', {
           p_user_id: user.id,
           p_domain: profileData.mediaOutletDomain.trim(),
           p_category: profileData.mediaOutletCategory.trim(),

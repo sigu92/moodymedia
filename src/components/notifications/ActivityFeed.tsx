@@ -2,8 +2,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotifications, ActivityItem } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
+
+interface ActivityMetadata {
+  media_domain?: string;
+  old_status?: string;
+  new_status?: string;
+  reward_amount?: number;
+  amount?: number;
+  achievement_name?: string;
+}
 import { 
   Activity, 
   Package, 
@@ -60,28 +69,29 @@ export const ActivityFeed = () => {
     return colors[action as keyof typeof colors] || colors.default;
   };
 
-  const getActivityDescription = (activity: any) => {
+  const getActivityDescription = (activity: ActivityItem) => {
     const { action, entity_type, metadata } = activity;
+    const meta = metadata as ActivityMetadata;
     
     switch (action) {
       case 'order_created':
-        return `Created a new order for ${metadata.media_domain || 'a media outlet'}`;
+        return `Created a new order for ${meta.media_domain || 'a media outlet'}`;
       case 'order_status_changed':
-        return `Order status changed from ${metadata.old_status} to ${metadata.new_status}`;
+        return `Order status changed from ${meta.old_status} to ${meta.new_status}`;
       case 'referral_signup':
         return 'Someone signed up using your referral code';
       case 'referral_reward_earned':
-        return `Earned €${metadata.reward_amount} from referral program`;
+        return `Earned €${meta.reward_amount} from referral program`;
       case 'cart_item_added':
-        return `Added ${metadata.media_domain || 'a media outlet'} to cart`;
+        return `Added ${meta.media_domain || 'a media outlet'} to cart`;
       case 'favorite_added':
-        return `Added ${metadata.media_domain || 'a media outlet'} to favorites`;
+        return `Added ${meta.media_domain || 'a media outlet'} to favorites`;
       case 'profile_updated':
         return 'Updated profile information';
       case 'payment_completed':
-        return `Completed payment of €${metadata.amount}`;
+        return `Completed payment of €${meta.amount}`;
       case 'achievement_earned':
-        return `Earned achievement: ${metadata.achievement_name}`;
+        return `Earned achievement: ${meta.achievement_name}`;
       default:
         return `Performed ${action} on ${entity_type}`;
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,9 +73,16 @@ export function BulkWebsiteEditor() {
   });
   const [bulkPreview, setBulkPreview] = useState<BulkActionPreview[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [recentActions, setRecentActions] = useState<any[]>([]);
+  const [recentActions, setRecentActions] = useState<Array<{
+    id: string;
+    websiteId: string;
+    field: string;
+    oldValue: string | number | boolean;
+    newValue: string | number | boolean;
+    timestamp: Date;
+  }>>([]);
 
-  const fetchWebsites = async () => {
+  const fetchWebsites = useCallback(async () => {
     setLoading(true);
     try {
       // Only fetch active listings for bulk operations (buyers can only see active listings)
@@ -98,11 +105,11 @@ export function BulkWebsiteEditor() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchWebsites();
-    
+
     // Clear old actions every minute
     const interval = setInterval(() => {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -110,9 +117,9 @@ export function BulkWebsiteEditor() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchWebsites]);
 
-  const startEdit = (id: string, field: string, currentValue: any) => {
+  const startEdit = (id: string, field: string, currentValue: string | number | boolean) => {
     setEditingCell({ id, field });
     setEditValue(Array.isArray(currentValue) ? currentValue.join(', ') : String(currentValue));
   };
@@ -121,7 +128,7 @@ export function BulkWebsiteEditor() {
     if (!editingCell) return;
 
     const { id, field } = editingCell;
-    let processedValue: any = editValue;
+    let processedValue: string | number | boolean | string[] = editValue;
 
     if (field === 'price') {
       processedValue = parseFloat(editValue);
@@ -226,7 +233,7 @@ export function BulkWebsiteEditor() {
     }
   };
 
-  const handleUndo = (websiteId: string, field: string, value: any) => {
+  const handleUndo = (websiteId: string, field: string, value: string | number | boolean) => {
     setWebsites(prev => prev.map(website => 
       website.id === websiteId 
         ? { ...website, [field]: value, updated_at: new Date().toISOString() }
@@ -234,7 +241,7 @@ export function BulkWebsiteEditor() {
     ));
   };
 
-  const logAuditEntry = async (websiteId: string, field: string, oldValue: any, newValue: any) => {
+  const logAuditEntry = async (websiteId: string, field: string, oldValue: string | number | boolean, newValue: string | number | boolean) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -630,7 +637,7 @@ export function BulkWebsiteEditor() {
                 <label className="text-sm font-medium">Action Type</label>
                 <Select
                   value={bulkAction.type}
-                  onValueChange={(value: any) => setBulkAction(prev => ({ ...prev, type: value }))}
+                  onValueChange={(value: string) => setBulkAction(prev => ({ ...prev, type: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />

@@ -644,7 +644,7 @@ export default function PublisherSites() {
                       />
                     </div>
                   </div>
-                  <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+                  <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as typeof filterStatus)}>
                     <SelectTrigger className="w-40 glass-input">
                       <SelectValue />
                     </SelectTrigger>
@@ -654,7 +654,7 @@ export default function PublisherSites() {
                       <SelectItem value="inactive">Inactive Only</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
                     <SelectTrigger className="w-40 glass-input">
                       <SelectValue />
                     </SelectTrigger>

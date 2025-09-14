@@ -51,7 +51,7 @@ interface AnalyticsData {
     target: number;
     trend: 'up' | 'down' | 'stable';
   }[];
-  recentOrders: any[];
+  recentOrders: Order[];
   recommendations: {
     type: 'success' | 'warning' | 'info';
     title: string;
@@ -606,7 +606,7 @@ const PublisherDashboard = () => {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
                           <YAxis />
-                          <Tooltip formatter={(value: any) => [`€${value}`, 'Earnings']} />
+                          <Tooltip formatter={(value: number) => [`€${value}`, 'Earnings']} />
                           <Area 
                             type="monotone" 
                             dataKey="earnings" 
