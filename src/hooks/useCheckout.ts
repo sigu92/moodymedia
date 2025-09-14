@@ -16,6 +16,7 @@ import {
   calculateOrderTotals,
   handleStripeError
 } from '@/utils/stripeUtils';
+import { customerManager } from '@/utils/customerUtils';
 
 export type CheckoutStep = 'cart-review' | 'billing-payment' | 'content-upload' | 'confirmation';
 
@@ -92,14 +93,24 @@ export const useCheckout = (): UseCheckoutReturn => {
         };
       }
 
-      const customer = await createOrGetStripeCustomer(
+      // Use customer manager to get or create customer
+      const customerName = `${formData.billingInfo?.firstName || ''} ${formData.billingInfo?.lastName || ''}`.trim();
+      
+      const customerResult = await customerManager.getOrCreate(
+        user?.id || '',
         customerEmail,
-        `${formData.billingInfo?.firstName || ''} ${formData.billingInfo?.lastName || ''}`.trim(),
-        {
-          user_id: user?.id || '',
-          company: formData.billingInfo?.company || '',
-        }
+        customerName || undefined
       );
+
+      if (!customerResult.success || !customerResult.customerId) {
+        return {
+          success: false,
+          error: customerResult.error || 'Failed to create or retrieve customer',
+          requiresRedirect: false,
+        };
+      }
+
+      const customer = { id: customerResult.customerId };
 
       // Convert cart items to Stripe line items
       const lineItems = convertCartToStripeLineItems(cartItems);
