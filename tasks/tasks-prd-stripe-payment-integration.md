@@ -48,13 +48,13 @@
   - [x] 1.5 Create error handling for missing Stripe configuration
   - [x] 1.6 Add Stripe test mode detection and warning indicators
 
-- [ ] 2.0 Database Schema & Migration
-  - [ ] 2.1 Create migration to add Stripe fields to orders table (stripe_customer_id, stripe_payment_intent_id, payment_method_type, payment_method_last4)
-  - [ ] 2.2 Update order status enum to include new payment states (pending_payment, payment_processing, paid)
-  - [ ] 2.3 Add stripe_session_id field to orders table for session tracking
-  - [ ] 2.4 Create indexes for Stripe-related fields for performance
-  - [ ] 2.5 Add payment_attempt_count field for retry tracking
-  - [ ] 2.6 Update RLS policies for new Stripe-related fields
+- [x] 2.0 Database Schema & Migration
+  - [x] 2.1 Create migration to add Stripe fields to orders table (stripe_customer_id, stripe_payment_intent_id, payment_method_type, payment_method_last4)
+  - [x] 2.2 Update order status enum to include new payment states (pending_payment, payment_processing, paid)
+  - [x] 2.3 Add stripe_session_id field to orders table for session tracking
+  - [x] 2.4 Create indexes for Stripe-related fields for performance
+  - [x] 2.5 Add payment_attempt_count field for retry tracking
+  - [x] 2.6 Update RLS policies for new Stripe-related fields
 
 - [ ] 3.0 Core Stripe Integration
   - [ ] 3.1 Create src/utils/stripeUtils.ts with helper functions for session creation
