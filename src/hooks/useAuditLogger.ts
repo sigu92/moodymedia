@@ -15,7 +15,7 @@ interface AuditLogEntry {
   reviewNotes?: string;
   bulkOperationCount?: number;
   bulkOperationIndex?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface UseAuditLoggerReturn {
@@ -39,9 +39,18 @@ export function useAuditLogger(): UseAuditLoggerReturn {
 
       // Generate a proper UUID for operation_id if it's not already one
       let operationId = entry.operationId;
-      if (typeof operationId === 'string' && !operationId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+
+      // Proper UUID v4 validation function
+      const isValidUUIDv4 = (str: string): boolean => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+      };
+
+      if (typeof operationId === 'string' && !isValidUUIDv4(operationId)) {
         // Generate a UUID v4 for bulk operations
-        operationId = crypto.randomUUID ? crypto.randomUUID() : `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        operationId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+          ? globalThis.crypto.randomUUID()
+          : `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       }
 
       const { error } = await supabase

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 
 export interface Notification {
@@ -8,7 +9,7 @@ export interface Notification {
   type: string;
   title: string;
   message: string;
-  data: any;
+  data: unknown;
   read: boolean;
   created_at: string;
   updated_at: string;
@@ -20,7 +21,7 @@ export interface ActivityItem {
   action: string;
   entity_type: string;
   entity_id: string;
-  metadata: any;
+  metadata: unknown;
   created_at: string;
 }
 
@@ -269,8 +270,8 @@ export const useNotifications = () => {
   useEffect(() => {
     if (!user) return;
 
-    let notificationsChannel: any;
-    let activityChannel: any;
+    let notificationsChannel: RealtimeChannel;
+    let activityChannel: RealtimeChannel;
 
     const setupRealtimeSubscriptions = () => {
       // Subscribe to notifications

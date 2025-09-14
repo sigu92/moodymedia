@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrders } from "@/hooks/useOrders";
+import { OrderStatus } from "@/types";
 
 interface OrderWithDetails {
   id: string;
@@ -298,9 +299,9 @@ export default function PublisherOrderManagement() {
     }
   }, [selectedOrder]);
 
-  const handleStatusUpdate = async (orderId: string, newStatus: string, publicationUrl?: string) => {
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus, publicationUrl?: string) => {
     try {
-      await updateOrderStatus(orderId, newStatus as any, publicationUrl);
+      await updateOrderStatus(orderId, newStatus, publicationUrl);
       loadOrders();
       
       // Auto-send status update message (mock for now)

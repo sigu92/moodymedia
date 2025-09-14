@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotifications, Notification } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
 import {
   Bell,
@@ -74,15 +74,16 @@ export const NotificationCenter = () => {
     return `${bgColor} ${borderColor}`;
   };
 
-  const handleNotificationClick = async (notification: any) => {
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
       await markAsRead(notification.id);
     }
 
     // Handle navigation based on notification type
-    if (notification.type === 'order_update' && notification.data?.order_id) {
+    const data = notification.data as { order_id?: string };
+    if (notification.type === 'order_update' && data?.order_id) {
       // Navigate to order details
-      window.location.href = `/orders?highlight=${notification.data.order_id}`;
+      window.location.href = `/orders?highlight=${data.order_id}`;
     } else if (notification.type === 'referral_reward') {
       // Navigate to referral page
       window.location.href = '/referral';

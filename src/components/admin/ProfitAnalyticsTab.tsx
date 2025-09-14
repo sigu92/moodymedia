@@ -272,7 +272,7 @@ export function ProfitAnalyticsTab() {
           </p>
         </div>
 
-        <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+        <Select value={timeRange} onValueChange={(value) => setTimeRange(value as typeof timeRange)}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>

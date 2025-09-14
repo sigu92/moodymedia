@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/hooks/useCart";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -16,15 +16,22 @@ import {
 import { getNavigationItems, getContextAwareNavigation } from "./navigation";
 import { RoleIndicator } from "./RoleIndicator";
 import { RoleSwitcher } from "./RoleSwitcher";
+import { CartIcon } from "./cart/CartIcon";
+import { CartSidebar } from "./cart/CartSidebar";
+import { CheckoutModal } from "./checkout/CheckoutModal";
 import { User, LogOut, Settings } from "lucide-react";
 import logoImage from '@/assets/moody-media-logo-new.png';
+import { useState } from "react";
 
 export function TopNav() {
   const { user, userRoles, currentRole, signOut } = useAuth();
-  const { cartItems, cartCount } = useCart();
+  const { cartItems, cartCount, clearCart } = useCart();
   const { unreadCount } = useNotifications();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   // Use context-aware navigation for dual-role users, regular navigation for single-role users
   const hasDualRoles = userRoles?.includes('buyer') && userRoles?.includes('publisher');
@@ -78,27 +85,41 @@ export function TopNav() {
 
       {/* Navigation */}
       <nav className="flex items-center gap-1 animate-fade-in">
-        {navigationItems.map((item, index) => (
-          <NavLink 
-            key={item.title}
-            to={item.url} 
-            className={getNavClassName(item.url)}
-            style={{ animationDelay: `${index * 30}ms` }}
-          >
-            <item.icon className="h-4 w-4" />
-            <span>{item.title}</span>
-            {item.title === "Cart" && getCartBadgeCount() && (
-              <Badge variant="secondary" className="h-4 text-xs ml-1 px-1.5">
-                {getCartBadgeCount()}
-              </Badge>
-            )}
-            {item.title === "Notifications" && getNotificationBadgeCount() && (
-              <Badge variant="destructive" className="h-4 text-xs ml-1 px-1.5">
-                {getNotificationBadgeCount()}
-              </Badge>
-            )}
-          </NavLink>
-        ))}
+        {navigationItems.map((item, index) => {
+          // Special handling for Cart - render as CartIcon instead of NavLink
+          if (item.title === "Cart") {
+            return (
+              <div
+                key={item.title}
+                style={{ animationDelay: `${index * 30}ms` }}
+                className="animate-fade-in"
+              >
+                <CartIcon
+                  onClick={() => setIsCartOpen(true)}
+                  aria-expanded={isCartOpen}
+                  aria-controls="cart-sidebar"
+                />
+              </div>
+            );
+          }
+
+          return (
+            <NavLink
+              key={item.title}
+              to={item.url}
+              className={getNavClassName(item.url)}
+              style={{ animationDelay: `${index * 30}ms` }}
+            >
+              <item.icon className="h-4 w-4" />
+              <span>{item.title}</span>
+              {item.title === "Notifications" && getNotificationBadgeCount() && (
+                <Badge variant="destructive" className="h-4 text-xs ml-1 px-1.5">
+                  {getNotificationBadgeCount()}
+                </Badge>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Role Management */}
@@ -166,6 +187,42 @@ export function TopNav() {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+
+      {/* Cart Sidebar */}
+      <CartSidebar
+        id="cart-sidebar"
+        open={isCartOpen}
+        onOpenChange={setIsCartOpen}
+        onOpenCheckout={() => setIsCheckoutOpen(true)}
+      />
+
+      {/* Checkout Modal */}
+      <CheckoutModal
+        open={isCheckoutOpen}
+        onOpenChange={setIsCheckoutOpen}
+        onComplete={async () => {
+          try {
+            // Clear cart after successful payment
+            await clearCart();
+
+            // Close both checkout and cart modals
+            setIsCheckoutOpen(false);
+            setIsCartOpen(false);
+
+            // Navigate to orders page to show the completed order
+            navigate('/orders');
+
+            console.log('Checkout completed successfully!');
+          } catch (error) {
+            console.error('Error handling checkout completion:', error);
+
+            // Still close modals and navigate, but log the error
+            setIsCheckoutOpen(false);
+            setIsCartOpen(false);
+            navigate('/orders');
+          }
+        }}
+      />
     </header>
   );
 }

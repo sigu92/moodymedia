@@ -10,6 +10,7 @@ import { Clock, FileText, ExternalLink, Edit, CheckCircle, Loader2, Calendar } f
 import { useState } from "react";
 import { useOrders } from "@/hooks/useOrders";
 import { useAuth } from "@/contexts/AuthContext";
+import { Order, OrderStatus } from "@/types";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { PublisherOrderActions } from "@/components/orders/PublisherOrderActions";
@@ -17,7 +18,7 @@ import { PublisherOrderActions } from "@/components/orders/PublisherOrderActions
 const Orders = () => {
   const { orders, loading, updateOrderStatus, updateOrderContent } = useOrders();
   const { userRoles, user } = useAuth();
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingContent, setEditingContent] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [contentForm, setContentForm] = useState({
@@ -27,8 +28,8 @@ const Orders = () => {
   });
   const [publicationUrl, setPublicationUrl] = useState('');
 
-  const handleStatusUpdate = async (orderId: string, newStatus: string, publicationUrl?: string) => {
-    await updateOrderStatus(orderId, newStatus as any, publicationUrl);
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus, publicationUrl?: string) => {
+    await updateOrderStatus(orderId, newStatus, publicationUrl);
   };
 
   const handleContentUpdate = async () => {
@@ -43,7 +44,7 @@ const Orders = () => {
     setEditingContent(false);
   };
 
-  const openContentEditor = (order: any) => {
+  const openContentEditor = (order: Order) => {
     setSelectedOrder(order);
     setContentForm({
       briefing: order.briefing || '',
@@ -53,13 +54,13 @@ const Orders = () => {
     setEditingContent(true);
   };
 
-  const canEditStatus = (order: any) => {
+  const canEditStatus = (order: Order) => {
     if (userRoles?.includes('admin') || userRoles?.includes('system_admin')) return true;
     if (userRoles?.includes('publisher') && order.publisher_id) return true;
     return false;
   };
 
-  const canEditContent = (order: any) => {
+  const canEditContent = (order: Order) => {
     if (userRoles?.includes('admin') || userRoles?.includes('system_admin')) return true;
     if (userRoles?.includes('buyer')) return true;
     return false;

@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProtectedPublisherRoute from "./components/publisher/ProtectedPublisherRoute";
@@ -28,7 +28,6 @@ import Orders from "./pages/Orders";
 import Referral from "./pages/Referral";
 import Pricing from "./pages/Pricing";
 import About from "./pages/About";
-import Cart from "./pages/Cart";
 import Notifications from "./pages/Notifications";
 import Admin from "./pages/Admin";
 import AdminSystem from "./pages/AdminSystem";
@@ -48,7 +47,6 @@ const AppLayout = () => {
   const marketplaceRoutes = [
     '/marketplace',
     '/dashboard/marketplace',
-    '/cart',
     '/orders',
     '/price-analytics',
     '/link-monitoring',
@@ -138,11 +136,7 @@ const AppLayout = () => {
               } />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/about" element={<About />} />
-              <Route path="/cart" element={
-                <ProtectedRoute>
-                  <Cart />
-                </ProtectedRoute>
-              } />
+              <Route path="/cart" element={<Navigate to="/marketplace" replace />} />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
               <Route path="/price-analytics" element={
                 <ProtectedRoute>

@@ -84,7 +84,7 @@ interface Alert {
 interface AlertCondition {
   field: string;
   operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'changes';
-  value: any;
+  value: string | number | boolean | string[] | [number, number];
   threshold?: number;
 }
 
@@ -189,7 +189,7 @@ export function AdvancedFiltersModal({
     }
   };
 
-  const updateFilter = (key: keyof FilterQuery, value: any) => {
+  const updateFilter = (key: keyof FilterQuery, value: FilterQuery[keyof FilterQuery]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 

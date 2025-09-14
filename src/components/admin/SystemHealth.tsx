@@ -130,12 +130,16 @@ export const SystemHealth = () => {
 
       // Memory usage check (if available)
       if ('memory' in performance) {
-        const memory = (performance as any).memory;
+        interface ChromeMemoryInfo {
+          usedJSHeapSize: number;
+          jsHeapSizeLimit: number;
+        }
+        const memory = (performance as { memory: ChromeMemoryInfo }).memory;
         const memoryUsagePercent = (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100;
 
         checks.push({
           service: 'Memory Usage',
-          status: memoryUsagePercent > 80 ? 'warning' : memoryUsagePercent > 95 ? 'error' : 'healthy',
+          status: memoryUsagePercent > 95 ? 'error' : memoryUsagePercent > 80 ? 'warning' : 'healthy',
           message: `Using ${Math.round(memoryUsagePercent)}% of available memory (${Math.round(memory.usedJSHeapSize / 1024 / 1024)}MB)`,
           lastChecked: new Date()
         });

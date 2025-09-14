@@ -17,7 +17,15 @@ interface AnalyticsEvent {
   value?: number;
   timestamp: string;
   sessionId: string;
-  metadata?: Record<string, any>;
+  metadata?: {
+    pathname?: string;
+    url?: string;
+    userAgent?: string;
+    referrer?: string;
+    duration?: number;
+    error?: string;
+    [key: string]: string | number | undefined;
+  };
 }
 
 export const AnalyticsDashboard = () => {

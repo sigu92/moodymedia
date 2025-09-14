@@ -10,6 +10,14 @@ import { CheckCircle, ArrowRight, FileText, ExternalLink, AlertCircle, Loader2 }
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Order } from "@/types";
+
+interface PaymentVerificationData {
+  success: boolean;
+  orders: number;
+  amount: number;
+  mock?: boolean;
+}
 
 interface OrderContent {
   orderId: string;
@@ -22,15 +30,15 @@ interface OrderContent {
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [incompleteOrders, setIncompleteOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [incompleteOrders, setIncompleteOrders] = useState<Order[]>([]);
   const [contentSubmissionOpen, setContentSubmissionOpen] = useState(false);
   const [currentOrderIndex, setCurrentOrderIndex] = useState(0);
   const [orderContents, setOrderContents] = useState<OrderContent[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(true);
-  const [paymentData, setPaymentData] = useState<any>(null);
+  const [paymentData, setPaymentData] = useState<PaymentVerificationData | null>(null);
   const { user } = useAuth();
 
   const sessionId = searchParams.get("session_id");
@@ -48,9 +56,14 @@ export default function PaymentSuccess() {
     }
 
     try {
-      // Handle mock sessions created directly in cart (development mode)
-      if (isMock) {
+      // Handle mock sessions created directly in cart (development mode only)
+      if (isMock && import.meta.env.MODE === 'development') {
         console.log('Processing mock payment created directly in cart');
+      } else if (isMock && import.meta.env.MODE !== 'development') {
+        console.warn('Mock payment attempted in production - ignoring mock parameter');
+      }
+
+      if (isMock && import.meta.env.MODE === 'development') {
         setPaymentData({
           success: true,
           orders: 0, // Will be determined when loading orders

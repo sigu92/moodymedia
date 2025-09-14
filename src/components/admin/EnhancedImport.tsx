@@ -61,7 +61,7 @@ export function EnhancedImport() {
     referring_domains: 'none',
     admin_tags: 'none',
   });
-  const [parsedData, setParsedData] = useState<any[]>([]);
+  const [parsedData, setParsedData] = useState<Array<Record<string, string | number | boolean>>>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [step, setStep] = useState<'upload' | 'mapping' | 'admin_tags' | 'preview' | 'results'>('upload');
   const [loading, setLoading] = useState(false);
@@ -84,7 +84,7 @@ export function EnhancedImport() {
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       const rows = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        const row: any = {};
+        const row: Record<string, string | number | boolean> = {};
         headers.forEach((header, index) => {
           row[header] = values[index] || '';
         });
@@ -149,7 +149,7 @@ export function EnhancedImport() {
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       const rows = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        const row: any = {};
+        const row: Record<string, string | number | boolean> = {};
         headers.forEach((header, index) => {
           row[header] = values[index] || '';
         });
@@ -157,7 +157,7 @@ export function EnhancedImport() {
       });
       
       // Create mapping based on common column names
-      const autoMapping: any = {};
+      const autoMapping: Record<string, string> = {};
       const columnMap: { [key: string]: string[] } = {
         domain: ['domain', 'website', 'url', 'site'],
         price: ['price', 'cost', 'amount'],

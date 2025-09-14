@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Search, 
-  Filter, 
-  SlidersHorizontal, 
-  X, 
+import {
+  Search,
+  Filter,
+  SlidersHorizontal,
+  X,
   Plus,
   Bookmark,
   Star,
@@ -19,11 +19,37 @@ import {
   Target
 } from "lucide-react";
 
+interface SearchFilters {
+  ahrefsDrMin?: string;
+  ahrefsDrMax?: string;
+  mozDaMin?: string;
+  mozDaMax?: string;
+  spamScoreMin?: string;
+  spamScoreMax?: string;
+  organicTrafficMin?: string;
+  organicTrafficMax?: string;
+  country?: string;
+  language?: string;
+  category?: string;
+  niches?: string[];
+  priceMin?: string;
+  priceMax?: string;
+  isActive?: boolean;
+  hasGuidelines?: boolean;
+}
+
+interface SavedFilter {
+  id: string;
+  name: string;
+  filters: SearchFilters;
+  createdAt: string;
+}
+
 interface AdvancedSearchFiltersProps {
-  onFiltersChange: (filters: any) => void;
-  savedFilters: any[];
-  onSaveFilter: (name: string, filters: any) => void;
-  onLoadFilter: (filters: any) => void;
+  onFiltersChange: (filters: SearchFilters) => void;
+  savedFilters: SavedFilter[];
+  onSaveFilter: (name: string, filters: SearchFilters) => void;
+  onLoadFilter: (filters: SearchFilters) => void;
 }
 
 export const AdvancedSearchFilters = ({ 
@@ -33,7 +59,7 @@ export const AdvancedSearchFilters = ({
   onLoadFilter 
 }: AdvancedSearchFiltersProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<any>({});
+  const [activeFilters, setActiveFilters] = useState<SearchFilters>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saveFilterName, setSaveFilterName] = useState("");
 
@@ -72,7 +98,7 @@ export const AdvancedSearchFilters = ({
     }
   ];
 
-  const applyFilters = (newFilters: any) => {
+  const applyFilters = (newFilters: SearchFilters) => {
     const filters = { ...activeFilters, ...newFilters, searchTerm };
     setActiveFilters(filters);
     onFiltersChange(filters);

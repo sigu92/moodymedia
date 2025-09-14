@@ -7,7 +7,7 @@ interface AnalyticsEvent {
   action: string;
   label?: string;
   value?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export const useAnalytics = () => {

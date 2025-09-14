@@ -39,8 +39,14 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { MediaOutlet } from '@/types';
 
+interface MarginCalculation {
+  marginType?: 'fixed' | 'percentage';
+  marginAmount?: number;
+  marginPercentage?: number;
+}
+
 interface PendingApprovalsTabProps {
-  submissions: any[];
+  submissions: MediaOutlet[];
   onRefresh: () => void;
   selectedUserId?: string | null;
   onUserSelect?: (userId: string | null) => void;
@@ -49,7 +55,7 @@ interface PendingApprovalsTabProps {
 export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, onUserSelect }: PendingApprovalsTabProps) {
   console.log('[PendingApprovalsTab] Props:', { submissionsCount: submissions?.length, selectedUserId, onUserSelect: !!onUserSelect });
 
-  const [pendingSubmissions, setPendingSubmissions] = useState<any[]>([]);
+  const [pendingSubmissions, setPendingSubmissions] = useState<MediaOutlet[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -61,7 +67,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<MediaOutlet | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
   const [marketplacePrice, setMarketplacePrice] = useState<number>(0);
@@ -107,7 +113,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
     setShowMarginDialog(true);
   };
 
-  const handleMarginApplied = async (marginCalculation: any) => {
+  const handleMarginApplied = async (marginCalculation: MarginCalculation) => {
     // Apply the margin to all selected submissions
     const marginType = marginCalculation.marginType || 'fixed';
     const marginValue = marginType === 'fixed'
@@ -188,7 +194,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
       return result;
     })
     .sort((a, b) => {
-      let aValue: any, bValue: any;
+      let aValue: string | number | Date, bValue: string | number | Date;
 
       switch (sortBy) {
         case 'domain':
@@ -310,7 +316,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
       setMarketplacePrice(0);
       onRefresh();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error approving submission:', error);
 
       // Handle network/API errors
@@ -404,7 +410,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
       setReviewNotes('');
       onRefresh();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error rejecting submission:', error);
 
       // Handle network/API errors
@@ -504,7 +510,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
             successCount++;
             results.push({ domain: submission.domain, success: true });
           }
-        } catch (submissionError: any) {
+        } catch (submissionError: unknown) {
           console.error(`Exception processing ${submission.domain}:`, submissionError);
           failureCount++;
           results.push({ domain: submission.domain, success: false, error: submissionError.message });
@@ -534,7 +540,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
       setReviewNotes('');
       onRefresh();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Bulk action error:', error);
       toast({
         title: "Bulk Action Failed",
@@ -900,7 +906,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -920,7 +926,7 @@ export function PendingApprovalsTab({ submissions, onRefresh, selectedUserId, on
               </Button>
             </div>
 
-            <Tabs value={viewMode} onValueChange={(value: any) => setViewMode(value)} className="w-auto">
+            <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as typeof viewMode)} className="w-auto">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="table">Table</TabsTrigger>
                 <TabsTrigger value="cards">Cards</TabsTrigger>

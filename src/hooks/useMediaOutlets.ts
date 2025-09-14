@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { MediaWithMetrics } from '@/types';
 
+interface OutletNicheRule {
+  id: string;
+  niche_id: string;
+  accepted: boolean;
+  multiplier: number;
+  niches?: {
+    slug: string;
+    label: string;
+  };
+}
+
 export const useMediaOutlets = () => {
   const [media, setMedia] = useState<MediaWithMetrics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +76,7 @@ export const useMediaOutlets = () => {
         sponsorTagStatus: outlet.sponsor_tag_status as 'yes' | 'no' | undefined,
         sponsorTagType: outlet.sponsor_tag_type as 'image' | 'text' | undefined,
         isFavorite: false, // Will be updated from favorites
-        nicheRules: (outlet.outlet_niche_rules || []).map((rule: any) => ({
+        nicheRules: (outlet.outlet_niche_rules || []).map((rule: OutletNicheRule) => ({
           id: rule.id,
           mediaOutletId: outlet.id,
           nicheId: rule.niche_id,

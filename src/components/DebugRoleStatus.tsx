@@ -10,9 +10,38 @@ interface DebugRoleStatusProps {
   className?: string;
 }
 
+interface DebugInfo {
+  userId: string;
+  rlsRecursionError?: boolean;
+  error?: string;
+  message?: string;
+  userRoles: string[];
+  currentRole: string | null;
+  hasBuyerRole: boolean;
+  hasPublisherRole: boolean;
+  hasBothRoles: boolean;
+  profile?: {
+    id: string;
+    role: string;
+    created_at: string;
+  };
+  databaseRoles?: Array<{
+    id: string;
+    user_id: string;
+    role: string;
+    assigned_by: string;
+    assigned_at: string;
+  }>;
+  supabaseUser?: {
+    id: string;
+    email: string;
+    created_at: string;
+  };
+}
+
 export function DebugRoleStatus({ className = "" }: DebugRoleStatusProps) {
   const { user, userRoles, currentRole, hasRole, fetchUserRoles } = useAuth();
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchDebugInfo = async () => {

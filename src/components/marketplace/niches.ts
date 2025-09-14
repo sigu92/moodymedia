@@ -1,17 +1,18 @@
-import { 
-  DollarSign, 
-  Gamepad2, 
-  ShieldAlert, 
-  Heart, 
-  Leaf, 
-  Bitcoin, 
-  TrendingUp 
+import {
+  DollarSign,
+  Gamepad2,
+  ShieldAlert,
+  Heart,
+  Leaf,
+  Bitcoin,
+  TrendingUp,
+  type LucideIcon
 } from "lucide-react";
 
 export interface Niche {
   slug: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   defaultMultiplier: number;
 }
 

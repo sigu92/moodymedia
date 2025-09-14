@@ -1,0 +1,428 @@
+
+> vite_react_shadcn_ts@0.0.0 lint
+> eslint . --no-fix
+
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\BulkWebsiteEditor.tsx
+  85:9  warning  The 'fetchWebsites' function makes the dependencies of useEffect Hook (at line 120) change on every render. To fix this, wrap the definition of 'fetchWebsites' in its own useCallback() Hook  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\DataTable.tsx
+  176:62   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:102  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\EconomyAnalytics.tsx
+  184:6  warning  React Hook useEffect has a missing dependency: 'fetchAnalytics'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\EnhancedImport.tsx
+   87:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  160:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\MarketplaceManager.tsx
+  54:6  warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\PayoutsManagement.tsx
+  263:6  warning  React Hook useEffect has a missing dependency: 'fetchPayouts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\PendingApprovalsTab.tsx
+   43:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  191:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  191:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  313:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  407:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  507:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  537:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  903:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  923:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\ProfitAnalyticsTab.tsx
+  227:6   warning  React Hook useEffect has a missing dependency: 'fetchProfitAnalytics'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  275:58  error    Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\SystemHealth.tsx
+  133:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\admin\UndoSystem.tsx
+  11:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\dashboard\MarketplaceDashboard.tsx
+  20:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\dashboard\PublisherDashboard.tsx
+  22:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\lazy\LazyWrapper.tsx
+  63:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  63:61  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  69:27  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  77:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  77:60  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\marketplace\AdvancedFiltersModal.tsx
+  181:6  warning  React Hook useEffect has a missing dependency: 'loadAlerts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\marketplace\MarketplaceGridView.tsx
+  158:82  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  167:93  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:85  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\marketplace\MarketplaceTable.tsx
+  313:84  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\marketplace\SavedFilterBar.tsx
+  122:6  warning  React Hook useEffect has a missing dependency: 'loadSavedFilters'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\marketplace\niches.ts
+  14:9  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\navigation.ts
+  18:9  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\notifications\ActivityFeed.tsx
+  63:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\notifications\NotificationCenter.tsx
+  77:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\publisher\BulkEditModal.tsx
+  116:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\publisher\CSVImportModal.tsx
+   78:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  402:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\publisher\CreateSiteModal.tsx
+   20:17   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   29:54   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:53   error  Unnecessary escape character: \-          no-useless-escape
+   84:100  error  Unnecessary escape character: \-          no-useless-escape
+  213:58   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  364:21   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\publisher\GoogleSheetsImportModal.tsx
+   15:47   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   20:20   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:48   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  335:20   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  364:24   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  829:67   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  829:113  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  981:59   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  981:105  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\publisher\SubmissionHistory.tsx
+  74:6  warning  React Hook useEffect has a missing dependency: 'fetchSubmissions'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\settings\CompletionGuard.tsx
+  122:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\badge.tsx
+  35:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\button.tsx
+  49:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\chart.tsx
+   93:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:77  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\command.tsx
+  24:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\form.tsx
+  129:10  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\navigation-menu.tsx
+  111:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\sidebar.tsx
+  636:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\sonner.tsx
+  27:19  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\textarea.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\components\ui\toggle.tsx
+  37:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\contexts\AuthContext.tsx
+   27:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+   84:6   warning  React Hook useEffect has a missing dependency: 'fetchUserRoles'. Either include it or remove the dependency array               react-hooks/exhaustive-deps
+  416:76  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useAnalytics.ts
+  10:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useAuditLogger.ts
+  18:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useBulkOperations.ts
+  179:6   warning  React Hook useCallback has a missing dependency: 'auditLogger'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  183:17  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  484:6   warning  React Hook useCallback has a missing dependency: 'auditLogger'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  579:6   warning  React Hook useCallback has a missing dependency: 'auditLogger'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  616:53  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useCart.ts
+  346:9  warning  The 'restoreCartFromBackup' function makes the dependencies of useCallback Hook (at line 344) change on every render. Move it inside the useCallback callback. Alternatively, wrap the definition of 'restoreCartFromBackup' in its own useCallback() Hook  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useCartOptimized.ts
+  362:6  warning  React Hook useCallback has a missing dependency: 'updateCartItemQuantityOptimized'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  450:6  warning  React Hook useCallback has a missing dependency: 'debouncedBackupSave'. Either include it or remove the dependency array              react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useDashboard.ts
+   46:52  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+   47:56  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  172:6   warning  React Hook useEffect has a missing dependency: 'fetchDashboardData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useFavorites.ts
+  104:6  warning  React Hook useEffect has a missing dependency: 'fetchFavorites'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useFileUploadOptimized.ts
+  188:22  warning  The ref value 'uploadQueueRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'uploadQueueRef.current' to a variable inside the effect, and use that variable in the cleanup function            react-hooks/exhaustive-deps
+  189:27  warning  The ref value 'abortControllersRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'abortControllersRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useMediaOutlets.ts
+  68:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useNotifications.ts
+   11:9   error    Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+   23:13  error    Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  272:31  error    Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  273:26  error    Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  359:6   warning  React Hook useEffect has a missing dependency: 'loadNotifications'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\hooks\useReferrals.ts
+  242:6  warning  React Hook useEffect has missing dependencies: 'fetchReferralData' and 'generateOrFetchReferralCode'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\Cart.tsx
+  104:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\LinkMonitoring.tsx
+  87:6  warning  React Hook useEffect has a missing dependency: 'loadMonitoringData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\Marketplace.tsx
+   33:42  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+   37:52  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  122:9   error  'filtered' is never reassigned. Use 'const' instead  prefer-const
+  278:19  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  279:19  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  334:44  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  338:52  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  342:61  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  369:42  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\Orders.tsx
+  20:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  31:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  46:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  62:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\PaymentSuccess.tsx
+  25:40  error    Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  26:60  error    Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  33:50  error    Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  41:6   warning  React Hook useEffect has a missing dependency: 'verifyPaymentAndLoadOrders'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\Profile.tsx
+  44:6  warning  React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\Settings.tsx
+  98:6  warning  React Hook useEffect has a missing dependency: 'fetchOrganization'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\Transactions.tsx
+  136:6  warning  React Hook useEffect has a missing dependency: 'loadTransactions'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\dashboard\PublisherDashboard.tsx
+   54:17  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  305:6   warning  React Hook useEffect has a missing dependency: 'loadAnalytics'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  609:55  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\publisher\PublisherNotificationCenter.tsx
+   39:14  error    Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  173:6   warning  React Hook useEffect has a missing dependency: 'loadNotifications'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  193:34  error    Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  196:35  error    Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\publisher\PublisherOrderManagement.tsx
+  148:6   warning  React Hook useEffect has a missing dependency: 'loadOrders'. Either include it or remove the dependency array     react-hooks/exhaustive-deps
+  292:6   warning  React Hook useEffect has a missing dependency: 'loadOrders'. Either include it or remove the dependency array     react-hooks/exhaustive-deps
+  299:6   warning  React Hook useEffect has a missing dependency: 'fetchMessages'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  303:53  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\pages\publisher\PublisherSites.tsx
+  224:6   warning  React Hook useEffect has a missing dependency: 'loadSites'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  647:71  error    Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+  657:65  error    Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\accessibility\wcag-compliance.test.tsx
+  391:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\components\CartSidebar.test.tsx
+   81:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  135:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  153:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  169:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  194:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  212:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  237:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  266:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  280:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  309:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  353:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  392:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  405:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  436:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\components\cart-persistence.test.tsx
+   30:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   31:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  462:17  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  677:17  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  692:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\components\mobile-responsiveness.test.tsx
+   76:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   86:37  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  548:17  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\edge-cases\network-edge-cases.test.tsx
+   31:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   47:38  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+   92:38  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  139:38  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  302:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  325:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  512:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  542:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  738:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  751:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  790:36  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  947:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\hooks\useCart.test.ts
+   30:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  415:17  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\hooks\useCheckout.test.ts
+   50:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  221:36  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  277:36  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  296:36  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  368:36  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  385:36  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\hooks\useFileUpload.test.ts
+   17:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   40:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   57:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  231:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  254:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  409:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  430:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  581:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  582:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\test\test-utils.tsx
+   28:7   warning  Fast refresh only works when a file only exports components. Move your component(s) to a separate file  react-refresh/only-export-components
+   58:1   warning  This rule can't verify that `export *` only exports components                                          react-refresh/only-export-components
+  123:44  error    Unexpected any. Specify a different type                                                                @typescript-eslint/no-explicit-any
+  129:42  error    Unexpected any. Specify a different type                                                                @typescript-eslint/no-explicit-any
+  159:27  error    Unexpected any. Specify a different type                                                                @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\types\index.ts
+  77:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\utils\cartCache.ts
+  47:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\utils\cleanupManager.ts
+  314:30  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  319:33  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\utils\debugRoleAssignment.ts
+  120:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\src\utils\testDualRoleFlow.ts
+  72:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\admin-accounts\index.ts
+  9:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\admin-analytics\index.ts
+    9:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\admin-approve\index.ts
+    8:39  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+   12:40  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  178:9   error  'updateData' is never reassigned. Use 'const' instead  prefer-const
+  178:21  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\admin-import-batch\index.ts
+   9:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\admin-payouts\index.ts
+    9:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  171:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\admin-websites-bulk-update\index.ts
+  9:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\create-checkout\index.ts
+   11:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\publisher-import-batch\index.ts
+   8:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\publisher-submit\index.ts
+   8:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:49  error  Unnecessary escape character: \-          no-useless-escape
+  35:96  error  Unnecessary escape character: \-          no-useless-escape
+  98:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\supabase\functions\verify-payment\index.ts
+   10:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  171:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\sigu\OneDrive\Dokument\Cursor Moodymedia\moodymedia\tailwind.config.ts
+  131:13  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+✖ 247 problems (202 errors, 45 warnings)
+  2 errors and 0 warnings potentially fixable with the `--fix` option.
+

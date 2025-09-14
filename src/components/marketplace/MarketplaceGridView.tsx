@@ -154,8 +154,8 @@ export const MarketplaceGridView = ({
             <div className="grid grid-cols-2 gap-3">
               <div className="text-center">
                 <div className="text-xs text-muted-foreground mb-1">Ahrefs DR</div>
-                <Badge 
-                  variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr') as any}
+                <Badge
+                  variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr')}
                   className="w-full justify-center"
                 >
                   {item.metrics.ahrefsDR}
@@ -163,8 +163,8 @@ export const MarketplaceGridView = ({
               </div>
               <div className="text-center">
                 <div className="text-xs text-muted-foreground mb-1">Traffic</div>
-                <Badge 
-                  variant={getMetricBadgeVariant(item.metrics.organicTraffic, 'traffic') as any}
+                <Badge
+                  variant={getMetricBadgeVariant(item.metrics.organicTraffic, 'traffic')}
                   className="w-full justify-center text-xs"
                 >
                   {item.metrics.organicTraffic.toLocaleString()}
@@ -172,8 +172,8 @@ export const MarketplaceGridView = ({
               </div>
               <div className="text-center">
                 <div className="text-xs text-muted-foreground mb-1">Spam Score</div>
-                <Badge 
-                  variant={getMetricBadgeVariant(item.metrics.spamScore, 'spam') as any}
+                <Badge
+                  variant={getMetricBadgeVariant(item.metrics.spamScore, 'spam')}
                   className="w-full justify-center"
                 >
                   {item.metrics.spamScore}

@@ -17,6 +17,45 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/contexts/AuthContext";
 import { FilterOptions } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
+
+interface MarketplaceFilterState {
+  search?: string;
+  searchTerm?: string;
+  country?: string;
+  language?: string;
+  category?: string;
+  maxPrice?: number;
+  priceMin?: number;
+  priceMax?: number;
+  minDR?: number;
+  ahrefsDrMin?: number;
+  ahrefsDrMax?: number;
+  mozDaMin?: number;
+  mozDaMax?: number;
+  minOrganicTraffic?: number;
+  organicTrafficMin?: number;
+  organicTrafficMax?: number;
+  maxSpamScore?: number;
+  spamScoreMin?: number;
+  spamScoreMax?: number;
+  currency?: string;
+  leadTimeMin?: number;
+  leadTimeMax?: number;
+  showLowMetricSites?: boolean;
+  acceptedNiches?: string[];
+  acceptsNoLicense?: string;
+  sponsorTag?: string;
+  onSale?: boolean;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+interface SavedFilterItem {
+  id: string;
+  name: string;
+  filters: MarketplaceFilterState;
+  createdAt: string;
+}
 import { 
   Eye, 
   Star, 
@@ -30,11 +69,11 @@ import {
 } from "lucide-react";
 
 const Marketplace = () => {
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<MarketplaceFilterState>({});
   const [sortField, setSortField] = useState<string>('domain');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [searchMode, setSearchMode] = useState<'simple' | 'advanced'>('simple');
-  const [savedFilters, setSavedFilters] = useState<any[]>([]);
+  const [savedFilters, setSavedFilters] = useState<SavedFilterItem[]>([]);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   const { user } = useAuth();
@@ -119,7 +158,7 @@ const Marketplace = () => {
   }, [allMedia]);
 
   const filteredAndSortedMedia = useMemo(() => {
-    let filtered = mediaWithFavorites.filter(media => {
+    const filtered = mediaWithFavorites.filter(media => {
       // Search filter
       if (filters.search && !media.domain.toLowerCase().includes(filters.search.toLowerCase())) {
         return false;
@@ -275,8 +314,8 @@ const Marketplace = () => {
     const sortOrder = filters.sortOrder || sortDirection;
 
     filtered.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: string | number | Date;
+      let bValue: string | number | Date;
 
       switch (sortBy) {
         case 'domain':
@@ -331,15 +370,15 @@ const Marketplace = () => {
     return mediaWithFavorites.filter(media => media.isFavorite);
   }, [mediaWithFavorites]);
 
-  const handleFiltersChange = (newFilters: any) => {
+  const handleFiltersChange = (newFilters: MarketplaceFilterState) => {
     setFilters(newFilters);
   };
 
-  const handleAdvancedFiltersChange = (newFilters: any) => {
+  const handleAdvancedFiltersChange = (newFilters: Partial<MarketplaceFilterState>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
-  const handleSaveFilter = async (name: string, filterData: any) => {
+  const handleSaveFilter = async (name: string, filterData: MarketplaceFilterState) => {
     if (!user) return;
 
     try {
@@ -366,7 +405,7 @@ const Marketplace = () => {
     }
   };
 
-  const handleLoadFilter = (filterQuery: any) => {
+  const handleLoadFilter = (filterQuery: MarketplaceFilterState) => {
     setFilters(filterQuery);
   };
 

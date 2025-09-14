@@ -113,7 +113,7 @@ export function BulkEditModal({ isOpen, onClose, selectedSites, onUpdate }: Bulk
       for (let i = 0; i < changes.length; i++) {
         const site = changes[i];
         
-        const updateData: any = {};
+        const updateData: Partial<MediaOutlet> = {};
         
         if (bulkPrice || priceAdjustment.value) {
           updateData.price = site.price;

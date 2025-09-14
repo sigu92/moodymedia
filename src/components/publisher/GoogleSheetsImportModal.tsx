@@ -10,14 +10,50 @@ import { ExternalLink, FileSpreadsheet, Info, CheckCircle, AlertCircle, Upload }
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { validateWebsiteMetrics } from "@/utils/metricValidation";
+
+interface CSVRowData {
+  domain?: string;
+  price?: string | number;
+  currency?: string;
+  country?: string;
+  language?: string;
+  category?: string;
+  niches?: string | string[];
+  guidelines?: string;
+  lead_time_days?: string | number;
+  accepts_no_license?: string | boolean;
+  accepts_no_license_status?: string;
+  sponsor_tag_status?: string;
+  sponsor_tag_type?: string;
+  ahrefs_dr?: string | number;
+  moz_da?: string | number;
+  semrush_as?: string | number;
+  spam_score?: string | number;
+  organic_traffic?: string | number;
+  referring_domains?: string | number;
+  is_active?: string | boolean;
+  sale_price?: string | number;
+  sale_note?: string;
+  errors?: string[];
+}
+
+interface ImportResult {
+  row: number;
+  domain: string;
+  success: boolean;
+  error?: string;
+  skipped?: boolean;
+  outletId?: string;
+}
 
 // Helper function for direct batch import (no edge functions)
-const performDirectBatchImport = async (rows: any[], source: string, userId: string) => {
+const performDirectBatchImport = async (rows: CSVRowData[], source: string, userId: string) => {
   const results = {
     succeeded: 0,
     failed: 0,
     skipped: 0,
-    results: [] as any[]
+    results: [] as ImportResult[]
   };
 
   console.log(`[DirectBatchImport] Starting ${source} import for user ${userId}, ${rows.length} rows`);
@@ -36,7 +72,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
           row: rowNumber,
           domain: `Row ${rowNumber}`,
           success: false,
-          errors: ['Domain field is missing'],
+          error: 'Domain field is missing',
           skipped: false
         });
         results.failed++;
@@ -63,7 +99,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
           row: rowNumber,
           domain: normalizedDomain,
           success: false,
-          errors: ['Database error while checking for duplicates'],
+          error: 'Database error while checking for duplicates',
           skipped: false
         });
         results.failed++;
@@ -75,21 +111,38 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
           row: rowNumber,
           domain: normalizedDomain,
           success: false,
-          errors: ['Domain already exists'],
+          error: 'Domain already exists',
           skipped: true
         });
         results.skipped++;
         continue;
       }
 
-      // Check if price exists
-      if (!row.price && row.price !== 0) {
+      // Check if price exists and is valid
+      if (row.price == null || String(row.price).trim() === '') {
         console.error(`[DirectBatchImport] Row ${rowNumber} missing price property`);
         results.results.push({
           row: rowNumber,
           domain: normalizedDomain,
           success: false,
-            errors: ['Publisher asking price (platform cost) field is missing'],
+          error: 'Publisher asking price (platform cost) field is missing',
+          skipped: false
+        });
+        results.failed++;
+        continue;
+      }
+
+      // Normalize and validate price
+      const normalizedPrice = String(row.price).trim().replace(/[,\s]/g, '').replace(/[€$£¥]/g, '');
+      const priceValue = parseFloat(normalizedPrice);
+      
+      if (isNaN(priceValue)) {
+        console.error(`[DirectBatchImport] Row ${rowNumber} invalid price value: ${row.price}`);
+        results.results.push({
+          row: rowNumber,
+          domain: normalizedDomain,
+          success: false,
+          error: 'Invalid price format - must be a valid number',
           skipped: false
         });
         results.failed++;
@@ -102,7 +155,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
       const outletData = {
         domain: normalizedDomain,
         price: null, // Will be set by admin when adding margins
-        purchase_price: parseFloat(row.price) || 0, // Publisher's asking price = platform cost
+        purchase_price: priceValue, // Publisher's asking price = platform cost
         currency: row.currency || 'EUR',
         country: (row.country || '').toString().trim() || '',
         language: (row.language || '').toString().trim() || '',
@@ -124,7 +177,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
           : 'text',
         source: source,
         publisher_id: userId,
-        status: 'pending',
+        status: 'pending' as const,
         submitted_by: userId,
         submitted_at: new Date().toISOString(),
         is_active: false
@@ -143,7 +196,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
           row: rowNumber,
           domain: normalizedDomain,
           success: false,
-          errors: [outletError.message],
+          error: outletError.message,
           skipped: false
         });
         results.failed++;
@@ -152,23 +205,52 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
 
       // Insert metrics if available
       if (row.ahrefs_dr || row.moz_da || row.semrush_as || row.spam_score || row.organic_traffic || row.referring_domains) {
+        // Validate and normalize metric fields using shared utility
+        const { values: validatedMetrics, warnings } = validateWebsiteMetrics({
+          ahrefs_dr: row.ahrefs_dr,
+          moz_da: row.moz_da,
+          semrush_as: row.semrush_as,
+          spam_score: row.spam_score,
+          organic_traffic: row.organic_traffic,
+          referring_domains: row.referring_domains
+        });
+
+        // Log any validation warnings
+        if (warnings.length > 0) {
+          console.warn(`[DirectBatchImport] Metric validation warnings for ${normalizedDomain}:`, warnings);
+        }
+
         const metricsData = {
           media_outlet_id: outletResult.id,
-          ahrefs_dr: row.ahrefs_dr ? parseInt(row.ahrefs_dr.toString()) : 0,
-          moz_da: row.moz_da ? parseInt(row.moz_da.toString()) : 0,
-          semrush_as: row.semrush_as ? parseInt(row.semrush_as.toString()) : 0,
-          spam_score: row.spam_score ? parseInt(row.spam_score.toString()) : 0,
-          organic_traffic: row.organic_traffic ? parseInt(row.organic_traffic.toString()) : 0,
-          referring_domains: row.referring_domains ? parseInt(row.referring_domains.toString()) : 0
+          ahrefs_dr: validatedMetrics.ahrefs_dr,
+          moz_da: validatedMetrics.moz_da,
+          semrush_as: validatedMetrics.semrush_as,
+          spam_score: validatedMetrics.spam_score,
+          organic_traffic: validatedMetrics.organic_traffic,
+          referring_domains: validatedMetrics.referring_domains
         };
 
-        const { error: metricsError } = await supabase
-          .from('metrics')
-          .insert(metricsData);
+        // Only include fields that have valid values
+        const filteredMetricsData: Record<string, string | number> = Object.fromEntries(
+          Object.entries(metricsData).filter(([key, value]) => value !== null)
+        );
 
-        if (metricsError) {
-          console.error(`[DirectBatchImport] Metrics insert error for ${normalizedDomain}:`, metricsError);
-          // Don't fail the whole import for metrics errors
+        // Only insert if there are valid metrics (excluding media_outlet_id)
+        if (Object.keys(filteredMetricsData).length > 1) {
+          // Ensure media_outlet_id is included
+          const insertData = {
+            ...filteredMetricsData,
+            media_outlet_id: outletResult.id
+          };
+          
+          const { error: metricsError } = await supabase
+            .from('metrics')
+            .insert(insertData);
+
+          if (metricsError) {
+            console.error(`[DirectBatchImport] Metrics insert error for ${normalizedDomain}:`, metricsError);
+            // Don't fail the whole import for metrics errors
+          }
         }
       }
 
@@ -188,7 +270,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
           row: rowNumber,
           domain: normalizedDomain,
           success: false,
-          errors: ['Failed to create listing'],
+          error: 'Failed to create listing',
           skipped: false
         });
         results.failed++;
@@ -209,7 +291,7 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
         row: rowNumber,
         domain: row.domain || `Row ${rowNumber}`,
         success: false,
-        errors: [error instanceof Error ? error.message : 'Unknown error'],
+        error: error instanceof Error ? error.message : 'Unknown error',
         skipped: false
       });
       results.failed++;
@@ -220,13 +302,6 @@ const performDirectBatchImport = async (rows: any[], source: string, userId: str
   return results;
 };
 
-interface ImportResult {
-  row: number;
-  domain: string;
-  success: boolean;
-  errors: string[];
-  skipped: boolean;
-}
 
 interface ImportResponse {
   message: string;
@@ -248,7 +323,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
   const [googleSheetUrl, setGoogleSheetUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'guide' | 'preview' | 'validation' | 'import'>('guide');
-  const [parsedData, setParsedData] = useState<any[]>([]);
+  const [parsedData, setParsedData] = useState<CSVRowData[]>([]);
   const [validationResults, setValidationResults] = useState<ImportResponse | null>(null);
   const [importResults, setImportResults] = useState<ImportResponse | null>(null);
 
@@ -332,7 +407,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
 
       const data = lines.slice(1).filter(line => line.trim()).map(line => {
         const values = parseCSVLine(line);
-        const row: any = {};
+        const row: CSVRowData = {};
         headers.forEach((header, index) => {
           row[header.toLowerCase()] = (values[index] || '').replace(/"/g, '');
         });
@@ -361,7 +436,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
         succeeded: 0,
         failed: 0,
         skipped: 0,
-        results: [] as any[]
+        results: [] as ImportResult[]
       };
 
       // Simple validation without actual database insertion
@@ -376,7 +451,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
               row: rowNumber,
               domain: row.domain || `Row ${rowNumber}`,
               success: false,
-              errors: ['Domain is required'],
+              error: 'Domain is required',
               skipped: false
             });
             result.failed++;
@@ -394,19 +469,36 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
               row: rowNumber,
               domain: normalizedDomain,
               success: false,
-              errors: ['Domain must be at least 3 characters long'],
+              error: 'Domain must be at least 3 characters long',
               skipped: false
             });
             result.failed++;
             continue;
           }
 
-          if (!row.price || isNaN(parseFloat(row.price))) {
+          // Check if price exists and is valid
+          if (row.price == null || String(row.price).trim() === '') {
             result.results.push({
               row: rowNumber,
               domain: normalizedDomain,
               success: false,
-              errors: ['Valid price is required'],
+              error: 'Publisher asking price (platform cost) field is missing',
+              skipped: false
+            });
+            result.failed++;
+            continue;
+          }
+
+          // Normalize and validate price
+          const normalizedPrice = String(row.price).trim().replace(/[,\s]/g, '').replace(/[€$£¥]/g, '');
+          const priceValue = parseFloat(normalizedPrice);
+          
+          if (isNaN(priceValue)) {
+            result.results.push({
+              row: rowNumber,
+              domain: normalizedDomain,
+              success: false,
+              error: 'Invalid price format - must be a valid number',
               skipped: false
             });
             result.failed++;
@@ -420,7 +512,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
               row: rowNumber,
               domain: normalizedDomain,
               success: false,
-              errors: [`accepts_no_license_status must be 'yes', 'no', or 'depends', got '${licenseStatus}'`],
+              error: `accepts_no_license_status must be 'yes', 'no', or 'depends', got '${licenseStatus}'`,
               skipped: false
             });
             result.failed++;
@@ -434,7 +526,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
               row: rowNumber,
               domain: normalizedDomain,
               success: false,
-              errors: [`sponsor_tag_status must be 'yes' or 'no', got '${sponsorStatus}'`],
+              error: `sponsor_tag_status must be 'yes' or 'no', got '${sponsorStatus}'`,
               skipped: false
             });
             result.failed++;
@@ -448,7 +540,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
               row: rowNumber,
               domain: normalizedDomain,
               success: false,
-              errors: [`sponsor_tag_type must be 'text' or 'image', got '${sponsorType}'`],
+              error: `sponsor_tag_type must be 'text' or 'image', got '${sponsorType}'`,
               skipped: false
             });
             result.failed++;
@@ -467,7 +559,7 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
             row: rowNumber,
             domain: row.domain || `Row ${rowNumber}`,
             success: false,
-            errors: ['Validation error'],
+            error: 'Validation error',
             skipped: false
           });
           result.failed++;
@@ -826,16 +918,14 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
                         </p>
 
                         <div className="max-h-60 overflow-y-auto space-y-3">
-                          {validationResults?.results?.filter((r: any) => !r.success).slice(0, 10).map((result: any, index: number) => (
+                          {validationResults?.results?.filter((r: ImportResult) => !r.success).slice(0, 10).map((result: ImportResult, index: number) => (
                             <div key={index} className="border-l-4 border-red-400 pl-4 py-2 bg-white rounded">
                               <div className="font-medium text-red-800 text-sm">
                                 Row {result.row}: {result.domain || 'Unknown domain'}
                               </div>
                               <ul className="list-disc list-inside text-red-700 mt-1 space-y-1">
-                                {result.errors && result.errors.length > 0 ? (
-                                  result.errors.map((error: string, errorIndex: number) => (
-                                    <li key={errorIndex} className="text-sm">{error}</li>
-                                  ))
+                                {result.error ? (
+                                  <li className="text-sm">{result.error}</li>
                                 ) : (
                                   <li className="text-sm">Unknown validation error</li>
                                 )}
@@ -978,16 +1068,14 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
                   <div className="space-y-2">
                     <h4 className="font-semibold text-red-600">Import Errors</h4>
                     <div className="max-h-60 overflow-y-auto space-y-2">
-                      {importResults?.results?.filter((r: any) => !r.success).slice(0, 10).map((result: any, index: number) => (
+                      {importResults?.results?.filter((r: ImportResult) => !r.success).slice(0, 10).map((result: ImportResult, index: number) => (
                         <div key={index} className="flex items-start gap-2 p-3 bg-red-50 rounded border border-red-200">
                           <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
                           <div className="text-sm">
                             <span className="font-medium">Row {result.row}: {result.domain}</span>
                             <ul className="list-disc list-inside text-red-700 mt-1">
-                              {result.errors && result.errors.length > 0 ? (
-                                result.errors.map((error: string, errorIndex: number) => (
-                                  <li key={errorIndex}>{error}</li>
-                                ))
+                              {result.error ? (
+                                <li>{result.error}</li>
                               ) : (
                                 <li>No error details available - check console for details</li>
                               )}

@@ -22,6 +22,40 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface CSVRowData {
+  domain?: string;
+  price?: string | number;
+  currency?: string;
+  country?: string;
+  language?: string;
+  category?: string;
+  niches?: string | string[];
+  guidelines?: string;
+  lead_time_days?: string | number;
+  accepts_no_license?: string | boolean;
+  accepts_no_license_status?: string;
+  sponsor_tag_status?: string;
+  sponsor_tag_type?: string;
+  ahrefs_dr?: string | number;
+  moz_da?: string | number;
+  semrush_as?: string | number;
+  spam_score?: string | number;
+  organic_traffic?: string | number;
+  referring_domains?: string | number;
+  is_active?: string | boolean;
+  sale_price?: string | number;
+  sale_note?: string;
+  errors?: string[];
+}
+
+interface ImportResult {
+  row: number;
+  domain: string;
+  success: boolean;
+  error?: string;
+  skipped?: boolean;
+}
+
 // Simple CSV parser that handles quoted fields
 const parseCSVText = (csvText: string): string[][] => {
   const lines: string[][] = [];
@@ -75,12 +109,12 @@ const parseCSVText = (csvText: string): string[][] => {
 };
 
 // Helper function for direct batch import (no edge functions)
-const performDirectBatchImport = async (rows: any[], source: string, userId: string) => {
+const performDirectBatchImport = async (rows: CSVRowData[], source: string, userId: string) => {
   const results = {
     succeeded: 0,
     failed: 0,
     skipped: 0,
-    results: [] as any[]
+    results: [] as ImportResult[]
   };
 
   console.log(`[DirectBatchImport] Starting ${source} import for user ${userId}, ${rows.length} rows`);
@@ -399,7 +433,7 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
 
       const data: ImportRow[] = lines.slice(1).map((line, index) => {
         const values = line; // line is already an array from parseCSV
-        const row: any = {};
+        const row: CSVRowData = {};
 
         headers.forEach((header, i) => {
           row[header] = values[i] || '';
@@ -469,75 +503,9 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
     setImportProgress(0);
 
     try {
-      if (!file) {
-        throw new Error('No file selected');
-      }
-
-      const csvText = await file.text();
-      
-      // Parse CSV
-      const lines = csvText.split('\n').filter(line => line.trim());
-      if (lines.length < 2) {
-        throw new Error('CSV appears to be empty or has no data rows');
-      }
-      
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      const rows = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        const row: any = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
-        return row;
-      });
-      
-      // Create mapping based on common column names
-      const mapping: any = {};
-      const columnMap: { [key: string]: string[] } = {
-        domain: ['domain', 'website', 'url', 'site'],
-        price: ['price', 'cost', 'amount'],
-        currency: ['currency'],
-        country: ['country'],
-        language: ['language', 'lang'],
-        category: ['category', 'type'],
-        niches: ['niches', 'niche', 'topics'],
-        guidelines: ['guidelines', 'rules', 'instructions'],
-        lead_time_days: ['lead_time_days', 'lead_time', 'turnaround'],
-        min_word_count: ['min_word_count', 'min_words'],
-        max_word_count: ['max_word_count', 'max_words'],
-        turnaround_time: ['turnaround_time', 'delivery_time'],
-        required_format: ['required_format', 'format'],
-        content_types: ['content_types', 'types'],
-        forbidden_topics: ['forbidden_topics', 'forbidden'],
-        accepts_no_license: ['accepts_no_license', 'no_license'],
-        sponsor_tag_status: ['sponsor_tag_status', 'sponsor_tag'],
-        sponsor_tag_type: ['sponsor_tag_type'],
-        sponsor_tag: ['sponsor_tag'],
-        sale_price: ['sale_price'],
-        sale_note: ['sale_note'],
-        admin_tags: ['admin_tags', 'tags'],
-        ahrefs_dr: ['ahrefs_dr', 'dr', 'domain_rating'],
-        moz_da: ['moz_da', 'da', 'domain_authority'],
-        semrush_as: ['semrush_as', 'as', 'authority_score'],
-        spam_score: ['spam_score', 'spam'],
-        organic_traffic: ['organic_traffic', 'traffic'],
-        referring_domains: ['referring_domains', 'ref_domains', 'backlinks']
-      };
-      
-      // Auto-map columns
-      Object.keys(columnMap).forEach(field => {
-        const possibleColumns = columnMap[field];
-        for (const col of possibleColumns) {
-          const foundHeader = headers.find(h => h.toLowerCase().includes(col.toLowerCase()));
-          if (foundHeader) {
-            mapping[field] = foundHeader;
-            break;
-          }
-        }
-      });
-      
-      // Perform direct batch import (no edge functions)
-      const data = await performDirectBatchImport(rows, 'csv', user!.id);
+      // Use the existing validated rows from the parseCSV function
+      // This avoids duplicate CSV parsing and ensures consistency
+      const data = await performDirectBatchImport(validRows, 'csv', user!.id);
 
       toast.success(`Import completed! ${data.succeeded} websites imported, ${data.failed} failed, ${data.skipped} skipped.`);
       

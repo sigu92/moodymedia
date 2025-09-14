@@ -116,7 +116,7 @@ export function AccountsOverview() {
     },
   ];
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -149,7 +149,7 @@ export function AccountsOverview() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, sortField, sortDirection, filters, toast]);
 
   const handleExport = async () => {
     try {
@@ -206,7 +206,7 @@ export function AccountsOverview() {
   // Fetch data when filters or pagination changes
   useEffect(() => {
     fetchAccounts();
-  }, [pagination.page, pagination.limit, sortField, sortDirection, filters]);
+  }, [pagination.page, pagination.limit, sortField, sortDirection, filters, fetchAccounts]);
 
   // Calculate summary stats
   const totalUsers = pagination.total_items;

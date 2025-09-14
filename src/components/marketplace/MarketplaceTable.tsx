@@ -309,8 +309,8 @@ export const MarketplaceTable = ({
 
                   {/* DR */}
                   <TableCell className="text-center">
-                  <Badge 
-                    variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr') as any}
+                  <Badge
+                    variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr')}
                     className="font-medium transition-colors"
                   >
                     {item.metrics.ahrefsDR}

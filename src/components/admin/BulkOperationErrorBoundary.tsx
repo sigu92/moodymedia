@@ -44,8 +44,14 @@ export class BulkOperationErrorBoundary extends Component<
     });
 
     // Log error to external service if available
-    if (typeof window !== 'undefined' && (window as any).errorReporter) {
-      (window as any).errorReporter.report(error, {
+    const globalWindow = window as typeof window & {
+      errorReporter?: {
+        report: (error: Error, context: { componentStack: string; operation: string }) => void;
+      };
+    };
+
+    if (typeof window !== 'undefined' && globalWindow.errorReporter) {
+      globalWindow.errorReporter.report(error, {
         componentStack: errorInfo.componentStack,
         operation: this.props.operationName || 'bulk_operation'
       });
