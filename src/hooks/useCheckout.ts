@@ -17,6 +17,7 @@ import {
   handleStripeError
 } from '@/utils/stripeUtils';
 import { customerManager } from '@/utils/customerUtils';
+import { developmentMockSystem } from '@/utils/developmentMockSystem';
 import { errorHandler, ErrorContext } from '@/utils/errorHandling';
 import { paymentRetry } from '@/utils/paymentRetry';
 import { paymentAnalytics } from '@/utils/paymentAnalytics';
@@ -77,6 +78,58 @@ export const useCheckout = (): UseCheckoutReturn => {
   // Process Stripe payment by creating checkout session
   const processStripePayment = useCallback(async (formData: CheckoutFormData): Promise<StripePaymentResult> => {
     try {
+      // Check if we should use mock payments
+      if (developmentMockSystem.shouldUseMock()) {
+        console.log('🧪 Using mock payment system');
+        
+        // Create mock session data
+        const mockSessionData = {
+          lineItems: cartItems.map(item => ({
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: `Media placement - ${item.outlet?.domain || 'Unknown outlet'}`
+              },
+              unit_amount: Math.round((item.finalPrice || item.basePrice) * 100)
+            },
+            quantity: 1
+          })),
+          customerId: user?.id || 'mock_customer',
+          customerEmail: formData.billingInfo.email,
+          successUrl: `${window.location.origin}/checkout/success`,
+          cancelUrl: `${window.location.origin}/checkout/cancel`,
+          metadata: {
+            mock_payment: 'true',
+            user_id: user?.id || '',
+            cart_items: JSON.stringify(cartItems.map(item => ({ 
+              id: item.id, 
+              price: item.finalPrice || item.basePrice 
+            })))
+          }
+        };
+
+        // Process mock payment
+        const mockResult = await developmentMockSystem.createSession(mockSessionData);
+        
+        // Record the attempt
+        developmentMockSystem.recordAttempt(mockResult);
+
+        if (mockResult.success) {
+          return {
+            success: true,
+            checkoutUrl: mockResult.checkoutUrl,
+            sessionId: mockResult.sessionId,
+            requiresRedirect: true,
+          };
+        } else {
+          return {
+            success: false,
+            error: mockResult.error || 'Mock payment failed',
+            requiresRedirect: false,
+          };
+        }
+      }
+
       // Validate cart for Stripe processing
       const cartValidation = validateCartForStripe(cartItems);
       if (!cartValidation.isValid) {
