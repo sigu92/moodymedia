@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { AlertCircle, CreditCard, Building, FileText, Save, Loader2, CheckCircle } from 'lucide-react';
+import { StripeLogo, PayPalLogo, FortnoxLogo } from '@/components/ui/payment-logos';
 import { useCheckout } from '@/hooks/useCheckout';
+import { stripeConfig } from '@/config/stripe';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettingsStatus } from '@/hooks/useSettings';
 import { CheckoutValidationError } from '@/utils/checkoutUtils';
@@ -18,7 +20,7 @@ interface Step2BillingPaymentProps {
   onValidationChange?: (isValid: boolean) => void;
 }
 
-type PaymentMethodType = 'stripe' | 'paypal' | 'invoice';
+type PaymentMethodType = 'stripe' | 'paypal' | 'fortnox';
 
 interface BillingFormData {
   firstName: string;
@@ -127,7 +129,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
 
     const paymentMethodData = {
       type: paymentMethod.type,
-      poNumber: paymentMethod.type === 'invoice' ? paymentMethod.poNumber : undefined,
+      poNumber: paymentMethod.type === 'fortnox' ? paymentMethod.poNumber : undefined,
     };
 
     updateFormData({
@@ -148,7 +150,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
       billingForm.address.country.trim()
     );
 
-    const isPaymentValid = paymentMethod.type === 'invoice'
+    const isPaymentValid = paymentMethod.type === 'fortnox'
       ? !!paymentMethod.poNumber.trim()
       : !!paymentMethod.type;
 
@@ -163,7 +165,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
         const parentValue = prev[parent as keyof BillingFormData];
 
         // Safely handle nested updates with fallback for undefined parent objects
-        const safeParentValue = parentValue && typeof parentValue === 'object' ? parentValue : {};
+        const safeParentValue = parentValue !== null && typeof parentValue === 'object' ? parentValue : {};
 
         return {
           ...prev,
@@ -185,7 +187,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
     setPaymentMethod(prev => ({
       ...prev,
       type,
-      poNumber: type === 'invoice' ? prev.poNumber : '',
+      poNumber: type === 'fortnox' ? prev.poNumber : '',
     }));
   };
 
@@ -231,6 +233,11 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
       });
 
       if (error) throw error;
+
+      // Refresh local auth session/user data
+      try {
+        await supabase.auth.getSession();
+      } catch (_) {}
 
       setBillingSaved(true);
       toast({
@@ -467,119 +474,200 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
       </Card>
 
       {/* Payment Method Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Payment Method
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Payment Method Options */}
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <input
-                type="radio"
-                id="stripe"
-                name="paymentMethod"
-                value="stripe"
-                checked={paymentMethod.type === 'stripe'}
-                onChange={() => handlePaymentMethodChange('stripe')}
-                className="w-4 h-4 text-primary"
-              />
-              <Label htmlFor="stripe" className="flex items-center gap-2 cursor-pointer">
-                <CreditCard className="h-4 w-4" />
-                Credit Card / Debit Card (Stripe)
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <input
-                type="radio"
-                id="paypal"
-                name="paymentMethod"
-                value="paypal"
-                checked={paymentMethod.type === 'paypal'}
-                onChange={() => handlePaymentMethodChange('paypal')}
-                className="w-4 h-4 text-primary"
-              />
-              <Label htmlFor="paypal" className="flex items-center gap-2 cursor-pointer">
-                <Building className="h-4 w-4" />
-                PayPal
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <input
-                type="radio"
-                id="invoice"
-                name="paymentMethod"
-                value="invoice"
-                checked={paymentMethod.type === 'invoice'}
-                onChange={() => handlePaymentMethodChange('invoice')}
-                className="w-4 h-4 text-primary"
-              />
-              <Label htmlFor="invoice" className="flex items-center gap-2 cursor-pointer">
-                <FileText className="h-4 w-4" />
-                Invoice Payment
-              </Label>
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Choose Payment Method</h3>
+        
+        {/* Configuration Warnings */}
+        {stripeConfig.getWarnings().length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800 mb-1">Payment Configuration Notice:</p>
+                <ul className="text-amber-700 space-y-1">
+                  {stripeConfig.getWarnings().map((warning, index) => (
+                    <li key={index}>• {warning}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
-
-          {getFieldError('paymentType') && (
-            <p className="text-sm text-destructive">{getFieldError('paymentType')}</p>
-          )}
-
-          {/* PO Number for Invoice Payment */}
-          {paymentMethod.type === 'invoice' && (
-            <div className="space-y-2 pt-4 border-t">
-              <Label htmlFor="poNumber">Purchase Order Number *</Label>
-              <Input
-                id="poNumber"
-                value={paymentMethod.poNumber}
-                onChange={(e) => setPaymentMethod(prev => ({ ...prev, poNumber: e.target.value }))}
-                placeholder="Enter PO number"
-                className={getFieldError('poNumber') ? 'border-destructive' : ''}
-              />
-              {getFieldError('poNumber') && (
-                <p className="text-sm text-destructive">{getFieldError('poNumber')}</p>
-              )}
-              <p className="text-sm text-muted-foreground">
-                Invoice payment requires a valid purchase order number. Payment terms: Net 30 days.
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Stripe Card */}
+          <Card 
+            className={`cursor-pointer transition-all border-2 ${
+              paymentMethod.type === 'stripe' 
+                ? 'border-blue-500 bg-blue-50/50 shadow-md' 
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => handlePaymentMethodChange('stripe')}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="flex justify-center items-center mb-4 h-16">
+                <StripeLogo className="h-10 w-auto max-w-[120px] object-contain" />
+              </div>
+              <h4 className="font-semibold mb-2">
+                Stripe Payment
+                {stripeConfig.isTestMode && stripeConfig.isConfigured() && (
+                  <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">TEST</span>
+                )}
+                {stripeConfig.shouldUseMockPayments() && (
+                  <span className="ml-2 text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">MOCK</span>
+                )}
+              </h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                {stripeConfig.shouldUseMockPayments() 
+                  ? 'Simulated payment for testing'
+                  : 'Secure payment with cards'
+                }
               </p>
-            </div>
-          )}
+              <div className="flex items-center justify-center">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="stripe"
+                  checked={paymentMethod.type === 'stripe'}
+                  onChange={() => handlePaymentMethodChange('stripe')}
+                  className="w-4 h-4 text-blue-600"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Payment Method Info */}
-          {paymentMethod.type === 'stripe' && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <CreditCard className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-medium">Secure Payment Processing</p>
-                  <p className="mt-1">
-                    Your payment information is securely processed by Stripe. We accept all major credit and debit cards.
-                  </p>
-                </div>
+          {/* PayPal Card */}
+          <Card 
+            className={`cursor-pointer transition-all border-2 ${
+              paymentMethod.type === 'paypal' 
+                ? 'border-blue-500 bg-blue-50/50 shadow-md' 
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => handlePaymentMethodChange('paypal')}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="flex justify-center items-center mb-4 h-16">
+                <PayPalLogo className="h-10 w-auto max-w-[120px] object-contain" />
+              </div>
+              <h4 className="font-semibold mb-2">PayPal</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Direct pay or invoice
+              </p>
+              <div className="flex items-center justify-center">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="paypal"
+                  checked={paymentMethod.type === 'paypal'}
+                  onChange={() => handlePaymentMethodChange('paypal')}
+                  className="w-4 h-4 text-blue-600"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Fortnox Card */}
+          <Card 
+            className={`cursor-pointer transition-all border-2 ${
+              paymentMethod.type === 'fortnox' 
+                ? 'border-blue-500 bg-blue-50/50 shadow-md' 
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => handlePaymentMethodChange('fortnox')}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="flex justify-center items-center mb-4 h-16">
+                <FortnoxLogo className="h-10 w-auto max-w-[120px] object-contain" />
+              </div>
+              <h4 className="font-semibold mb-2">Fortnox</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Invoice for bank transfer
+              </p>
+              <div className="flex items-center justify-center">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="fortnox"
+                  checked={paymentMethod.type === 'fortnox'}
+                  onChange={() => handlePaymentMethodChange('fortnox')}
+                  className="w-4 h-4 text-blue-600"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {getFieldError('paymentType') && (
+          <p className="text-sm text-destructive">{getFieldError('paymentType')}</p>
+        )}
+
+        {/* PO Number for Fortnox Payment */}
+        {paymentMethod.type === 'fortnox' && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                <Label htmlFor="poNumber">Purchase Order Number *</Label>
+                <Input
+                  id="poNumber"
+                  value={paymentMethod.poNumber}
+                  onChange={(e) => setPaymentMethod(prev => ({ ...prev, poNumber: e.target.value }))}
+                  placeholder="Enter PO number"
+                  className={getFieldError('poNumber') ? 'border-destructive' : ''}
+                />
+                {getFieldError('poNumber') && (
+                  <p className="text-sm text-destructive">{getFieldError('poNumber')}</p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Invoice payment requires a valid purchase order number. Payment terms: Net 30 days.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Payment Method Info */}
+        {paymentMethod.type === 'stripe' && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <CreditCard className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">Secure Payment Processing</p>
+                <p className="mt-1">
+                  Your payment information is securely processed by Stripe. We accept all major credit and debit cards.
+                </p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {paymentMethod.type === 'paypal' && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <Building className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-medium">PayPal Payment</p>
-                  <p className="mt-1">
-                    You will be redirected to PayPal to complete your payment securely.
-                  </p>
-                </div>
+        {paymentMethod.type === 'paypal' && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <Building className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">PayPal Payment</p>
+                <p className="mt-1">
+                  You will be redirected to PayPal to complete your payment securely.
+                </p>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+
+        {paymentMethod.type === 'fortnox' && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <FileText className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-green-800">
+                <p className="font-medium">Invoice Payment via Fortnox</p>
+                <p className="mt-1">
+                  An invoice will be generated and sent to your email address. Payment via bank transfer.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* General Validation Errors */}
       {validationErrors.some(error => error.field === 'general' || error.field === 'auth') && (

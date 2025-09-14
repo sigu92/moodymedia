@@ -48,7 +48,8 @@ export const useCartOptimized = () => {
   const { user } = useAuth();
 
   // Refs for performance optimization
-  const cartCacheRef = useRef<Map<string, CartItem>>(new Map());
+  type CachedCartItem = { item: CartItem; cachedAt: number };
+  const cartCacheRef = useRef<Map<string, CachedCartItem>>(new Map());
   const operationQueueRef = useRef<Array<() => Promise<void>>>([]);
   const processingRef = useRef(false);
   const lastFetchRef = useRef<number>(0);
@@ -57,15 +58,14 @@ export const useCartOptimized = () => {
   // Cleanup and eviction policy for persistent refs
   useEffect(() => {
     const cleanup = () => {
-      // Clear cart cache (evict old entries)
+      // Clear cart cache (per-item eviction based on individual cachedAt)
       const now = Date.now();
-      const toDelete: string[] = [];
-      cartCacheRef.current.forEach((item, key) => {
-        if (now - lastFetchRef.current > 30 * 60 * 1000) { // 30 minutes max age
-          toDelete.push(key);
+      const THIRTY_MINUTES = 30 * 60 * 1000;
+      for (const [key, cached] of cartCacheRef.current.entries()) {
+        if (now - cached.cachedAt > THIRTY_MINUTES) {
+          cartCacheRef.current.delete(key);
         }
-      });
-      toDelete.forEach(key => cartCacheRef.current.delete(key));
+      }
 
       // Clear operation queue (remove old operations)
       if (operationQueueRef.current.length > 10) { // Max 10 queued operations
@@ -205,7 +205,8 @@ export const useCartOptimized = () => {
 
       // Update cache
       cartCacheRef.current.clear();
-      items.forEach(item => cartCacheRef.current.set(item.id, item));
+      const cacheTime = Date.now();
+      items.forEach(item => cartCacheRef.current.set(item.id, { item, cachedAt: cacheTime }));
 
       setCartItems(items);
 
@@ -275,34 +276,11 @@ export const useCartOptimized = () => {
     const existingItem = cartItems.find(item => item.mediaOutletId === mediaOutletId);
 
     if (existingItem && !existingItem.readOnly) {
-      // Capture previous state for potential revert
-      const prevCartItems = cartItems;
-
-      // Update quantity locally first for immediate feedback
-      const updatedItems = cartItems.map(item =>
-        item.id === existingItem.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item
-      );
-      setCartItems(updatedItems);
-
-      // Then update in database with the correct target quantity
       const targetQuantity = existingItem.quantity + quantity;
-      const updatePromise = updateCartItemQuantityOptimized(existingItem.id, targetQuantity);
-      updatePromise.catch(() => {
-        // Revert to captured previous state on failure
-        setCartItems(prevCartItems);
-        toast({
-          title: "Update Failed",
-          description: "Failed to update item quantity. Please try again.",
-          variant: "destructive",
-        });
-      });
-
+      const ok = await updateCartItemQuantityOptimized(existingItem.id, targetQuantity);
       const operationTime = performance.now() - startTime;
       setLastOperationTime(operationTime);
-
-      return true;
+      return ok;
     }
 
     // Add new item - optimistic update
@@ -367,15 +345,14 @@ export const useCartOptimized = () => {
         finalPrice: Number(data.final_price || data.price),
       };
 
-      setCartItems(prev => prev.map(item =>
-        item.id === tempId ? realItem : item
-      ));
-
-      // Update cache
-      cartCacheRef.current.set(realItem.id, realItem);
-
-      // Trigger debounced backup
-      debouncedBackupSave([...cartItems, realItem]);
+      setCartItems(prev => {
+        const next = prev.map(item => (item.id === tempId ? realItem : item));
+        // Update cache with the finalized item state
+        cartCacheRef.current.set(realItem.id, { item: realItem, cachedAt: Date.now() });
+        // Trigger debounced backup based on updated state
+        debouncedBackupSave(next);
+        return next;
+      });
 
       const operationTime = performance.now() - startTime;
       setLastOperationTime(operationTime);
@@ -403,46 +380,48 @@ export const useCartOptimized = () => {
     }
   }, [user, cartItems, debouncedBackupSave]);
 
+  // Shared remove logic to avoid duplication
+  const performRemove = useCallback(async (itemId: string): Promise<boolean> => {
+    const startTime = performance.now();
+    const itemToRemove = cartItems.find(item => item.id === itemId);
+    if (!itemToRemove) return false;
+
+    const previousItems = [...cartItems];
+    setCartItems(prev => prev.filter(item => item.id !== itemId));
+
+    try {
+      const { error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      cartCacheRef.current.delete(itemId);
+      debouncedBackupSave(previousItems.filter(item => item.id !== itemId));
+
+      const operationTime = performance.now() - startTime;
+      setLastOperationTime(operationTime);
+      if (operationTime < 500) {
+        console.log(`Remove from cart completed in ${operationTime.toFixed(2)}ms ✓`);
+      }
+      return true;
+    } catch (error) {
+      setCartItems(previousItems);
+      console.error('Failed to remove item from cart:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove item from cart. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [cartItems, debouncedBackupSave]);
+
   // Optimized quantity update
   const updateCartItemQuantityOptimized = useCallback(async (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      // Handle removal inline to avoid circular dependency
-      const startTime = performance.now();
-      const itemToRemove = cartItems.find(item => item.id === itemId);
-      if (!itemToRemove) return false;
-
-      const previousItems = [...cartItems];
-      setCartItems(prev => prev.filter(item => item.id !== itemId));
-
-      try {
-        const { error } = await supabase
-          .from('cart_items')
-          .delete()
-          .eq('id', itemId);
-
-        if (error) throw error;
-
-        cartCacheRef.current.delete(itemId);
-        debouncedBackupSave(cartItems.filter(item => item.id !== itemId));
-
-        const operationTime = performance.now() - startTime;
-        setLastOperationTime(operationTime);
-
-        if (operationTime < 500) {
-          console.log(`Remove from cart completed in ${operationTime.toFixed(2)}ms ✓`);
-        }
-
-        return true;
-      } catch (error) {
-        setCartItems(previousItems);
-        console.error('Failed to remove item from cart:', error);
-        toast({
-          title: "Error",
-          description: "Failed to remove item from cart. Please try again.",
-          variant: "destructive",
-        });
-        return false;
-      }
+      return performRemove(itemId);
     }
 
     const startTime = performance.now();
@@ -464,7 +443,7 @@ export const useCartOptimized = () => {
       // Update cache
       const updatedItem = cartItems.find(item => item.id === itemId);
       if (updatedItem) {
-        cartCacheRef.current.set(itemId, { ...updatedItem, quantity: newQuantity });
+        cartCacheRef.current.set(itemId, { item: { ...updatedItem, quantity: newQuantity }, cachedAt: Date.now() });
       }
 
       const operationTime = performance.now() - startTime;
@@ -493,52 +472,8 @@ export const useCartOptimized = () => {
 
   // Optimized remove from cart
   const removeFromCartOptimized = useCallback(async (itemId: string) => {
-    const startTime = performance.now();
-
-    // Optimistic update
-    const itemToRemove = cartItems.find(item => item.id === itemId);
-    if (!itemToRemove) return false;
-
-    const previousItems = [...cartItems];
-    setCartItems(prev => prev.filter(item => item.id !== itemId));
-
-    try {
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('id', itemId);
-
-      if (error) throw error;
-
-      // Update cache
-      cartCacheRef.current.delete(itemId);
-
-      // Trigger debounced backup
-      debouncedBackupSave(cartItems.filter(item => item.id !== itemId));
-
-      const operationTime = performance.now() - startTime;
-      setLastOperationTime(operationTime);
-
-      if (operationTime < 500) {
-        console.log(`Remove from cart completed in ${operationTime.toFixed(2)}ms ✓`);
-      }
-
-      return true;
-
-    } catch (error) {
-      // Revert optimistic update
-      setCartItems(previousItems);
-
-      console.error('Failed to remove item from cart:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove item from cart. Please try again.",
-        variant: "destructive",
-      });
-
-      return false;
-    }
-  }, [cartItems, debouncedBackupSave]);
+    return performRemove(itemId);
+  }, [performRemove]);
 
   // Optimized clear cart
   const clearCartOptimized = useCallback(async () => {
@@ -549,10 +484,13 @@ export const useCartOptimized = () => {
     setCartItems([]);
 
     try {
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
       const { error } = await supabase
         .from('cart_items')
         .delete()
-        .eq('user_id', user!.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -560,7 +498,7 @@ export const useCartOptimized = () => {
       cartCacheRef.current.clear();
 
       // Clear backup
-      localStorage.removeItem(`cart_backup_${user!.id}`);
+      localStorage.removeItem(`cart_backup_${user.id}`);
 
       const operationTime = performance.now() - startTime;
       setLastOperationTime(operationTime);

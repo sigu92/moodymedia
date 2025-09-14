@@ -58,18 +58,20 @@ const validateVATWithVIES = async (vatNumber: string, countryCode: string): Prom
 
     const xmlText = await response.text();
     
-    // Parse XML response (simplified - in production use a proper XML parser)
-    const isValid = xmlText.includes('<valid>true</valid>');
-    const nameMatch = xmlText.match(/<name>(.*?)<\/name>/);
-    const addressMatch = xmlText.match(/<address>(.*?)<\/address>/);
-    
+    // Parse XML response using DOMParser for safety
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'text/xml');
+    const validNode = doc.querySelector('valid');
+    const nameNode = doc.querySelector('name');
+    const addressNode = doc.querySelector('address');
+
     const result: VIESResponse = {
-      valid: isValid,
+      valid: (validNode?.textContent || '').trim().toLowerCase() === 'true',
       countryCode,
       vatNumber,
       requestDate: new Date().toISOString(),
-      name: nameMatch ? nameMatch[1] : undefined,
-      address: addressMatch ? addressMatch[1] : undefined
+      name: (nameNode?.textContent || '').trim() || undefined,
+      address: (addressNode?.textContent || '').trim() || undefined
     };
     
     return result;

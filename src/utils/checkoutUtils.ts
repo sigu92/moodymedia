@@ -313,30 +313,25 @@ const VAT_PATTERNS: Record<string, { pattern: RegExp; checkDigit?: (vat: string)
   'EE': { pattern: /^EE\d{9}$/ }, // Estonia
   'FI': { pattern: /^FI\d{8}$/ }, // Finland
   'FR': { 
-    pattern: /^FR[A-Za-z0-9]{2}\d{9}$/,
+    pattern: /^FR[A-HJ-NP-Z0-9]{2}\d{9}$/,
     checkDigit: (vat: string) => {
-      // French VAT check digit algorithm
-      // Pattern: FR + 2 alphanumeric characters + 9 digits (total 11 chars after "FR")
-      if (vat.length !== 13) return false; // FR + 11 characters
-      
-      // Extract the 9-digit SIREN (characters 5-13, positions 4-12 in 0-based indexing)
+      // Require exact length of 13
+      if (vat.length !== 13) return false;
+      const vatKeyStr = vat.substring(2, 4).toUpperCase();
       const sirenStr = vat.substring(4, 13);
       if (!/^\d{9}$/.test(sirenStr)) return false;
-      
+
       const siren = parseInt(sirenStr, 10);
-      if (isNaN(siren)) return false;
-      
-      // Extract the two-character VAT key (characters 3-4, positions 2-3 in 0-based indexing)
-      const vatKeyStr = vat.substring(2, 4);
-      
-      // Compute the VAT key: (12 + 3 * (SIREN % 97)) % 97
-      const computedKey = (12 + 3 * (siren % 97)) % 97;
-      
-      // Convert vatKeyStr to number for comparison
-      const providedKey = parseInt(vatKeyStr, 10);
-      if (isNaN(providedKey)) return false;
-      
-      return computedKey === providedKey;
+      if (!Number.isFinite(siren)) return false;
+      // If the key is purely digits, perform numeric check-digit computation
+      if (/^\d{2}$/.test(vatKeyStr)) {
+        const providedKey = parseInt(vatKeyStr, 10);
+        if (!Number.isFinite(providedKey)) return false;
+        const computedKey = (12 + 3 * (siren % 97)) % 97;
+        return computedKey === providedKey;
+      }
+      // For alphanumeric keys, accept here and defer to VIES for authoritative validation
+      return true;
     }
   },
   'DE': { pattern: /^DE\d{9}$/ }, // Germany
@@ -469,29 +464,33 @@ const validateVATWithVIES = async (vatNumber: string, countryCode: string): Prom
   }
 
   try {
-    // Use backend proxy to avoid CORS and mixed-content issues
-    const response = await fetch('/api/validate-vat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        vatNumber,
-        countryCode
-      })
-    });
+    // Use backend proxy to avoid CORS and mixed-content issues with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch('/api/validate-vat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ vatNumber, countryCode }),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      throw new Error(`VAT validation service error: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`VAT validation service error: ${response.status}`);
+      }
+
+      const result: VIESResponse = await response.json();
+
+      // Cache the result with size enforcement
+      viesCache.set(cacheKey, { response: result, timestamp: Date.now() });
+      enforceCacheSize();
+      
+      return result;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const result: VIESResponse = await response.json();
-
-    // Cache the result with size enforcement
-    viesCache.set(cacheKey, { response: result, timestamp: Date.now() });
-    enforceCacheSize();
-    
-    return result;
   } catch (error) {
     console.warn('VIES validation failed:', error);
     return null; // Return null on VIES failure - treat as fail-safe

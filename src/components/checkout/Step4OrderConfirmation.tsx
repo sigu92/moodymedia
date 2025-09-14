@@ -23,18 +23,17 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
   onOrderComplete
 }) => {
   const { user } = useAuth();
-  const { cartItems, formData, submitCheckout, validationErrors, isSubmitting } = useCheckout();
+  const { cartItems } = useCart();
+  const { formData, submitCheckout, validationErrors, isSubmitting } = useCheckout();
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
-  // Generate order number once using useState initializer
+  // Generate robust order ID once using crypto.randomUUID
   const [orderNumber] = useState<string>(() => {
-    const generateOrderNumber = () => {
-      const timestamp = Date.now().toString().slice(-6);
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      return `MO-${timestamp}-${random}`;
-    };
-    return generateOrderNumber();
+    const uuid = (globalThis.crypto && 'randomUUID' in globalThis.crypto)
+      ? globalThis.crypto.randomUUID()
+      : `mo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    return `MO-${uuid}`;
   });
 
   // Validation
@@ -53,7 +52,7 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
       return;
     }
 
-    if (!user?.id) {
+    if (!user) {
       toast({
         title: "Authentication Required",
         description: "Please log in to complete your order.",
@@ -364,10 +363,9 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
                 .map((cartItem) => {
                   // Check for uploaded content - look for uploadedFiles or googleDocsLinks in formData
                   const formItem = getFormItemById(cartItem.id);
-                  const hasContent = (
+                  const hasContent = Boolean(
                     (formItem?.uploadedFiles && formItem.uploadedFiles.length > 0) ||
-                    (formItem?.googleDocsLinks && formItem.googleDocsLinks.length > 0) ||
-                    false // Default to false if no content tracking is available yet
+                    (formItem?.googleDocsLinks && formItem.googleDocsLinks.length > 0)
                   );
                   return (
                     <div key={cartItem.id} className="flex items-center justify-between p-3 border rounded-lg">

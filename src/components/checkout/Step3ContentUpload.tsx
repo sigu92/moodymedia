@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { AlertCircle, Upload, FileText, X, CheckCircle, ExternalLink, AlertTriangle, Loader2 } from 'lucide-react';
 import { useCheckout } from '@/hooks/useCheckout';
 import { useCart } from '@/hooks/useCart';
-import { useFileUpload } from '@/hooks/useFileUpload';
+import { useFileUpload, validateFile } from '@/hooks/useFileUpload';
 import { toast } from '@/hooks/use-toast';
 
 interface Step3ContentUploadProps {
@@ -29,11 +29,6 @@ interface UploadedFile {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_FILE_TYPES = [
-  'application/msword', // .doc
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-];
-
 const ALLOWED_EXTENSIONS = ['.doc', '.docx'];
 
 export const Step3ContentUpload: React.FC<Step3ContentUploadProps> = ({ onValidationChange }) => {
@@ -69,22 +64,7 @@ export const Step3ContentUpload: React.FC<Step3ContentUploadProps> = ({ onValida
     onValidationChange?.(allItemsHaveContent);
   }, [uploadedFiles, itemsNeedingContent, shouldShowUpload, onValidationChange]);
 
-  const validateFile = (file: File): { isValid: boolean; error?: string } => {
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      return { isValid: false, error: `File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB` };
-    }
-
-    // Check file type
-    const isValidType = ALLOWED_FILE_TYPES.includes(file.type) ||
-                       ALLOWED_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
-
-    if (!isValidType) {
-      return { isValid: false, error: 'Only Word documents (.doc, .docx) are allowed' };
-    }
-
-    return { isValid: true };
-  };
+  // using shared validateFile from hook
 
   const validateGoogleDocsLink = (url: string): { isValid: boolean; error?: string } => {
     // Support document, spreadsheets, and presentation types
@@ -96,52 +76,33 @@ export const Step3ContentUpload: React.FC<Step3ContentUploadProps> = ({ onValida
   };
 
   const simulateUpload = useCallback(async (file: File | string, cartItemId: string): Promise<UploadedFile> => {
-    const fileId = `${cartItemId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    let uploadFile: UploadedFile;
-
     if (typeof file === 'string') {
-      // Google Docs link
       const validation = validateGoogleDocsLink(file);
-      if (!validation.isValid) {
-        throw new Error(validation.error);
-      }
-
-      uploadFile = {
-        id: fileId,
+      if (!validation.isValid) throw new Error(validation.error);
+      return {
+        id: `${cartItemId}_${Date.now()}`,
         googleDocsLink: file,
         cartItemId,
         name: 'Google Docs Link',
         uploadedAt: new Date(),
-        status: 'uploading',
-      };
-    } else {
-      // File upload
-      const validation = validateFile(file);
-      if (!validation.isValid) {
-        throw new Error(validation.error);
-      }
-
-      uploadFile = {
-        id: fileId,
-        file,
-        cartItemId,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        uploadedAt: new Date(),
-        status: 'uploading',
+        status: 'success',
       };
     }
-
-    // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
+    const { isValid, error } = validateFile(file, { maxSize: MAX_FILE_SIZE, allowedExtensions: ALLOWED_EXTENSIONS });
+    if (!isValid) throw new Error(error);
+    const uploaded = await uploadFile(file, { folder: `content/${cartItemId}` });
+    if (!uploaded) throw new Error('Upload failed');
     return {
-      ...uploadFile,
+      id: uploaded.id,
+      file,
+      cartItemId,
+      name: uploaded.name,
+      size: uploaded.size,
+      type: uploaded.type,
+      uploadedAt: uploaded.uploadedAt,
       status: 'success',
     };
-  }, []);
+  }, [uploadFile]);
 
   const handleFileUpload = useCallback(async (files: FileList | File[], cartItemId: string) => {
     const fileArray = Array.from(files);

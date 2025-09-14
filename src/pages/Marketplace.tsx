@@ -65,7 +65,9 @@ import {
   BarChart3,
   Settings,
   Grid,
-  List
+  List,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 const Marketplace = () => {
@@ -363,7 +365,10 @@ const Marketplace = () => {
       }
     });
 
-    return filtered;
+    // Limit to 100 items max for performance
+    const limitedFiltered = filtered.slice(0, 100);
+
+    return limitedFiltered;
   }, [mediaWithFavorites, filters, sortField, sortDirection]);
 
   const favoriteMedia = useMemo(() => {
@@ -580,6 +585,13 @@ const Marketplace = () => {
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Showing {filteredAndSortedMedia.length} of {allMedia.length} media outlets
+              {filteredAndSortedMedia.length === 100 && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-xs">
+                    📍 Results limited to 100 items for optimal performance. Use filters to narrow down your search.
+                  </p>
+                </div>
+              )}
             </div>
           </TabsContent>
 

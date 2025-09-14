@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/hooks/useCart';
 import { CheckoutValidator, CheckoutFormData, CheckoutValidationError, calculateVATForCountry, getVATConfig } from '@/utils/checkoutUtils';
 import { MockPaymentProcessor, MockPaymentResult } from '@/utils/mockPaymentProcessor';
+import { stripeConfig, validateStripeEnvironment } from '@/config/stripe';
 import { useOrders, OrderItem } from '@/hooks/useOrders';
 import { generateOrderNumber } from '@/hooks/useOrders';
 
@@ -162,8 +163,23 @@ export const useCheckout = (): UseCheckoutReturn => {
         return false;
       }
 
-      // Process payment using mock payment processor
-      console.log('Processing payment with mock processor...');
+      // Validate Stripe configuration before processing payment
+      const shouldUseMock = stripeConfig.shouldUseMockPayments();
+      
+      if (!shouldUseMock) {
+        // If we're trying to use real Stripe, validate configuration
+        const stripeValidation = validateStripeEnvironment();
+        if (!stripeValidation.isValid) {
+          setValidationErrors([{
+            field: 'stripe_config',
+            message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
+          }]);
+          return false;
+        }
+      }
+      
+      console.log(`Processing payment with ${shouldUseMock ? 'mock' : 'Stripe'} processor...`);
+      
       const paymentResult: MockPaymentResult = await MockPaymentProcessor.processPayment(formData, {
         simulateDelay: true, // Enable realistic delay simulation
         simulateFailure: false, // Set to true to test failure scenarios
@@ -267,11 +283,15 @@ export const useCheckout = (): UseCheckoutReturn => {
 
   const resetCheckout = useCallback(() => {
     setCurrentStep('cart-review');
-    setFormData({});
+    setFormData(prev => ({
+      cartItems: prev.cartItems && prev.cartItems.length > 0
+        ? prev.cartItems
+        : cartItems.map(item => ({ id: item.id, quantity: item.quantity ?? 1, contentOption: 'self-provided' as const })),
+    }));
     setValidationErrors([]);
     setIsLoading(false);
     setIsSubmitting(false);
-  }, []);
+  }, [cartItems]);
 
   return {
     // State

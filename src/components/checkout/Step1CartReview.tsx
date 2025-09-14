@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectSeparator } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertCircle, Minus, Plus, Trash2, Info, CheckCircle2 } from 'lucide-react';
 import { useCheckout } from '@/hooks/useCheckout';
 import { useCart } from '@/hooks/useCart';
 import { calculateItemTotal, calculateSubtotal, calculateVAT, calculateTotal, formatCurrency } from '@/utils/checkoutUtils';
 import { NICHES } from '@/components/marketplace/niches';
+import { NicheSelect } from '@/components/checkout/components/NicheSelect';
 
 interface Step1CartReviewProps {
   onValidationChange?: (isValid: boolean) => void;
@@ -21,10 +23,60 @@ export const Step1CartReview: React.FC<Step1CartReviewProps> = ({ onValidationCh
   const { cartItems, updateCartItemQuantity, removeFromCart } = useCart();
   const { formData, updateFormData } = useCheckout();
   const [guidelinesAcknowledged, setGuidelinesAcknowledged] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  // Bulk selection functions
+  const isAllSelected = cartItems.length > 0 && selectedItems.size === cartItems.length;
+  const isPartiallySelected = selectedItems.size > 0 && selectedItems.size < cartItems.length;
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(cartItems.map(item => item.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItems);
+    if (checked) {
+      newSelected.add(itemId);
+    } else {
+      newSelected.delete(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  // Bulk action handlers
+  const handleBulkNicheChange = useCallback((nicheSlug: string) => {
+    if (selectedItems.size === 0) return;
+    
+    const updatedCartItems = formData.cartItems?.map(item => {
+      if (selectedItems.has(item.id)) {
+        return { ...item, nicheId: nicheSlug };
+      }
+      return item;
+    }) || [];
+    
+    updateFormData({ cartItems: updatedCartItems });
+  }, [selectedItems, formData.cartItems, updateFormData]);
+
+  const handleBulkContentChange = useCallback((contentOption: 'self-provided' | 'professional') => {
+    if (selectedItems.size === 0) return;
+    
+    const updatedCartItems = formData.cartItems?.map(item => {
+      if (selectedItems.has(item.id)) {
+        return { ...item, contentOption };
+      }
+      return item;
+    }) || [];
+    
+    updateFormData({ cartItems: updatedCartItems });
+  }, [selectedItems, formData.cartItems, updateFormData]);
 
   // Update cart items in checkout form when cart changes
   useEffect(() => {
-    if (cartItems.length > 0) {
+    if (cartItems.length > 0 && !formData.cartItems?.length) {
       const updatedCartItems = cartItems.map(item => {
         const existingItem = formData.cartItems?.find(formItem => formItem.id === item.id);
         return {
@@ -36,7 +88,12 @@ export const Step1CartReview: React.FC<Step1CartReviewProps> = ({ onValidationCh
       });
       updateFormData({ cartItems: updatedCartItems });
     }
-  }, [cartItems, formData.cartItems, updateFormData]);
+  }, [cartItems, updateFormData, formData.cartItems?.length]);
+
+  // Clear selected items only when cart items array changes (not form data)
+  useEffect(() => {
+    setSelectedItems(new Set());
+  }, [cartItems.length]);
 
   // Validation check
   useEffect(() => {
@@ -83,16 +140,21 @@ export const Step1CartReview: React.FC<Step1CartReviewProps> = ({ onValidationCh
     }
   };
 
-  const getNicheMultiplier = (nicheId?: string) => {
-    if (!nicheId) return 1.0;
-    const niche = NICHES.find(n => n.id === nicheId);
-    return niche?.multiplier || 1.0;
+  const getNicheMultiplier = (nicheSlug?: string, itemId?: string) => {
+    if (!nicheSlug) return 1.0;
+    // Prefer outlet-specific rules from cart item
+    const cartItem = cartItems.find(ci => ci.id === itemId);
+    const rule = cartItem?.outletNicheRules?.find(r => r.nicheSlug === nicheSlug && r.accepted);
+    if (rule) return rule.multiplier || 1.0;
+    // Fall back to default NICHES list
+    const niche = NICHES.find(n => n.slug === nicheSlug);
+    return niche?.defaultMultiplier ?? 1.0;
   };
 
   const getItemTotal = (item: typeof cartItems[0], formItem: typeof formData.cartItems[0]) => {
     if (!formItem) return item.finalPrice || item.price;
 
-    const nicheMultiplier = getNicheMultiplier(formItem.nicheId);
+    const nicheMultiplier = getNicheMultiplier(formItem.nicheId, item.id);
     return calculateItemTotal(
       item.finalPrice || item.price,
       formItem.quantity,
@@ -137,197 +199,208 @@ export const Step1CartReview: React.FC<Step1CartReviewProps> = ({ onValidationCh
 
   return (
     <div className="space-y-6">
-      {/* Cart Items */}
+      {/* Cart Items Table */}
       <div className="space-y-4">
+        <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Review Your Cart Items</h3>
+          {selectedItems.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {selectedItems.size} selected:
+              </span>
+              <Select onValueChange={(value) => {
+                if (value !== "placeholder") {
+                  handleBulkNicheChange(value);
+                }
+              }}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Set niche for all" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NICHES.map(niche => (
+                    <SelectItem key={niche.slug} value={niche.slug}>
+                      {niche.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select onValueChange={(value) => {
+                if (value !== "placeholder") {
+                  handleBulkContentChange(value as 'self-provided' | 'professional');
+                }
+              }}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Set content for all" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self-provided">Self-Provided</SelectItem>
+                  <SelectItem value="professional">Professional</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedItems(new Set())}
+                className="text-xs"
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
 
+        <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      {...(isPartiallySelected && { 'data-state': 'indeterminate' })}
+                    />
+                  </TableHead>
+                  <TableHead className="w-[30%] min-w-[150px]">MEDIA</TableHead>
+                  <TableHead className="w-[25%] min-w-[140px]">RESTRICTED NICHE *</TableHead>
+                  <TableHead className="w-[25%] min-w-[140px]">CONTENT PRODUCT *</TableHead>
+                  <TableHead className="w-[20%] min-w-[120px]">MEDIA PRICE</TableHead>
+                  <TableHead className="w-8"></TableHead>
+                </TableRow>
+              </TableHeader>
+            <TableBody>
         {cartItems.map((item) => {
           const formItem = formData.cartItems?.find(fi => fi.id === item.id);
-          const nicheMultiplier = getNicheMultiplier(formItem?.nicheId);
+                const nicheMultiplier = getNicheMultiplier(formItem?.nicheId, item.id);
           const itemTotal = getItemTotal(item, formItem);
 
           return (
-            <Card key={item.id} className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Item Details */}
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-medium text-base">{item.domain}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Category: {item.category} • Niche: {item.niche}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedItems.has(item.id)}
+                        onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium">{item.domain}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.category}
+                        </div>
+                        <div className="flex gap-1">
                         <Badge variant="secondary" className="text-xs">
-                          DR: {item.domainRating}
+                            DR: {item.domainRating || 'N/A'}
                         </Badge>
                         <Badge variant="secondary" className="text-xs">
-                          Traffic: {item.monthlyTraffic?.toLocaleString() || 'N/A'}
+                            {item.monthlyTraffic?.toLocaleString() || 'N/A'}
                         </Badge>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Quantity Controls */}
-                  <div className="flex items-center gap-3">
-                    <Label className="text-sm font-medium">Quantity:</Label>
-                    <div className="flex items-center gap-2">
+                    </TableCell>
+                    <TableCell>
+                      <NicheSelect
+                        value={formItem?.nicheId || ''}
+                        onChange={(value) => handleNicheChange(item.id, value)}
+                        rules={(() => {
+                          const outletRules = cartItems.find(ci => ci.id === item.id)?.outletNicheRules || [];
+                          if (outletRules.length > 0) {
+                            return outletRules.map(r => ({
+                              nicheSlug: r.nicheSlug,
+                              nicheLabel: r.nicheLabel,
+                              accepted: r.accepted,
+                              multiplier: r.multiplier,
+                            }));
+                          }
+                          // Fallback to default niches if no outlet rules
+                          return NICHES.map(n => ({
+                            nicheSlug: n.slug,
+                            nicheLabel: n.label,
+                            accepted: true,
+                            multiplier: n.defaultMultiplier,
+                          }));
+                        })()}
+                        placeholder="Choose..."
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={formItem?.contentOption || ''}
+                        onValueChange={(value: 'self-provided' | 'professional') => 
+                          handleContentOptionChange(item.id, value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="self-provided">Self-Provided Content</SelectItem>
+                          <SelectItem value="professional">Professional Writing (+€25)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-center gap-1">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleQuantityChange(item.id, (formItem?.quantity || 1) - 1)}
                         disabled={(formItem?.quantity || 1) <= 1}
-                        className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={formItem?.quantity || 1}
-                        onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 1)}
-                        className="w-16 h-8 text-center"
-                      />
+                          <div className="w-16 text-center">
+                            <div className="font-semibold text-sm">
+                              €{itemTotal.toFixed(2)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Qty: {formItem?.quantity || 1}
+                            </div>
+                          </div>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleQuantityChange(item.id, (formItem?.quantity || 1) + 1)}
-                        className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
-
-                  {/* Niche Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      Target Niche
-                      {!formItem?.nicheId && (
-                        <span className="text-destructive text-xs">*</span>
-                      )}
-                    </Label>
-                    <Select
-                      value={formItem?.nicheId || ''}
-                      onValueChange={(value) => handleNicheChange(item.id, value)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select target niche" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {NICHES.map((niche) => (
-                          <SelectItem key={niche.id} value={niche.id}>
-                            <div className="flex items-center justify-between w-full">
-                              <span>{niche.name}</span>
-                              <Badge variant="outline" className="ml-2">
-                                {niche.multiplier}x
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Content Options */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Content Option</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div
-                        className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                          formItem?.contentOption === 'self-provided'
-                            ? 'border-primary bg-primary/5'
-                            : 'border-muted hover:border-primary/50'
-                        }`}
-                        onClick={() => handleContentOptionChange(item.id, 'self-provided')}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
                       >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <Button variant="link" className="text-primary p-0">
+            Add more sites →
+          </Button>
                         <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded-full border-2 ${
-                            formItem?.contentOption === 'self-provided'
-                              ? 'border-primary bg-primary'
-                              : 'border-muted-foreground'
-                          }`} />
-                          <div>
-                            <p className="font-medium text-sm">Self-Provided Content</p>
-                            <p className="text-xs text-muted-foreground">Upload your own content</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                          formItem?.contentOption === 'professional'
-                            ? 'border-primary bg-primary/5'
-                            : 'border-muted hover:border-primary/50'
-                        }`}
-                        onClick={() => handleContentOptionChange(item.id, 'professional')}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded-full border-2 ${
-                            formItem?.contentOption === 'professional'
-                              ? 'border-primary bg-primary'
-                              : 'border-muted-foreground'
-                          }`} />
-                          <div>
-                            <p className="font-medium text-sm">Professional Writing</p>
-                            <p className="text-xs text-muted-foreground">+ €25 for expert content</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pricing */}
-                <div className="sm:w-48">
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Base Price:</span>
-                      <span className="float-right font-medium">
-                        €{(item.finalPrice || item.price).toFixed(2)}
-                      </span>
-                    </div>
-
-                    {formItem?.nicheId && nicheMultiplier > 1 && (
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Niche Multiplier:</span>
-                        <span className="float-right font-medium">
-                          {nicheMultiplier}x
-                        </span>
-                      </div>
-                    )}
-
-                    {formItem?.contentOption === 'professional' && (
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Content Writing:</span>
-                        <span className="float-right font-medium">
-                          €25.00
-                        </span>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    <div className="text-base font-semibold">
-                      <span>Total:</span>
-                      <span className="float-right">
-                        €{itemTotal.toFixed(2)}
+            <Button variant="outline" size="sm">
+              Remove all from cart
+            </Button>
+            <div className="h-4 w-px bg-border" />
+            <span className="text-sm text-muted-foreground">
+              After placing your order, please provide us with your final content creation instructions.
+              We'll begin promptly once we have your details.
                       </span>
                     </div>
                   </div>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
       </div>
 
       {/* Publisher Guidelines Acknowledgment */}

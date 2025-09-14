@@ -67,17 +67,17 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
     category: editingSite?.category || '',
     niches: editingSite?.niches?.join(', ') || '',
     guidelines: editingSite?.guidelines || '',
-    lead_time_days: editingSite?.lead_time_days || 7,
-    acceptsNoLicenseStatus: editingSite?.accepts_no_license_status || 'no',
-    sponsorTagStatus: editingSite?.sponsor_tag_status || 'no',
-    sponsorTagType: editingSite?.sponsor_tag_type || 'text',
-    // SEO metrics fields
-    ahrefs_dr: editingSite?.metrics?.ahrefs_dr || 0,
-    moz_da: editingSite?.metrics?.moz_da || 0,
-    semrush_as: editingSite?.metrics?.semrush_as || 0,
-    spam_score: editingSite?.metrics?.spam_score || 0,
-    organic_traffic: editingSite?.metrics?.organic_traffic || 0,
-    referring_domains: editingSite?.metrics?.referring_domains || 0,
+    lead_time_days: (editingSite as any)?.leadTimeDays || 7,
+    acceptsNoLicenseStatus: (editingSite as any)?.acceptsNoLicenseStatus || 'no',
+    sponsorTagStatus: (editingSite as any)?.sponsorTagStatus || 'no',
+    sponsorTagType: (editingSite as any)?.sponsorTagType || 'text',
+    // SEO metrics fields (default to 0 if not available)
+    ahrefs_dr: 0,
+    moz_da: 0,
+    semrush_as: 0,
+    spam_score: 0,
+    organic_traffic: 0,
+    referring_domains: 0,
   });
 
   // Niche acceptance and multiplier state
@@ -274,7 +274,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         sponsor_tag_type: submissionData.sponsor_tag_type,
         source: 'publisher_submit',
         publisher_id: user!.id,
-        status: 'pending',
+        status: 'pending' as const,
         submitted_by: user!.id,
         submitted_at: new Date().toISOString(),
         is_active: false
@@ -348,9 +348,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
 
       // Success - show confirmation and update UI
       setSubmittedSite({
-        id: outletResult.id,
         domain: outletResult.domain,
-        status: outletResult.status,
         submitted_at: outletResult.submitted_at
       });
       setShowSuccess(true);
@@ -396,20 +394,22 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
       console.error('Error submitting website:', error);
 
       // Track submission error
-      trackError(error instanceof Error ? error : new Error(error.message || 'Submission failed'), 'site_submission');
+      trackError(error instanceof Error ? error : new Error('Submission failed'), 'site_submission');
 
       // Handle different types of errors
-      if (error.message?.includes('Domain already exists')) {
+      if (error instanceof Error && error.message.includes('Domain already exists')) {
         toast.error('This domain is already submitted to the marketplace');
-      } else if (error.message?.includes('Publisher role required')) {
+      } else if (error instanceof Error && error.message.includes('Publisher role required')) {
         toast.error('You must have publisher privileges to submit websites');
-      } else if (error.message?.includes('Validation failed')) {
-        const details = error.details ? `: ${error.details.join(', ')}` : '';
+      } else if (error instanceof Error && error.message.includes('Validation failed')) {
+        const anyErr = error as any;
+        const details = Array.isArray(anyErr?.details) ? `: ${anyErr.details.join(', ')}` : '';
         toast.error(`Submission validation failed${details}`);
-      } else if (error.message?.includes('fetch')) {
+      } else if (error instanceof Error && error.message.includes('fetch')) {
         toast.error('Network error. Please check your connection and try again.');
       } else {
-        toast.error(error.message || 'Failed to submit website. Please try again or contact support if the problem persists.');
+        const msg = error instanceof Error ? error.message : 'Failed to submit website. Please try again or contact support if the problem persists.';
+        toast.error(msg);
       }
     } finally {
       setLoading(false);

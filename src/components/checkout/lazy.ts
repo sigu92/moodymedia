@@ -1,9 +1,10 @@
 import React from 'react';
 import { createLazyComponent, preloadComponent } from '@/components/lazy/LazyWrapper';
+import { CartReviewSkeleton } from '@/components/checkout/skeletons';
 
 // Lazy load checkout components for better performance
 export const LazyCheckoutModal = createLazyComponent(
-  () => import('./CheckoutModal'),
+  () => import('./CheckoutModal').then(m => ({ default: m.CheckoutModal })),
   React.createElement('div', {
     className: "flex items-center justify-center p-8"
   }, React.createElement('div', {
@@ -21,50 +22,12 @@ export const LazyCheckoutModal = createLazyComponent(
 );
 
 export const LazyStep1CartReview = createLazyComponent(
-  () => import('./Step1CartReview'),
-  React.createElement('div', {
-    className: "space-y-4 p-4"
-  }, [
-    React.createElement('div', {
-      key: 'title',
-      className: "h-6 bg-muted rounded w-1/3"
-    }),
-    React.createElement('div', {
-      key: 'items',
-      className: "space-y-3"
-    }, [1, 2, 3].map(i =>
-      React.createElement('div', {
-        key: i,
-        className: "flex items-center space-x-4 p-4 border rounded"
-      }, [
-        React.createElement('div', {
-          key: 'image',
-          className: "h-12 w-12 bg-muted rounded"
-        }),
-        React.createElement('div', {
-          key: 'content',
-          className: "flex-1 space-y-2"
-        }, [
-          React.createElement('div', {
-            key: 'title',
-            className: "h-4 bg-muted rounded w-3/4"
-          }),
-          React.createElement('div', {
-            key: 'subtitle',
-            className: "h-3 bg-muted rounded w-1/2"
-          })
-        ]),
-        React.createElement('div', {
-          key: 'price',
-          className: "h-8 w-16 bg-muted rounded"
-        })
-      ])
-    ))
-  ])
+  () => import('./Step1CartReview').then(m => ({ default: m.Step1CartReview })),
+  React.createElement(CartReviewSkeleton)
 );
 
 export const LazyStep2BillingPayment = createLazyComponent(
-  () => import('./Step2BillingPayment'),
+  () => import('./Step2BillingPayment').then(m => ({ default: m.Step2BillingPayment })),
   React.createElement('div', {
     className: "space-y-6 p-4"
   }, [
@@ -120,7 +83,7 @@ export const LazyStep2BillingPayment = createLazyComponent(
 );
 
 export const LazyStep3ContentUpload = createLazyComponent(
-  () => import('./Step3ContentUpload'),
+  () => import('./Step3ContentUpload').then(m => ({ default: m.Step3ContentUpload })),
   React.createElement('div', {
     className: "space-y-4 p-4"
   }, [
@@ -151,7 +114,7 @@ export const LazyStep3ContentUpload = createLazyComponent(
 );
 
 export const LazyStep4OrderConfirmation = createLazyComponent(
-  () => import('./Step4OrderConfirmation'),
+  () => import('./Step4OrderConfirmation').then(m => ({ default: m.Step4OrderConfirmation })),
   React.createElement('div', {
     className: "space-y-6 p-4"
   }, [
@@ -203,7 +166,7 @@ export const LazyStep4OrderConfirmation = createLazyComponent(
 );
 
 export const LazyProgressIndicator = createLazyComponent(
-  () => import('./ProgressIndicator'),
+  () => import('./ProgressIndicator').then(m => ({ default: m.ProgressIndicator })),
   React.createElement('div', {
     className: "flex items-center justify-between mb-8"
   }, [1, 2, 3, 4].map(i =>

@@ -21,40 +21,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
-interface CSVRowData {
-  domain?: string;
-  price?: string | number;
-  currency?: string;
-  country?: string;
-  language?: string;
-  category?: string;
-  niches?: string | string[];
-  guidelines?: string;
-  lead_time_days?: string | number;
-  accepts_no_license?: string | boolean;
-  accepts_no_license_status?: string;
-  sponsor_tag_status?: string;
-  sponsor_tag_type?: string;
-  ahrefs_dr?: string | number;
-  moz_da?: string | number;
-  semrush_as?: string | number;
-  spam_score?: string | number;
-  organic_traffic?: string | number;
-  referring_domains?: string | number;
-  is_active?: string | boolean;
-  sale_price?: string | number;
-  sale_note?: string;
-  errors?: string[];
-}
-
-interface ImportResult {
-  row: number;
-  domain: string;
-  success: boolean;
-  error?: string;
-  skipped?: boolean;
-}
+import type { CSVRowData, ImportResult } from "@/types/import";
 
 // Simple CSV parser that handles quoted fields
 const parseCSVText = (csvText: string): string[][] => {
@@ -175,8 +142,8 @@ const performDirectBatchImport = async (rows: CSVRowData[], source: string, user
         language: row.language?.trim() || '',
         category: row.category?.trim() || '',
         niches: Array.isArray(row.niches)
-          ? row.niches.map((n: string) => n.trim()).filter(Boolean)
-          : (row.niches ? row.niches.split(',').map((n: string) => n.trim()).filter(Boolean) : []),
+          ? (row.niches as string[]).map((n: string) => n.trim()).filter(Boolean)
+          : (row.niches ? (row.niches as string).split(',').map((n: string) => n.trim()).filter(Boolean) : []),
         guidelines: row.guidelines?.trim() || null,
         lead_time_days: row.lead_time_days ? parseInt(row.lead_time_days.toString()) : 7,
         accepts_no_license: row.accepts_no_license === 'yes' || row.accepts_no_license === true,
@@ -191,7 +158,7 @@ const performDirectBatchImport = async (rows: CSVRowData[], source: string, user
           : 'text',
         source: source,
         publisher_id: userId,
-        status: 'pending',
+        status: 'pending' as const,
         submitted_by: userId,
         submitted_at: new Date().toISOString(),
         is_active: false
@@ -433,30 +400,30 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
 
       const data: ImportRow[] = lines.slice(1).map((line, index) => {
         const values = line; // line is already an array from parseCSV
-        const row: CSVRowData = {};
+        const row: CSVRowData = {} as any;
 
         headers.forEach((header, i) => {
           row[header] = values[i] || '';
         });
 
         return {
-          domain: row.domain,
-          category: row.category,
+          domain: row.domain as string,
+          category: row.category as string,
           price: parseFloat(String(row.price)) || 0, // Publisher's asking price (initial marketplace price)
           purchase_price: parseFloat(String(row.price)) || null, // Publisher's asking price
-          currency: row.currency || 'EUR',
-          country: row.country,
-          language: row.language,
-          lead_time_days: parseInt(row.lead_time_days) || 7,
-          guidelines: row.guidelines || '',
-          niches: row.niches || '',
-          is_active: row.is_active === 'true' || row.is_active === '1',
-          accepts_no_license_status: row.accepts_no_license_status || 'no',
-          sponsor_tag_status: row.sponsor_tag_status || 'no',
-          sponsor_tag_type: row.sponsor_tag_type || 'text',
+          currency: (row.currency as string) || 'EUR',
+          country: row.country as string,
+          language: row.language as string,
+          lead_time_days: parseInt(row.lead_time_days as string) || 7,
+          guidelines: (row.guidelines as string) || '',
+          niches: typeof row.niches === 'string' ? row.niches : Array.isArray(row.niches) ? row.niches.join(', ') : '',
+          is_active: (row.is_active as any) === 'true' || (row.is_active as any) === '1',
+          accepts_no_license_status: (row.accepts_no_license_status as string) || 'no',
+          sponsor_tag_status: (row.sponsor_tag_status as string) || 'no',
+          sponsor_tag_type: (row.sponsor_tag_type as string) || 'text',
           sale_price: row.sale_price ? parseFloat(String(row.sale_price)) : undefined,
-          sale_note: row.sale_note || ''
-        };
+          sale_note: (row.sale_note as string) || ''
+        } as any;
       });
 
       setCsvData(data);

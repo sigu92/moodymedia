@@ -191,15 +191,24 @@ export const useFileUpload = (): UseFileUploadReturn => {
     files: File[],
     options: FileUploadOptions = {}
   ): Promise<UploadedFile[]> => {
+    const concurrency = Math.max(1, (options as any).concurrency ?? 3);
+    const queue = [...files];
     const results: UploadedFile[] = [];
 
-    for (const file of files) {
-      const result = await uploadFile(file, options);
-      if (result) {
-        results.push(result);
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }).map(async () => {
+      while (queue.length > 0) {
+        const file = queue.shift();
+        if (!file) break;
+        try {
+          const uploaded = await uploadFile(file, options);
+          if (uploaded) results.push(uploaded);
+        } catch (_) {
+          // already handled inside uploadFile
+        }
       }
-    }
+    });
 
+    await Promise.all(workers);
     return results;
   }, [uploadFile]);
 

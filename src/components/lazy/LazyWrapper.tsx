@@ -22,6 +22,15 @@ class LazyErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Lazy loading error:', error, errorInfo);
+    try {
+      const anyWindow = window as unknown as { Sentry?: { captureException: (err: unknown, context?: unknown) => void } };
+      if (anyWindow?.Sentry) {
+        anyWindow.Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack, source: 'LazyWrapper' } });
+      }
+    } catch (reportErr) {
+      // Swallow reporting errors to keep error boundary safe
+      console.warn('Monitoring report failed', reportErr);
+    }
   }
 
   render() {
@@ -60,17 +69,20 @@ export const LazyWrapper: React.FC<LazyWrapperProps> = ({
 };
 
 // Utility function to create lazy-loaded components
-export function createLazyComponent<T extends ComponentType<unknown>>(
+export function createLazyComponent<T extends ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>,
   fallback?: React.ReactNode
 ) {
   const LazyComponent = lazy(importFunc);
 
-  return React.forwardRef<React.ElementRef<T>, React.ComponentProps<T>>((props, ref) => (
+  const Wrapped: React.FC<any> = (props) => (
     <LazyWrapper fallback={fallback}>
-      <LazyComponent {...props} ref={ref} />
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <LazyComponent {...props} />
     </LazyWrapper>
-  ));
+  );
+
+  return Wrapped as unknown as T;
 }
 
 // Preload function for critical components

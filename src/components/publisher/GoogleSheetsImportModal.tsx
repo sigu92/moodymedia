@@ -11,41 +11,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { validateWebsiteMetrics } from "@/utils/metricValidation";
+import type { CSVRowData, ImportResult } from "@/types/import";
 
-interface CSVRowData {
-  domain?: string;
-  price?: string | number;
-  currency?: string;
-  country?: string;
-  language?: string;
-  category?: string;
-  niches?: string | string[];
-  guidelines?: string;
-  lead_time_days?: string | number;
-  accepts_no_license?: string | boolean;
-  accepts_no_license_status?: string;
-  sponsor_tag_status?: string;
-  sponsor_tag_type?: string;
-  ahrefs_dr?: string | number;
-  moz_da?: string | number;
-  semrush_as?: string | number;
-  spam_score?: string | number;
-  organic_traffic?: string | number;
-  referring_domains?: string | number;
-  is_active?: string | boolean;
-  sale_price?: string | number;
-  sale_note?: string;
-  errors?: string[];
-}
-
-interface ImportResult {
-  row: number;
-  domain: string;
-  success: boolean;
-  error?: string;
-  skipped?: boolean;
-  outletId?: string;
-}
 
 // Helper function for direct batch import (no edge functions)
 const performDirectBatchImport = async (rows: CSVRowData[], source: string, userId: string) => {
@@ -143,6 +110,21 @@ const performDirectBatchImport = async (rows: CSVRowData[], source: string, user
           domain: normalizedDomain,
           success: false,
           error: 'Invalid price format - must be a valid number',
+          skipped: false
+        });
+        results.failed++;
+        continue;
+      }
+
+      // Boundary validation for price
+      const MAX_PRICE = 1_000_000;
+      if (priceValue < 0 || priceValue > MAX_PRICE) {
+        console.error(`[DirectBatchImport] Row ${rowNumber} price out of bounds: ${row.price}`);
+        results.results.push({
+          row: rowNumber,
+          domain: normalizedDomain,
+          success: false,
+          error: 'Publisher asking price is invalid or out of allowed range',
           skipped: false
         });
         results.failed++;
@@ -493,12 +475,26 @@ export function GoogleSheetsImportModal({ open, onOpenChange, onImportComplete }
           const normalizedPrice = String(row.price).trim().replace(/[,\s]/g, '').replace(/[€$£¥]/g, '');
           const priceValue = parseFloat(normalizedPrice);
           
-          if (isNaN(priceValue)) {
+          if (!Number.isFinite(priceValue) || isNaN(priceValue)) {
             result.results.push({
               row: rowNumber,
               domain: normalizedDomain,
               success: false,
               error: 'Invalid price format - must be a valid number',
+              skipped: false
+            });
+            result.failed++;
+            continue;
+          }
+
+          // Boundary validation for price
+          const MAX_PRICE = 1_000_000;
+          if (priceValue < 0 || priceValue > MAX_PRICE) {
+            result.results.push({
+              row: rowNumber,
+              domain: normalizedDomain,
+              success: false,
+              error: 'Publisher asking price is invalid or out of allowed range',
               skipped: false
             });
             result.failed++;

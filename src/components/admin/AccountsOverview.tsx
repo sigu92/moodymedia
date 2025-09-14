@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -203,10 +203,10 @@ export function AccountsOverview() {
     setPagination(prev => ({ ...prev, limit, page: 1 }));
   };
 
-  // Fetch data when filters or pagination changes
+  // Fetch data when inputs change using memoized callback
   useEffect(() => {
     fetchAccounts();
-  }, [pagination.page, pagination.limit, sortField, sortDirection, filters, fetchAccounts]);
+  }, [fetchAccounts]);
 
   // Calculate summary stats
   const totalUsers = pagination.total_items;

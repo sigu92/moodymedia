@@ -189,7 +189,7 @@ export function AdvancedFiltersModal({
     }
   };
 
-  const updateFilter = (key: keyof FilterQuery, value: FilterQuery[keyof FilterQuery]) => {
+  const updateFilter = <K extends keyof FilterQuery>(key: K, value: FilterQuery[K]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 

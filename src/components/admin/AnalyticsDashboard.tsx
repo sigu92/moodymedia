@@ -9,6 +9,35 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Activity, TrendingUp, AlertTriangle, Users, Eye, MousePointer, Download, RefreshCw, Calendar, Clock } from "lucide-react";
 import { format } from "date-fns";
 
+type PageViewMetadata = {
+  kind: 'page_view';
+  pathname?: string;
+  url?: string;
+  referrer?: string;
+  userAgent?: string;
+};
+
+type ErrorEventMetadata = {
+  kind: 'error';
+  url?: string;
+  userAgent?: string;
+  error: string;
+};
+
+type TimingMetadata = {
+  kind: 'timing';
+  duration: number;
+  label?: string;
+};
+
+type InteractionMetadata = {
+  kind: 'interaction';
+  target?: string;
+  details?: string;
+};
+
+type AnalyticsMetadata = PageViewMetadata | ErrorEventMetadata | TimingMetadata | InteractionMetadata;
+
 interface AnalyticsEvent {
   event: string;
   category: string;
@@ -17,15 +46,7 @@ interface AnalyticsEvent {
   value?: number;
   timestamp: string;
   sessionId: string;
-  metadata?: {
-    pathname?: string;
-    url?: string;
-    userAgent?: string;
-    referrer?: string;
-    duration?: number;
-    error?: string;
-    [key: string]: string | number | undefined;
-  };
+  metadata?: AnalyticsMetadata;
 }
 
 export const AnalyticsDashboard = () => {
@@ -68,7 +89,8 @@ export const AnalyticsDashboard = () => {
   const pageViewsByPath = filteredAnalytics
     .filter(e => e.event === 'page_view')
     .reduce((acc, event) => {
-      const path = event.metadata?.pathname || event.label || 'unknown';
+      const md = event.metadata;
+      const path = (md && 'kind' in md && md.kind === 'page_view' ? md.pathname : undefined) || event.label || 'unknown';
       acc[path] = (acc[path] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -396,7 +418,7 @@ export const AnalyticsDashboard = () => {
                           <div className="font-medium">{error.label}</div>
                           <div className="text-xs mt-1 opacity-75">
                             {format(new Date(error.timestamp), 'MMM dd, HH:mm:ss')}
-                            {error.metadata?.url && ` • ${error.metadata.url}`}
+                            {error.metadata && 'kind' in error.metadata && error.metadata.kind === 'error' && error.metadata.url && ` • ${error.metadata.url}`}
                           </div>
                         </AlertDescription>
                       </Alert>
