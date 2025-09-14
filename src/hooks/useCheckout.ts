@@ -55,7 +55,7 @@ export interface UseCheckoutReturn {
 
   // Stripe-specific actions
   processStripePayment: (formData: CheckoutFormData) => Promise<StripePaymentResult>;
-  handleStripeReturn: (sessionId: string) => Promise<boolean>;
+  handleStripeReturn: (sessionId: string) => Promise<{ success: boolean; orderData?: any; sessionData?: any }>;
 
   // Validation
   validateCurrentStep: () => CheckoutValidationError[];
@@ -237,7 +237,7 @@ export const useCheckout = (): UseCheckoutReturn => {
         // Schedule auto-retry for appropriate errors
         if (errorHandler.shouldRetry(errorDetails, 1)) {
           paymentRetry.scheduleAutoRetry(retrySession.sessionId, async () => {
-            return await this.processStripePayment(formData);
+            return await processStripePayment(formData);
           });
         }
       }
@@ -268,7 +268,7 @@ export const useCheckout = (): UseCheckoutReturn => {
   }, [cartItems, user]);
 
   // Handle return from Stripe checkout
-  const handleStripeReturn = useCallback(async (sessionId: string): Promise<boolean> => {
+  const handleStripeReturn = useCallback(async (sessionId: string): Promise<{ success: boolean; orderData?: any; sessionData?: any }> => {
     try {
       // Verify payment completion
       const { verifyPaymentCompletion } = await import('@/utils/stripeUtils');
@@ -279,7 +279,7 @@ export const useCheckout = (): UseCheckoutReturn => {
           field: 'payment',
           message: 'Payment was not completed. Please try again.'
         }]);
-        return false;
+        return { success: false };
       }
 
       // Retrieve pending order data from session storage
@@ -289,7 +289,7 @@ export const useCheckout = (): UseCheckoutReturn => {
           field: 'general',
           message: 'Order data not found. Please start checkout again.'
         }]);
-        return false;
+        return { success: false };
       }
 
       const orderData = JSON.parse(pendingOrderData);
@@ -331,7 +331,7 @@ export const useCheckout = (): UseCheckoutReturn => {
 
       const orderResult = await createOrder({
         orderNumber,
-        publisherId: orderItems[0]?.mediaOutletId || '', // This needs to be corrected
+        publisherId: orderItems[0]?.mediaOutletId || orderItems[0]?.media_outlet_id || '',
         items: orderItems,
         billingInfo: storedFormData.billingInfo,
         contentPreferences: storedFormData.contentPreferences,
@@ -355,7 +355,7 @@ export const useCheckout = (): UseCheckoutReturn => {
           field: 'general',
           message: orderResult.error || 'Failed to create order after successful payment. Please contact support.'
         }]);
-        return false;
+        return { success: false };
       }
 
       // Clear cart and session storage
@@ -369,14 +369,23 @@ export const useCheckout = (): UseCheckoutReturn => {
         paymentIntentId: paymentVerification.paymentIntentId,
       });
 
-      return true;
+      return { 
+        success: true, 
+        orderData: {
+          orderId: orderResult.orderId,
+          orderNumber,
+          amount: orderTotals.total,
+          currency: 'EUR',
+        },
+        sessionData: paymentVerification
+      };
     } catch (error) {
       console.error('Error handling Stripe return:', error);
       setValidationErrors([{
         field: 'general',
         message: 'Failed to process payment completion. Please contact support.'
       }]);
-      return false;
+      return { success: false };
     }
   }, [createOrder, clearCart]);
 
@@ -521,10 +530,13 @@ export const useCheckout = (): UseCheckoutReturn => {
       
       console.log(`Processing payment with ${shouldUseMock ? 'mock' : 'Stripe'} processor...`);
       
+      // Declare paymentResult at function scope
+      let paymentResult: MockPaymentResult | any;
+      
       // Select and instantiate appropriate payment processor
       if (shouldUseMock) {
         // Use mock payment processor for development/testing
-        const paymentResult: MockPaymentResult = await MockPaymentProcessor.processPayment(formData, {
+        paymentResult = await MockPaymentProcessor.processPayment(formData, {
           simulateDelay: true, // Enable realistic delay simulation
           simulateFailure: false, // Set to true to test failure scenarios
         });
@@ -546,6 +558,7 @@ export const useCheckout = (): UseCheckoutReturn => {
       } else {
         // Use real Stripe payment processing
         const stripeResult = await processStripePayment(formData);
+        paymentResult = stripeResult;
 
         if (!stripeResult.success) {
           setValidationErrors([{

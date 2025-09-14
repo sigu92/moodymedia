@@ -6,6 +6,8 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Max-Age": "600",
 };
 
 // Zod schema for request body validation
@@ -17,10 +19,10 @@ const LineItemSchema = z.object({
       description: z.string().optional(),
       metadata: z.record(z.string()).optional(),
     }),
-    unit_amount: z.number().positive(),
+    unit_amount: z.number().int().positive(),
   }).optional(),
   price: z.string().optional(),
-  quantity: z.number().positive().default(1),
+  quantity: z.number().int().positive().default(1),
 });
 
 const ShippingAddressCollectionSchema = z.object({
@@ -32,7 +34,9 @@ const AutomaticTaxSchema = z.object({
 });
 
 const CreateCheckoutRequestSchema = z.object({
-  line_items: z.array(LineItemSchema).min(1, "At least one line item is required"),
+  line_items: z.array(LineItemSchema).min(1, "At least one line item is required").refine((items) => {
+    return items.every(item => item.price || item.price_data);
+  }, "Each line item must have either 'price' or 'price_data'"),
   customer_id: z.string().optional(),
   customer_email: z.string().email().optional(),
   success_url: z.string().url().optional(),
@@ -151,10 +155,11 @@ serve(async (req) => {
     const sessionConfig: any = {
       line_items,
       mode,
-      success_url: success_url || `${req.headers.get("origin") || "http://localhost:3000"}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancel_url || `${req.headers.get("origin") || "http://localhost:3000"}/cart?canceled=true`,
+      success_url: success_url || `${req.headers.get("origin") || new URL(req.url).origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel_url || `${req.headers.get("origin") || new URL(req.url).origin}/cart?canceled=true`,
       payment_method_types,
       billing_address_collection,
+      client_reference_id: user.id,
       metadata: {
         user_id: user.id,
         ...metadata,

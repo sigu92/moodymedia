@@ -157,7 +157,17 @@ export const sendMockWebhook = async (event: any, options: {
       body: JSON.stringify(event)
     });
 
-    const responseData = await response.json();
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (error) {
+      // Handle non-JSON or empty responses
+      try {
+        responseData = await response.text();
+      } catch (textError) {
+        responseData = null;
+      }
+    }
 
     if (!response.ok) {
       console.error('❌ Webhook failed:', responseData);
@@ -270,12 +280,14 @@ export const runWebhookTests = async (): Promise<{
   // Test 5: Idempotency (send same event twice)
   console.log('🔄 Test 5: Idempotency Check');
   const duplicateEvent = mockStripeEvents.checkoutSessionCompleted(sessionId, customerId);
-  const test5 = await sendMockWebhook(duplicateEvent);
+  const test5a = await sendMockWebhook(duplicateEvent);
+  const test5b = await sendMockWebhook(duplicateEvent); // Send the same event again
   results.push({
     test: 'Idempotency Check',
-    success: test5.success,
-    error: test5.error,
-    response: test5.response
+    success: test5b.success, // Use the second response to verify idempotency
+    error: test5b.error,
+    response: test5b.response,
+    firstResponse: test5a.response // Include first response for comparison
   });
 
   // Test 6: Unknown Event Type
@@ -365,7 +377,7 @@ export const cleanupTestOrders = async (): Promise<{
     const { data, error } = await supabase
       .from('orders')
       .delete()
-      .eq('metadata->test_order', true)
+      .contains('metadata', { test_order: true })
       .select();
 
     if (error) {

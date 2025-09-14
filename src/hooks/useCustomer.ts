@@ -17,9 +17,9 @@ export interface UseCustomerReturn {
   error: string | null;
 
   // Customer operations
-  createCustomer: (email: string, name?: string) => Promise<boolean>;
-  updateCustomer: (updates: { email?: string; name?: string; metadata?: Record<string, string> }) => Promise<boolean>;
-  syncCustomer: () => Promise<boolean>;
+  createCustomer: (email: string, name?: string) => Promise<{ success: boolean; error?: string }>;
+  updateCustomer: (updates: { email?: string; name?: string; metadata?: Record<string, string> }) => Promise<{ success: boolean; error?: string }>;
+  syncCustomer: () => Promise<{ success: boolean; error?: string }>;
 
   // Payment method operations
   setDefaultPaymentMethod: (paymentMethodId: string) => Promise<boolean>;
@@ -87,12 +87,24 @@ export const useCustomer = (): UseCustomerReturn => {
   // Combined loading state
   const isLoading = profileLoading || paymentMethodsLoading;
 
-  // Set error state
+  // Set error state - safely handle unknown error types
   useEffect(() => {
     if (profileError) {
-      setError(profileError.message);
+      if (profileError instanceof Error) {
+        setError(profileError.message);
+      } else if (profileError != null) {
+        setError(String(profileError));
+      } else {
+        setError(null);
+      }
     } else if (paymentMethodsError) {
-      setError(paymentMethodsError.message);
+      if (paymentMethodsError instanceof Error) {
+        setError(paymentMethodsError.message);
+      } else if (paymentMethodsError != null) {
+        setError(String(paymentMethodsError));
+      } else {
+        setError(null);
+      }
     } else {
       setError(null);
     }
@@ -250,36 +262,42 @@ export const useCustomer = (): UseCustomerReturn => {
 
   // Callback functions
   const createCustomer = useCallback(
-    async (email: string, name?: string): Promise<boolean> => {
+    async (email: string, name?: string): Promise<{ success: boolean; error?: string }> => {
       try {
         await createCustomerMutation.mutateAsync({ email, name });
-        return true;
+        return { success: true };
       } catch (error) {
-        return false;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Customer creation failed:', error);
+        return { success: false, error: errorMessage };
       }
     },
     [createCustomerMutation]
   );
 
   const updateCustomer = useCallback(
-    async (updates: { email?: string; name?: string; metadata?: Record<string, string> }): Promise<boolean> => {
+    async (updates: { email?: string; name?: string; metadata?: Record<string, string> }): Promise<{ success: boolean; error?: string }> => {
       try {
         await updateCustomerMutation.mutateAsync(updates);
-        return true;
+        return { success: true };
       } catch (error) {
-        return false;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Customer update failed:', error);
+        return { success: false, error: errorMessage };
       }
     },
     [updateCustomerMutation]
   );
 
   const syncCustomer = useCallback(
-    async (): Promise<boolean> => {
+    async (): Promise<{ success: boolean; error?: string }> => {
       try {
         await syncCustomerMutation.mutateAsync();
-        return true;
+        return { success: true };
       } catch (error) {
-        return false;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Customer sync failed:', error);
+        return { success: false, error: errorMessage };
       }
     },
     [syncCustomerMutation]

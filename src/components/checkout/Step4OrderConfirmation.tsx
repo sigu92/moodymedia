@@ -14,6 +14,13 @@ import { formatCurrency, calculateItemTotal, calculateSubtotal, calculateVAT, ca
 import { toast } from '@/hooks/use-toast';
 import { stripeConfig } from '@/config/stripe';
 
+interface PaymentDetails {
+  stripeReceiptUrl?: string;
+  paymentIntentId?: string;
+  paymentMethodType?: string;
+  paymentMethodLast4?: string;
+}
+
 interface Step4OrderConfirmationProps {
   onValidationChange?: (isValid: boolean) => void;
   onOrderComplete?: (orderId: string) => void;
@@ -28,12 +35,7 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
   const { formData, submitCheckout, validationErrors, isSubmitting } = useCheckout();
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [paymentDetails, setPaymentDetails] = useState<{
-    stripeReceiptUrl?: string;
-    paymentIntentId?: string;
-    paymentMethodType?: string;
-    paymentMethodLast4?: string;
-  }>({});
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({});
 
   // Generate robust order ID once using crypto.randomUUID
   const [orderNumber] = useState<string>(() => {
@@ -415,7 +417,10 @@ export const Step4OrderConfirmation: React.FC<Step4OrderConfirmationProps> = ({
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(paymentDetails.stripeReceiptUrl, '_blank')}
+                          onClick={() => {
+                            const newWindow = window.open(paymentDetails.stripeReceiptUrl, '_blank', 'noopener,noreferrer');
+                            if (newWindow) newWindow.opener = null;
+                          }}
                           className="text-green-700 border-green-300 hover:bg-green-100"
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />

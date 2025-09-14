@@ -127,8 +127,50 @@ export const getOrCreateStripeCustomer = async (
 
     if (updateError) {
       console.error('Error updating profile with Stripe customer:', updateError);
-      // Customer was created in Stripe but not linked to profile
-      // This is not fatal, but should be logged for manual resolution
+      // Implement retry logic for profile update failures
+      const maxRetries = 3;
+      let retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`Retrying profile update (attempt ${retryCount}/${maxRetries})...`);
+        
+        // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        
+        const { error: retryError } = await supabase
+          .from('profiles')
+          .upsert({
+            user_id: userId,
+            stripe_customer_id: customerId,
+            stripe_customer_created_at: new Date().toISOString(),
+            stripe_customer_email: userEmail,
+            stripe_sync_status: 'retry_attempt',
+            stripe_sync_error: updateError.message
+          }, {
+            onConflict: 'user_id'
+          });
+        
+        if (!retryError) {
+          console.log('Profile update succeeded on retry');
+          break;
+        }
+        
+        if (retryCount === maxRetries) {
+          // Final failure - mark as failed
+          await supabase
+            .from('profiles')
+            .upsert({
+              user_id: userId,
+              stripe_sync_status: 'failed',
+              stripe_sync_error: `Failed after ${maxRetries} retries: ${retryError.message}`
+            }, {
+              onConflict: 'user_id'
+            });
+          
+          throw new Error(`Failed to link Stripe customer after ${maxRetries} retries`);
+        }
+      }
     }
 
     return {
@@ -209,14 +251,30 @@ export const updateCustomerProfile = async (
       };
     }
 
-    // In a real implementation, we would call Stripe API to update customer
-    // For now, we'll update local data
-    const localUpdates: any = {};
-    if (updates.email) {
-      localUpdates.stripe_customer_email = updates.email;
-    }
+    // Call Stripe API to update customer
+    try {
+      const { data, error } = await supabase.functions.invoke('update-customer', {
+        body: {
+          customer_id: profile.stripe_customer_id,
+          updates: {
+            email: updates.email,
+            name: updates.name,
+            metadata: updates.metadata
+          }
+        }
+      });
 
-    if (Object.keys(localUpdates).length > 0) {
+      if (error) {
+        throw new Error(`Stripe update failed: ${error.message}`);
+      }
+
+      // Update local database on success
+      const localUpdates: any = {};
+      if (updates.email) {
+        localUpdates.stripe_customer_email = updates.email;
+      }
+
+      if (Object.keys(localUpdates).length > 0) {
       const { error: updateError } = await supabase
         .from('profiles')
         .update(localUpdates)
@@ -298,12 +356,27 @@ export const getCustomerPaymentMethods = async (userId: string): Promise<{
       };
     }
 
-    // In production, we would call Stripe API to get payment methods
-    // For now, return empty array
-    return {
-      success: true,
-      paymentMethods: []
-    };
+    // Call Stripe API to get payment methods
+    try {
+      const { data, error } = await supabase.functions.invoke('get-payment-methods', {
+        body: { customer_id: customerId }
+      });
+
+      if (error) {
+        throw new Error(`Failed to fetch payment methods: ${error.message}`);
+      }
+
+      return {
+        success: true,
+        paymentMethods: data.payment_methods || []
+      };
+    } catch (stripeError) {
+      console.error('Stripe payment methods fetch failed:', stripeError);
+      return {
+        success: false,
+        error: stripeError instanceof Error ? stripeError.message : 'Failed to fetch payment methods'
+      };
+    }
 
   } catch (error) {
     return {

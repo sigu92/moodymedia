@@ -2,15 +2,35 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 
+// In-memory cache and rate limiting (TTL ~5-10s)
+const sessionCache = new Map<string, { data: any; expires: number }>()
+const userRequestTimes = new Map<string, number[]>()
+
+const CACHE_TTL = 10 * 1000 // 10 seconds
+const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10 // 10 requests per minute per user
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { 
+        status: 405, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Allow': 'POST' } 
+      }
+    )
   }
 
   try {
@@ -87,10 +107,67 @@ serve(async (req) => {
       )
     }
 
+    // Rate limiting check
+    const now = Date.now()
+    const userRequests = userRequestTimes.get(user.id) || []
+    const recentRequests = userRequests.filter(time => now - time < RATE_LIMIT_WINDOW)
+    
+    if (recentRequests.length >= RATE_LIMIT_MAX_REQUESTS) {
+      console.log('Rate limit exceeded for user:', user.id)
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+        { 
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+    
+    // Update request tracking
+    recentRequests.push(now)
+    userRequestTimes.set(user.id, recentRequests)
+
+    // Check cache first
+    const cacheKey = `${user.id}:${session_id}`
+    const cached = sessionCache.get(cacheKey)
+    if (cached && cached.expires > now) {
+      console.log('Returning cached session data for:', session_id)
+      return new Response(
+        JSON.stringify(cached.data),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
     // Retrieve the checkout session
     const session = await stripe.checkout.sessions.retrieve(session_id, {
       expand: ['payment_intent', 'payment_intent.payment_method', 'customer']
     })
+
+    // IDOR Protection: Verify session belongs to authenticated user
+    const sessionUserId = session.metadata?.user_id || session.client_reference_id;
+    const sessionEmail = typeof session.customer === 'object' && session.customer ? session.customer.email : 
+                       session.customer_details?.email;
+    
+    const userMatches = sessionUserId === user.id || 
+                       (sessionEmail && sessionEmail.toLowerCase() === user.email?.toLowerCase());
+    
+    if (!userMatches) {
+      console.log('Access denied: Session does not belong to user', { 
+        sessionId: session_id, 
+        userId: user.id,
+        sessionUserId,
+        sessionEmail 
+      });
+      return new Response(
+        JSON.stringify({ error: 'Session not found or access denied' }),
+        { 
+          status: 403, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
 
     // Extract relevant information with proper type safety
     const paymentIntent = session.payment_intent as Stripe.PaymentIntent | null
@@ -145,6 +222,12 @@ serve(async (req) => {
       sessionId: session.id,
       status: session.status,
       userId: user.id,
+    })
+
+    // Cache the response
+    sessionCache.set(cacheKey, {
+      data: sessionData,
+      expires: now + CACHE_TTL
     })
 
     return new Response(

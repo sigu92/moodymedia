@@ -138,10 +138,23 @@ export const trackCartAbandonment = async (
 
 /**
  * Generates recovery URL for abandoned cart
+ * TODO: Replace with server-issued signed token for security
  */
-export const generateRecoveryUrl = (cartId: string): string => {
+export const generateRecoveryUrl = async (cartId: string): Promise<string> => {
   const baseUrl = window.location.origin;
+  
+  // TODO: Replace this with server endpoint call
+  // const response = await fetch('/api/cart/generate-recovery-token', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify({ cartId })
+  // });
+  // const { token } = await response.json();
+  
+  // TEMPORARY: This is insecure - should be replaced with server-issued HMAC/JWT token
+  console.warn('Using insecure client-side token generation. Replace with server-side implementation.');
   const recoveryToken = btoa(`${cartId}:${Date.now()}`);
+  
   return `${baseUrl}/checkout/recover?token=${recoveryToken}`;
 };
 
@@ -158,7 +171,14 @@ export const scheduleRecoveryAttempt = (
   let delay = 0;
   switch (timing) {
     case 'immediate':
-      delay = 5 * 60 * 1000; // 5 minutes
+      if (import.meta.env.VITE_CART_RECOVERY_IMMEDIATE_DELAY) {
+        delay = parseInt(import.meta.env.VITE_CART_RECOVERY_IMMEDIATE_DELAY);
+      } else {
+        // Environment-specific defaults: short in dev, long in prod
+        delay = import.meta.env.MODE === 'development' 
+          ? 5 * 60 * 1000      // 5 minutes in development
+          : 24 * 60 * 60 * 1000; // 24 hours in production
+      }
       break;
     case 'one_hour':
       delay = 60 * 60 * 1000; // 1 hour
@@ -311,12 +331,26 @@ export const createRecoveryEmailData = (
 /**
  * Recovers cart from recovery token
  */
-export const recoverCartFromToken = (token: string): {
+export const recoverCartFromToken = async (token: string): Promise<{
   success: boolean;
   cart?: AbandonedCart;
   error?: string;
-} => {
+}> => {
   try {
+    // TODO: Replace with server-side token validation
+    // const response = await fetch('/api/cart/validate-recovery-token', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ token })
+    // });
+    // const validation = await response.json();
+    // if (!validation.valid) {
+    //   return { success: false, error: validation.error };
+    // }
+    // const cartId = validation.cartId;
+    
+    // TEMPORARY: Insecure client-side validation - replace with server validation
+    console.warn('Using insecure client-side token validation. Replace with server-side implementation.');
     const decoded = atob(token);
     const [cartId] = decoded.split(':');
     
@@ -462,8 +496,28 @@ export const cartRecovery = {
   createEmailData: createRecoveryEmailData
 };
 
-// Automatic cleanup every 6 hours
-setInterval(cleanupExpiredCarts, 6 * 60 * 60 * 1000);
+// Automatic cleanup every 6 hours - store interval ID for cleanup
+let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
+
+// Only start interval if not already running
+if (!cleanupIntervalId) {
+  cleanupIntervalId = setInterval(cleanupExpiredCarts, 6 * 60 * 60 * 1000);
+}
+
+// Export cleanup function for module unloading
+export const stopCleanupInterval = () => {
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+    cleanupIntervalId = null;
+  }
+};
+
+// Start cleanup function for manual control
+export const startCleanupInterval = (): ReturnType<typeof setInterval> => {
+  stopCleanupInterval();
+  cleanupIntervalId = setInterval(cleanupExpiredCarts, 6 * 60 * 60 * 1000);
+  return cleanupIntervalId;
+};
 
 // Make cart recovery available globally in development
 if (import.meta.env.DEV) {

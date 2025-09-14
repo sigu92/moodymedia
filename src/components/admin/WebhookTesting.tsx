@@ -134,7 +134,16 @@ export const WebhookTesting: React.FC = () => {
           return;
       }
 
-      const result = await webhookTester.sendCheckoutCompleted(customSessionId, customCustomerId);
+      let result;
+      
+      // Route to the appropriate sender based on event type
+      if (customEventType === 'checkout.session.completed') {
+        result = await webhookTester.sendCheckoutCompleted(customSessionId, customCustomerId);
+      } else {
+        // For other event types, send the constructed event
+        result = await webhookTester.sendEvent(event);
+      }
+      
       setWebhookResponse(result);
 
       if (result.success) {
