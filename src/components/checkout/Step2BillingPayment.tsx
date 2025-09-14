@@ -311,14 +311,41 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
         ...currentFormData,
       });
 
-      if (!result.success) {
+      if (result.success) {
+        // Persist session data for recovery
+        if (result.sessionId) {
+          sessionStorage.setItem('stripe_session_id', result.sessionId);
+        }
+        if (result.checkoutUrl) {
+          sessionStorage.setItem('stripe_checkout_url', result.checkoutUrl);
+        }
+
+        // Handle redirect based on result type
+        if (result.checkoutUrl) {
+          // Direct URL redirect
+          window.location.href = result.checkoutUrl;
+        } else if (result.sessionId && window.Stripe) {
+          // Use Stripe client to redirect
+          const stripe = window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+          await stripe.redirectToCheckout({ sessionId: result.sessionId });
+        } else if (result.mockUrl || result.mockSession) {
+          // Mock mode redirect for development
+          const mockRedirectUrl = result.mockUrl || `/checkout/success?session_id=${result.mockSession}`;
+          window.location.href = mockRedirectUrl;
+        } else {
+          // Fallback: show success message
+          toast({
+            title: "Payment Session Created",
+            description: "Your payment session was created successfully. Please complete the payment.",
+          });
+        }
+      } else {
         toast({
           title: "Payment Error",
           description: result.error || "Failed to create payment session. Please try again.",
           variant: "destructive",
         });
       }
-      // If successful, user will be redirected to Stripe checkout
     } catch (error) {
       console.error('Stripe payment error:', error);
       toast({
@@ -327,6 +354,8 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
         variant: "destructive",
       });
     } finally {
+      // Only clear processing state if redirect logic is attempted
+      // In most cases, user will be redirected before this executes
       setIsProcessingPayment(false);
     }
   };

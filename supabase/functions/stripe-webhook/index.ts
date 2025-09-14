@@ -135,16 +135,18 @@ serve(async (req) => {
         logStep('Webhook signature verification failed', { error: error.message }, 'error');
         return errorResponse('Webhook signature verification failed', 400, { error: error.message });
       }
-    } else if (isDevelopment && !webhookSecret) {
-      // In development without webhook secret, parse the body directly
+    } else if (isDevelopment && !webhookSecret && Deno.env.get('ALLOW_INSECURE_WEBHOOKS') === 'true') {
+      // In development without webhook secret, parse the body directly (only if explicitly allowed)
       try {
         event = JSON.parse(body);
-        logStep('Development mode: parsing webhook body directly', { eventType: event.type, eventId: event.id }, 'warn');
+        logStep('⚠️  INSECURE: Development mode parsing webhook body directly', { eventType: event.type, eventId: event.id }, 'warn');
+        console.warn('🚨 SECURITY WARNING: Webhook signature verification bypassed. This should only be used in development!');
       } catch (error) {
         return errorResponse('Invalid JSON payload', 400, { error: error.message });
       }
     } else {
-      return errorResponse('Missing webhook signature', 400);
+      logStep('Webhook signature verification required', { hasSecret: !!webhookSecret, isDev: isDevelopment }, 'error');
+      return errorResponse('Missing webhook signature or insecure webhook parsing not allowed', 400);
     }
 
     // Check for idempotency - prevent duplicate processing

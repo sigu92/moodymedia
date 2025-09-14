@@ -59,10 +59,17 @@ export const PaymentSimulator: React.FC = () => {
     });
   };
 
-  const handleRunSimulation = async () => {
+  const handleRunSimulation = async (scenario?: string, options?: { skipStateManagement?: boolean }) => {
     if (!selectedCard) return;
 
-    setIsRunning(true);
+    const currentScenario = scenario || selectedScenario;
+    const skipStateManagement = options?.skipStateManagement || false;
+    
+    if (!skipStateManagement && isRunning) return;
+    
+    if (!skipStateManagement) {
+      setIsRunning(true);
+    }
     const startTime = Date.now();
 
     try {
@@ -85,18 +92,18 @@ export const PaymentSimulator: React.FC = () => {
         metadata: {
           simulator: 'true',
           card_brand: selectedCard.brand,
-          test_scenario: selectedScenario
+          test_scenario: currentScenario
         }
       };
 
       // Run mock payment
-      const result = await developmentMockSystem.createSession(sessionData, selectedScenario);
+      const result = await developmentMockSystem.createSession(sessionData, currentScenario);
       const duration = Date.now() - startTime;
 
       // Record result
       const simulationResult: SimulationResult = {
         success: result.success,
-        scenario: selectedScenario,
+        scenario: currentScenario,
         duration,
         error: result.error,
         data: result
@@ -120,7 +127,7 @@ export const PaymentSimulator: React.FC = () => {
       const duration = Date.now() - startTime;
       const simulationResult: SimulationResult = {
         success: false,
-        scenario: selectedScenario,
+        scenario: currentScenario,
         duration,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
@@ -133,7 +140,9 @@ export const PaymentSimulator: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setIsRunning(false);
+      if (!skipStateManagement) {
+        setIsRunning(false);
+      }
     }
   };
 
@@ -143,9 +152,8 @@ export const PaymentSimulator: React.FC = () => {
     const testScenarios = ['success_fast', 'card_declined', 'insufficient_funds', 'network_error'];
     
     for (const scenario of testScenarios) {
-      setSelectedScenario(scenario);
       await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay between tests
-      await handleRunSimulation();
+      await handleRunSimulation(scenario, { skipStateManagement: true });
     }
     
     setIsRunning(false);

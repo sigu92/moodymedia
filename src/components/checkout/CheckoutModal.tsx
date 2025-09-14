@@ -134,10 +134,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const success = await submitCheckout();
     if (success) {
       if (isUsingStripe) {
-        setProgressMessage('Redirecting to Stripe...');
-        setEstimatedTime(null);
-        // Don't close the overlay immediately for Stripe - user will be redirected
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+          setProgressMessage('Redirecting to Stripe...');
+          setEstimatedTime(null);
+          // Don't close the overlay immediately for Stripe - user will be redirected
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error('Stripe redirect error:', error);
+          throw error; // Re-throw to be handled by the outer catch
+        } finally {
+          // Cleanup if redirect fails or takes too long
+          setShowLoadingOverlay(false);
+          onOpenChange(false);
+          setProgressMessage('');
+          setEstimatedTime(null);
+        }
       } else {
         setProgressMessage('Order completed successfully!');
         setEstimatedTime(null);

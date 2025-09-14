@@ -70,7 +70,7 @@ export interface UserBehaviorMetrics {
 // In-memory analytics storage (in production, this would be a database)
 const paymentEvents: PaymentEvent[] = [];
 const userSessions = new Map<string, {
-  startTime: number;
+  startedAt: number;
   events: PaymentEvent[];
   completed: boolean;
 }>();
@@ -91,7 +91,8 @@ export const trackPaymentEvent = async (
     errorDetails?: ErrorDetails;
     retryAttempt?: number;
     metadata?: Record<string, any>;
-  }
+  },
+  suppressSessionTracking: boolean = false
 ): Promise<void> => {
   const event: PaymentEvent = {
     eventId: `evt_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -105,8 +106,8 @@ export const trackPaymentEvent = async (
   // Store event
   paymentEvents.push(event);
 
-  // Track user session
-  if (context.userId && context.sessionId) {
+  // Track user session (unless suppressed to prevent recursion)
+  if (context.userId && context.sessionId && !suppressSessionTracking) {
     trackUserSession(context.userId, context.sessionId, event);
   }
 
@@ -150,7 +151,7 @@ const trackUserSession = (userId: string, sessionId: string, event: PaymentEvent
   
   if (!userSessions.has(sessionKey)) {
     userSessions.set(sessionKey, {
-      startTime: Date.now(),
+      startedAt: Date.now(),
       events: [],
       completed: false
     });
@@ -165,12 +166,12 @@ const trackUserSession = (userId: string, sessionId: string, event: PaymentEvent
   }
 
   // Mark as abandoned if user hasn't completed payment in 30 minutes
-  if (Date.now() - session.startTime > 30 * 60 * 1000 && !session.completed) {
+  if (Date.now() - session.startedAt > 30 * 60 * 1000 && !session.completed) {
     trackPaymentEvent('payment_abandoned', {
       userId,
       sessionId,
-      metadata: { sessionDuration: Date.now() - session.startTime }
-    });
+      metadata: { sessionDuration: Date.now() - session.startedAt }
+    }, true); // Suppress session tracking to prevent recursion
   }
 };
 
@@ -482,10 +483,33 @@ export const paymentAnalytics = {
   // Data management
   export: exportAnalyticsData,
   getStoredEvents: () => [...paymentEvents],
-  clearEvents: () => {
+  clearEvents: (options?: { force?: boolean }) => {
+    // Create backup before clearing
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupKey = `payment_analytics_backup_${timestamp}`;
+    
+    const backupData = {
+      events: [...paymentEvents],
+      sessions: Array.from(userSessions.entries()),
+      timestamp: Date.now()
+    };
+    
+    try {
+      localStorage.setItem(backupKey, JSON.stringify(backupData));
+      console.log(`📦 Analytics backup created: ${backupKey}`);
+    } catch (error) {
+      console.error('Failed to create analytics backup:', error);
+      if (!options?.force) {
+        throw new Error('Failed to create backup. Use { force: true } to clear without backup.');
+      }
+    }
+    
+    // Clear data
     paymentEvents.length = 0;
     userSessions.clear();
     localStorage.removeItem('payment_analytics');
+    
+    return { backupKey, backupSize: JSON.stringify(backupData).length };
   },
 
   // Development helpers

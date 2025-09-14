@@ -75,11 +75,13 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { email, name, metadata } = await req.json()
+    const { email: requestEmail, name, metadata } = await req.json()
 
-    if (!email) {
+    // Use authenticated user's email as canonical email for security
+    const canonicalEmail = user.email;
+    if (!canonicalEmail) {
       return new Response(
-        JSON.stringify({ error: 'Email is required' }),
+        JSON.stringify({ error: 'User email not available' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -87,9 +89,26 @@ serve(async (req) => {
       )
     }
 
+    // If request includes email and it differs from authenticated user's email, reject
+    if (requestEmail && requestEmail.toLowerCase() !== canonicalEmail.toLowerCase()) {
+      return new Response(
+        JSON.stringify({ error: 'Cannot create customer for different email address' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Use canonical email from authenticated user
+    const trimmedEmail = canonicalEmail.trim().toLowerCase();
+
+    // Sanitize email for Stripe search query to prevent injection
+    const sanitizedEmail = trimmedEmail.replace(/["\\]/g, '\\$&');
+    
     // Check if customer already exists in Stripe by email using search API for better performance
     const searchResponse = await stripe.customers.search({
-      query: `email:"${email}"`,
+      query: `email:"${sanitizedEmail}"`,
       limit: 1,
     })
 
@@ -98,25 +117,36 @@ serve(async (req) => {
       // Customer exists, return existing customer
       customer = searchResponse.data[0]
       
-      // Update metadata if provided
+      // Update metadata if provided - ensure all values are strings for Stripe
       if (metadata && Object.keys(metadata).length > 0) {
+        const sanitizedMetadata = Object.entries(metadata).reduce((acc, [key, value]) => {
+          acc[key] = value != null ? String(value) : '';
+          return acc;
+        }, {} as Record<string, string>);
+        
         customer = await stripe.customers.update(customer.id, {
           metadata: {
             ...customer.metadata,
-            ...metadata,
+            ...sanitizedMetadata,
             updated_at: new Date().toISOString(),
           }
         })
       }
     } else {
-      // Create new customer
+      // Create new customer - ensure all metadata values are strings for Stripe
+      const sanitizedMetadata = metadata ? Object.entries(metadata).reduce((acc, [key, value]) => {
+        acc[key] = value != null ? String(value) : '';
+        return acc;
+      }, {} as Record<string, string>) : {};
+      
       customer = await stripe.customers.create({
-        email,
+        email: trimmedEmail,
         name: name || undefined,
         metadata: {
-          ...metadata,
+          user_id: user?.id || '',
           created_via: 'moodymedia_api',
           created_at: new Date().toISOString(),
+          ...sanitizedMetadata,
         }
       })
     }

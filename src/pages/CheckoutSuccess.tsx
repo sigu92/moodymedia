@@ -48,15 +48,15 @@ export const CheckoutSuccess: React.FC = () => {
         setIsVerifying(true);
         
         // Handle the Stripe return and create order
-        const success = await handleStripeReturn(sessionId);
+        const result = await handleStripeReturn(sessionId);
         
-        if (success) {
+        if (result.success && result.orderData) {
           setVerificationStatus('success');
           setOrderDetails({
-            orderId: orderId || 'Unknown',
-            orderNumber: `ORD-${Date.now()}`, // This would come from the actual order creation
-            amount: 0, // This would come from session verification
-            currency: 'EUR',
+            orderId: result.orderData.orderId || orderId || 'Unknown',
+            orderNumber: result.orderData.orderNumber,
+            amount: result.orderData.amount,
+            currency: result.orderData.currency || 'EUR',
           });
           
           toast({

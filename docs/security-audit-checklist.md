@@ -82,6 +82,13 @@ This comprehensive security audit checklist ensures your Stripe payment integrat
   - Retry mechanism is implemented
   - Failed webhooks don't expose system information
 
+- [ ] **Idempotency protection is enforced**
+  - DB-level idempotency using unique event_id constraint
+  - Write operations use INSERT ... ON CONFLICT DO NOTHING (or equivalent)
+  - All webhook-triggered write paths are idempotent
+  - Duplicate event outcomes are logged and surfaced
+  - Handlers remain safe to retry without side effects
+
 **Section Score**: ___/20 points
 
 ## 3. Data Protection & PCI Compliance (Weight: 25%)

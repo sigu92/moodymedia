@@ -115,7 +115,14 @@ export const createOrGetStripeCustomer = async (
     const { data: existingCustomer } = await supabase
       .from('orders')
       .select('stripe_customer_id')
-      .eq('buyer_id', (await supabase.auth.getUser()).data.user?.id)
+      .eq('buyer_id', await (async () => {
+        const userResponse = await supabase.auth.getUser();
+        const user = userResponse.data.user;
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+        return user.id;
+      })())
       .not('stripe_customer_id', 'is', null)
       .limit(1)
       .single();
@@ -137,7 +144,14 @@ export const createOrGetStripeCustomer = async (
         metadata: {
           ...metadata,
           created_via: 'moodymedia_app',
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: await (async () => {
+            const userResponse = await supabase.auth.getUser();
+            const user = userResponse.data.user;
+            if (!user) {
+              throw new Error('User not authenticated');
+            }
+            return user.id;
+          })(),
         },
       },
     });
@@ -325,8 +339,30 @@ export const verifyPaymentCompletion = async (sessionId: string) => {
 /**
  * Calculates order totals including VAT
  */
-export const calculateOrderTotals = (cartItems: any[], vatRate: number = 0.25) => {
+// VAT rate configuration
+const getVATRate = (countryCode?: string): number => {
+  const vatRates: Record<string, number> = {
+    'US': 0, // No VAT in US
+    'CA': 0.05, // 5% GST
+    'GB': 0.20, // 20% VAT
+    'DE': 0.19, // 19% VAT
+    'FR': 0.20, // 20% VAT
+    'ES': 0.21, // 21% VAT
+    'IT': 0.22, // 22% VAT
+    'NL': 0.21, // 21% VAT
+    'SE': 0.25, // 25% VAT
+    'DK': 0.25, // 25% VAT
+    'NO': 0.25, // 25% VAT
+    'FI': 0.24, // 24% VAT
+    // Add more countries as needed
+  };
+  
+  return vatRates[countryCode || ''] || parseFloat(import.meta.env.VITE_DEFAULT_VAT_RATE || '0.25');
+};
+
+export const calculateOrderTotals = (cartItems: any[], customerLocation?: { country?: string }) => {
   const validItems = cartItems.filter(item => !item.readOnly);
+  const vatRate = getVATRate(customerLocation?.country);
   
   const subtotal = validItems.reduce((sum, item) => {
     return sum + ((item.finalPrice || item.price) * (item.quantity || 1));

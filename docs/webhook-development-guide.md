@@ -44,7 +44,11 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method_type TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method_last4 TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_attempt_count INTEGER DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_failure_reason TEXT;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_retry_after TIMESTAMP;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_retry_after TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_orders_metadata_gin ON orders USING gin (metadata);
 ```
 
 ## Testing Webhooks in Development
@@ -146,14 +150,108 @@ The webhook endpoint includes comprehensive error handling:
 - **Retry Logic**: Failed webhooks should be retried by Stripe
 - **Logging**: All events and errors are logged for debugging
 
+### Asynchronous Processing
+
+**Important**: Webhook handlers must return a 2xx response as quickly as possible and move heavy processing to an asynchronous background queue:
+
+1. **Synchronous Phase**: 
+   - Validate webhook signature
+   - Perform minimal sanity checks
+   - Immediately respond with 200 OK
+
+2. **Asynchronous Phase**:
+   - Enqueue database updates to a background worker
+   - Enqueue third-party API calls (e.g., Stripe API operations)
+   - Enqueue long-running processing tasks
+
+3. **Implementation Notes**:
+   - Ensure idempotency of queued work (use unique job IDs)
+   - Implement retries with exponential backoff in background processor
+   - Monitor queue health and processing failures
+
+```javascript
+// Example webhook handler pattern
+export default async function handler(req) {
+  // Synchronous: validate and respond quickly
+  const signature = req.headers['stripe-signature'];
+  const isValid = validateWebhookSignature(req.body, signature);
+  
+  if (!isValid) {
+    return new Response('Invalid signature', { status: 400 });
+  }
+  
+  // Immediately respond to Stripe
+  const response = new Response('OK', { status: 200 });
+  
+  // Asynchronous: enqueue heavy work
+  await enqueueJob('process-webhook', {
+    eventId: event.id,
+    eventType: event.type,
+    eventData: event.data
+  });
+  
+  return response;
+}
+```
+
 ## Idempotency
 
 The webhook system prevents duplicate processing through:
 
 - **Event ID Tracking**: Each Stripe event ID is tracked
-- **Memory-based Storage**: Processed events are stored in memory (Edge Function limitation)
-- **Cleanup**: Old processed events are automatically cleaned up
+- **Persistent Storage**: Event IDs are stored in durable storage (database or KV store) with unique constraints
+- **Insert Pattern**: Uses "INSERT ... ON CONFLICT DO NOTHING" pattern to prevent duplicates
+- **Cleanup**: Old event IDs are cleaned up periodically (do not rely on in-memory storage for production)
 - **Response**: Duplicate events return success without processing
+
+### Database Schema Example
+
+Create a `processed_events` table to track webhook events:
+
+```sql
+-- Table for tracking processed webhook events
+CREATE TABLE processed_events (
+  event_id TEXT PRIMARY KEY,
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for efficient cleanup of old events
+CREATE INDEX idx_processed_events_received_at ON processed_events (received_at);
+```
+
+### Usage Pattern
+
+Implement idempotency in your webhook handler:
+
+```javascript
+// Attempt to insert the event ID
+const insertQuery = `
+  INSERT INTO processed_events (event_id) 
+  VALUES ($1) 
+  ON CONFLICT (event_id) DO NOTHING
+`;
+
+const { rowCount } = await supabase.rpc('execute_sql', {
+  query: insertQuery,
+  params: [eventId]
+});
+
+// Check if the insert affected a row
+if (rowCount === 0) {
+  // Event already processed, return 200 without reprocessing
+  console.log(`Duplicate event ${eventId} ignored`);
+  return new Response('OK', { status: 200 });
+}
+
+// Proceed with event processing...
+```
+
+**Important**: Use durable storage and implement periodic cleanup of old event IDs. For example, delete events older than 30 days:
+
+```sql
+DELETE FROM processed_events 
+WHERE received_at < NOW() - INTERVAL '30 days';
+```
 
 ## Security Features
 

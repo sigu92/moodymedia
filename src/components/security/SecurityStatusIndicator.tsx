@@ -126,9 +126,21 @@ export const SecurityStatusIndicator: React.FC = () => {
     return { variant: "destructive", text: "Poor" };
   };
 
-  // Only show in development or when explicitly enabled
+  // In production, show minimal toggle when sensitive info is hidden
   if (process.env.NODE_ENV === 'production' && !showSensitiveInfo) {
-    return null;
+    return (
+      <div className="fixed top-4 right-4 z-50">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowSensitiveInfo(true)}
+          className="opacity-50 hover:opacity-100 p-2"
+          aria-label="Show security status"
+        >
+          <Shield className="h-4 w-4" />
+        </Button>
+      </div>
+    );
   }
 
   return (

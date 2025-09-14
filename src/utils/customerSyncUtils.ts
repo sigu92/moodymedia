@@ -49,6 +49,12 @@ export const collectCustomerData = async (userId: string): Promise<CustomerSyncD
       return null;
     }
 
+    // Verify that the provided userId matches the authenticated user's id
+    if (authUser.user.id !== userId) {
+      console.error('Unauthorized: userId does not match authenticated user');
+      return null;
+    }
+
     // Get organization settings
     const { data: orgSettings, error: orgError } = await supabase
       .from('org_settings')
@@ -170,13 +176,81 @@ export const syncCustomerMetadata = async (userId: string): Promise<SyncResult> 
     const metadata = generateStripeMetadata(customerData);
     result.metadata = metadata;
 
-    // Update customer in Stripe (in production, this would call Stripe API)
-    // For now, we'll just update local data and track changes
-    const updateResult = await customerManager.update(userId, {
-      email: customerData.email,
-      name: customerData.name,
-      metadata
-    });
+    // Update customer in Stripe via Edge Function
+    try {
+      const { data: stripeResult, error: stripeError } = await supabase.functions.invoke('update-customer-stripe', {
+        body: {
+          customer_id: customerData.stripeCustomerId,
+          updates: {
+            email: customerData.email,
+            name: customerData.name,
+            metadata
+          }
+        }
+      });
+
+      if (stripeError) {
+        throw new Error(`Stripe update failed: ${stripeError.message}`);
+      }
+
+      // Update local data after successful Stripe update
+      const updateResult = await customerManager.update(userId, {
+        email: customerData.email,
+        name: customerData.name,
+        metadata
+      });
+
+      result.stripeUpdated = true;
+    } catch (stripeError) {
+      console.error('Stripe customer update failed:', stripeError);
+      
+      // Implement retry logic with exponential backoff
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        retryCount++;
+        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+        
+        console.log(`Retrying Stripe update (attempt ${retryCount}/${maxRetries}) in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        try {
+          const { data: retryResult, error: retryError } = await supabase.functions.invoke('update-customer-stripe', {
+            body: {
+              customer_id: customerData.stripeCustomerId,
+              updates: {
+                email: customerData.email,
+                name: customerData.name,
+                metadata
+              }
+            }
+          });
+          
+          if (!retryError) {
+            console.log('Stripe update succeeded on retry');
+            result.stripeUpdated = true;
+            break;
+          }
+        } catch (retryErr) {
+          console.error(`Retry ${retryCount} failed:`, retryErr);
+        }
+        
+        if (retryCount === maxRetries) {
+          // Fallback to local update only and track failure
+          result.errors.push('Stripe update failed after retries, updating local data only');
+          result.stripeUpdated = false;
+        }
+      }
+      
+      // Update local data regardless of Stripe status
+      const updateResult = await customerManager.update(userId, {
+        email: customerData.email,
+        name: customerData.name,
+        metadata,
+        stripeUpdateFailed: !result.stripeUpdated
+      });
+    
 
     if (!updateResult.success) {
       result.errors.push(updateResult.error || 'Failed to update customer');

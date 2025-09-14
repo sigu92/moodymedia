@@ -52,9 +52,11 @@ interface FAQ {
 
 export const PaymentSupportCenter: React.FC = () => {
   const { user } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<string>('payment_failed');
+  const [faqFilter, setFaqFilter] = useState<'all' | PaymentCategory>('all');
+  const [ticketCategory, setTicketCategory] = useState<PaymentCategory>('payment_failed');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+  const [activeTab, setActiveTab] = useState<'faq' | 'contact'>('faq');
   const [ticketForm, setTicketForm] = useState({
     subject: '',
     description: '',
@@ -106,11 +108,21 @@ export const PaymentSupportCenter: React.FC = () => {
     }
   ];
 
-  const filteredFAQs = faqs.filter(faq => 
-    faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    faq.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (selectedCategory === 'all' || faq.category === selectedCategory)
-  );
+  const filteredFAQs = faqs.filter(faq => {
+    // First check category match
+    const categoryMatch = faqFilter === 'all' || faq.category === faqFilter;
+    
+    // If no search query, return based on category only
+    if (searchQuery.trim() === '') {
+      return categoryMatch;
+    }
+    
+    // If search query exists, require both category AND text match
+    const textMatch = faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                     faq.answer.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return categoryMatch && textMatch;
+  });
 
   const handleSubmitTicket = async () => {
     if (!ticketForm.subject || !ticketForm.description) {
@@ -129,7 +141,7 @@ export const PaymentSupportCenter: React.FC = () => {
       const ticket: SupportTicket = {
         id: `ticket_${Date.now()}`,
         subject: ticketForm.subject,
-        category: selectedCategory as any,
+        category: ticketCategory,
         priority: 'medium',
         status: 'open',
         description: ticketForm.description,
@@ -298,7 +310,11 @@ export const PaymentSupportCenter: React.FC = () => {
       {renderQuickActions()}
       {renderSupportHours()}
 
-      <Tabs defaultValue="faq" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        if (value === 'faq' || value === 'contact') {
+          setActiveTab(value);
+        }
+      }} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="faq" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
@@ -325,8 +341,8 @@ export const PaymentSupportCenter: React.FC = () => {
                   />
                 </div>
                 <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  value={faqFilter}
+                  onChange={(e) => setFaqFilter(e.target.value as 'all' | PaymentCategory)}
                   className="px-3 py-2 border rounded-md text-sm"
                 >
                   <option value="all">All Categories</option>
@@ -390,8 +406,8 @@ export const PaymentSupportCenter: React.FC = () => {
                   <Label htmlFor="category">Category</Label>
                   <select
                     id="category"
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    value={ticketCategory}
+                    onChange={(e) => setTicketCategory(e.target.value as PaymentCategory)}
                     className="w-full px-3 py-2 border rounded-md text-sm"
                   >
                     <option value="payment_failed">Payment Failed</option>

@@ -56,6 +56,7 @@ export const OrderConfirmationPage: React.FC<OrderConfirmationPageProps> = ({
     if (!orderId) return;
 
     try {
+      setError(''); // Clear any previous error
       setIsLoading(true);
       const result = await receiptManager.get(orderId);
       
@@ -273,7 +274,10 @@ export const OrderConfirmationPage: React.FC<OrderConfirmationPageProps> = ({
 
           {receiptData.paymentDetails.stripeReceiptUrl && (
             <Button
-              onClick={() => window.open(receiptData.paymentDetails.stripeReceiptUrl, '_blank')}
+              onClick={() => {
+                const newWindow = window.open(receiptData.paymentDetails.stripeReceiptUrl, '_blank', 'noopener,noreferrer');
+                if (newWindow) newWindow.opener = null;
+              }}
               variant="outline"
               className="flex items-center gap-2"
             >

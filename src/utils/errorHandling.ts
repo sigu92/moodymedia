@@ -378,11 +378,12 @@ export const logPaymentError = async (
       decline_code: error?.decline_code
     },
     timestamp: context.timestamp,
-    environment: process.env.NODE_ENV || 'development'
+    environment: (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE) || 'development'
   };
 
-  // Log to console in development
-  if (process.env.NODE_ENV === 'development') {
+  // Log to console in development (with safe console checks)
+  const isDevelopment = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE) === 'development';
+  if (isDevelopment && typeof window !== 'undefined' && typeof console !== 'undefined' && typeof console.group === 'function') {
     console.group('🚫 Payment Error');
     console.error('Error Details:', logData);
     console.groupEnd();
@@ -501,8 +502,9 @@ export const calculateRetryDelay = (attemptCount: number, errorDetails: ErrorDet
     baseDelay = 60000; // 1 minute
   }
 
-  // Exponential backoff with jitter
-  const delay = baseDelay * Math.pow(2, attemptCount - 1);
+  // Exponential backoff with jitter (ensure minimum delay)
+  const adjustedAttemptCount = Math.max(1, attemptCount);
+  const delay = baseDelay * Math.pow(2, adjustedAttemptCount - 1);
   const jitter = Math.random() * 1000; // Add up to 1 second of jitter
   
   return delay + jitter;

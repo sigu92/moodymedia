@@ -53,8 +53,8 @@ export const CheckoutRecover: React.FC = () => {
   const handleRecoverCart = async () => {
     if (!cart || !user) return;
 
-    // Check if user matches cart owner
-    if (cart.userId !== user.id) {
+    // Check if user matches cart owner (normalize both IDs to strings)
+    if (String(cart.userId) !== String(user.id)) {
       toast({
         title: "Access Denied",
         description: "This cart belongs to a different user. Please log in with the correct account.",
@@ -66,8 +66,8 @@ export const CheckoutRecover: React.FC = () => {
     setIsRecovering(true);
 
     try {
-      // Restore cart items
-      await setCartItems(cart.cartItems);
+      // Restore cart items (setCartItems is synchronous)
+      setCartItems(cart.cartItems);
 
       // Mark cart as recovered
       cartRecovery.markRecovered(cart.id);
@@ -78,8 +78,8 @@ export const CheckoutRecover: React.FC = () => {
         duration: 5000,
       });
 
-      // Navigate to checkout
-      navigate('/checkout');
+      // Navigate to marketplace (where checkout process starts)
+      navigate('/marketplace');
 
     } catch (error) {
       console.error('Failed to recover cart:', error);
@@ -142,7 +142,7 @@ export const CheckoutRecover: React.FC = () => {
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">{error}</p>
             <Button 
-              onClick={() => navigate('/checkout')} 
+              onClick={() => navigate('/marketplace')} 
               className="w-full"
             >
               Start New Order
@@ -351,7 +351,7 @@ export const CheckoutRecover: React.FC = () => {
               Continue Shopping
             </Button>
             <Button
-              onClick={() => navigate('/checkout')}
+              onClick={() => navigate('/marketplace')}
               variant="outline"
               className="flex-1"
             >
