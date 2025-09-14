@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle2, Loader2, AlertCircle, CreditCard, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCheckout } from '@/hooks/useCheckout';
 import { useAuth } from '@/contexts/AuthContext';
+import { dualReceiptSystem } from '@/utils/dualReceiptSystem';
 import { toast } from '@/hooks/use-toast';
 import { stripeConfig } from '@/config/stripe';
 
