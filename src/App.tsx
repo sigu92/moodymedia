@@ -42,6 +42,7 @@ import { CheckoutRecover } from "./pages/CheckoutRecover";
 import { OrderConfirmationPage } from "./components/orders/OrderConfirmationPage";
 import { TestModeIndicator } from "./components/development/TestModeIndicator";
 import { PaymentSimulator } from "./components/development/PaymentSimulator";
+import { SecurityStatusIndicator } from "./components/security/SecurityStatusIndicator";
 
 const queryClient = new QueryClient();
 
@@ -191,6 +192,8 @@ const App = () => (
         <Sonner />
         {/* Development tools - only in development mode */}
         {process.env.NODE_ENV === 'development' && <TestModeIndicator />}
+        {/* Security status indicator - configurable per environment */}
+        <SecurityStatusIndicator />
         <AuthProvider>
         <BrowserRouter>
           <Routes>
