@@ -40,17 +40,17 @@ export function TopNav() {
     : getNavigationItems(currentRole, userRoles);
 
   const isActive = (path: string) => {
-    if (path === "/dashboard") {
-      return currentPath === "/" || currentPath === "/dashboard";
+    if (path === "/dashboard/marketplace") {
+      return currentPath === "/" || currentPath === "/dashboard" || currentPath === "/dashboard/marketplace";
     }
     return currentPath === path;
   };
 
   const getNavClassName = (path: string) => {
-    const baseClasses = "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-300 transform hover:scale-105";
+    const baseClasses = "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200";
     return isActive(path) 
-      ? `${baseClasses} glass-button-primary text-primary-foreground shadow-glass` 
-      : `${baseClasses} text-muted-foreground hover:text-foreground hover:glass-button`;
+      ? `${baseClasses} bg-white text-black shadow-sm` 
+      : `${baseClasses} text-gray-300 hover:text-white hover:bg-white/10`;
   };
 
   const getUserInitials = (email: string) => {
@@ -77,32 +77,20 @@ export function TopNav() {
   };
 
   return (
-    <header className="h-14 flex items-center justify-between px-6 bg-background/95 backdrop-blur-sm border-b border-border shadow-soft transition-all duration-500 ease-out animate-slide-in-right">
+    <header className="h-16 flex items-center justify-between px-6 bg-black border-b border-gray-800 shadow-lg transition-all duration-200">
       {/* Logo - Hidden in marketplace mode */}
       <div className="flex items-center gap-4 opacity-0 pointer-events-none">
-        <div className="text-lg font-bold text-teal-600 tracking-wide">
+        <div className="text-lg font-bold text-white tracking-wide">
           MOODY MEDIA
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex items-center gap-1 animate-fade-in">
+      <nav className="flex items-center gap-1">
         {navigationItems.map((item, index) => {
-          // Special handling for Cart - render as CartIcon instead of NavLink
+          // Skip Cart from navigation - it will be moved to the right side
           if (item.title === "Cart") {
-            return (
-              <div
-                key={item.title}
-                style={{ animationDelay: `${index * 30}ms` }}
-                className="animate-fade-in"
-              >
-                <CartIcon
-                  onClick={() => setIsCartOpen(true)}
-                  aria-expanded={isCartOpen}
-                  aria-controls="cart-sidebar"
-                />
-              </div>
-            );
+            return null;
           }
 
           return (
@@ -110,12 +98,11 @@ export function TopNav() {
               key={item.title}
               to={item.url}
               className={getNavClassName(item.url)}
-              style={{ animationDelay: `${index * 30}ms` }}
             >
               <item.icon className="h-4 w-4" />
               <span>{item.title}</span>
               {item.title === "Notifications" && getNotificationBadgeCount() && (
-                <Badge variant="destructive" className="h-4 text-xs ml-1 px-1.5">
+                <Badge variant="destructive" className="h-4 text-xs ml-1 px-1.5 bg-red-500 text-white">
                   {getNotificationBadgeCount()}
                 </Badge>
               )}
@@ -124,71 +111,84 @@ export function TopNav() {
         })}
       </nav>
 
-      {/* Role Management */}
-      {user && (
-        <div className="flex items-center gap-2 ml-2 mr-2 sm:gap-3 sm:ml-4 sm:mr-4">
-          <RoleIndicator size="sm" showIcon={true} />
-          <RoleSwitcher
-            variant="outline"
-            size="sm"
-            showIcon={true}
-            showText={true}
-            className="hidden xs:inline-flex sm:inline-flex"
-          />
-          {/* Mobile: Show compact switcher */}
-          <RoleSwitcher
-            variant="outline"
-            size="sm"
-            showIcon={false}
-            showText={false}
-            compact={true}
-            className="inline-flex xs:hidden sm:hidden"
-          />
-        </div>
-      )}
+      {/* Right Side: Role Management, Cart, and User Menu */}
+      <div className="flex items-center gap-3">
+        {/* Role Management */}
+        {user && (
+          <div className="flex items-center gap-2">
+            <RoleSwitcher
+              variant="outline"
+              size="sm"
+              showIcon={true}
+              showText={true}
+              className="hidden xs:inline-flex sm:inline-flex"
+            />
+            {/* Mobile: Show compact switcher */}
+            <RoleSwitcher
+              variant="outline"
+              size="sm"
+              showIcon={false}
+              showText={false}
+              compact={true}
+              className="inline-flex xs:hidden sm:hidden"
+            />
+          </div>
+        )}
 
-      {/* User Menu */}
-      {user && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 rounded-full p-0 animate-scale-in">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs">
-                  {getUserInitials(user.email || '')}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 animate-scale-in">
-            <DropdownMenuLabel>
-              <div className="flex flex-col space-y-2">
-                <p className="text-sm font-medium">{user.email?.split('@')[0]}</p>
-                <RoleIndicator size="sm" showIcon={false} />
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <NavLink to="/profile" className="flex items-center gap-2 cursor-pointer">
-                <User className="h-4 w-4" />
-                Profile Settings
-              </NavLink>
-            </DropdownMenuItem>
-            {currentRole === 'admin' && (
+        {/* Cart - Moved to right side */}
+        {user && (
+          <div className="flex items-center">
+            <CartIcon
+              onClick={() => setIsCartOpen(true)}
+              aria-expanded={isCartOpen}
+              aria-controls="cart-sidebar"
+            />
+          </div>
+        )}
+
+        {/* User Menu */}
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 rounded-full p-0 hover:bg-white/10">
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-xs bg-white text-black">
+                    {getUserInitials(user.email || '')}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200 shadow-lg">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-2">
+                  <p className="text-sm font-medium text-gray-900">{user.email?.split('@')[0]}</p>
+                  <RoleIndicator size="sm" showIcon={false} />
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-gray-200" />
               <DropdownMenuItem asChild>
-                <NavLink to="/admin" className="flex items-center gap-2 cursor-pointer">
-                  <Settings className="h-4 w-4" />
-                  Admin Panel
+                <NavLink to="/profile" className="flex items-center gap-2 cursor-pointer text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+                  <User className="h-4 w-4" />
+                  Profile Settings
                 </NavLink>
               </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut} className="flex items-center gap-2 cursor-pointer text-destructive">
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+              {currentRole === 'admin' && (
+                <DropdownMenuItem asChild>
+                  <NavLink to="/admin" className="flex items-center gap-2 cursor-pointer text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+                    <Settings className="h-4 w-4" />
+                    Admin Panel
+                  </NavLink>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator className="bg-gray-200" />
+              <DropdownMenuItem onClick={signOut} className="flex items-center gap-2 cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
 
       {/* Cart Sidebar */}
       <CartSidebar

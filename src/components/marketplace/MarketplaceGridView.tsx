@@ -95,170 +95,165 @@ export const MarketplaceGridView = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {media.map((item) => (
-        <Card key={item.id} className="glass-card group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-          <CardHeader className="pb-3">
+        <div key={item.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 group">
+          {/* Header */}
+          <div className="p-6 pb-4">
             <div className="flex items-start justify-between">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <Link 
                   to={`/marketplace/${item.id}`}
-                  className="text-lg font-semibold text-primary hover:underline block truncate"
+                  className="text-lg font-semibold text-gray-900 hover:text-green-600 transition-colors block truncate"
                 >
                   {item.domain}
                 </Link>
-                <p className="text-sm text-muted-foreground truncate">{item.category}</p>
+                <p className="text-sm text-gray-500 truncate mt-1">{item.category}</p>
               </div>
               <div className="flex items-center gap-1 ml-2">
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => onToggleFavorite(item.id)}
-                  className="h-8 w-8 transition-all hover:scale-110"
+                  className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50"
                 >
-                  <Heart 
-                    className={`h-4 w-4 transition-all ${
-                      item.isFavorite 
-                        ? 'fill-red-500 text-red-500' 
-                        : 'text-muted-foreground hover:text-red-400'
-                    }`} 
-                  />
+                  <Heart className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => window.open(`https://${item.domain}`, '_blank')}
-                  className="h-8 w-8"
+                  className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent className="space-y-4">
+          {/* Content */}
+          <div className="px-6 pb-6 space-y-4">
             {/* Price */}
             <div className="text-center">
               {item.id.charCodeAt(2) % 4 === 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="flex items-center justify-center gap-2">
-                    <span className="text-sm text-muted-foreground line-through">€{Math.round(item.price * 1.2)}</span>
-                    <Badge variant="destructive" className="text-xs animate-pulse">-17%</Badge>
+                    <span className="text-sm text-gray-400 line-through">€{Math.round(item.price * 1.2)}</span>
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      -17%
+                    </span>
                   </div>
                   <div className="text-2xl font-bold text-green-600">€{item.price}</div>
                 </div>
               ) : (
-                <div className="text-2xl font-bold">€{item.price}</div>
+                <div className="text-2xl font-bold text-gray-900">€{item.price}</div>
               )}
             </div>
 
             {/* Metrics */}
             <div className="grid grid-cols-2 gap-3">
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Ahrefs DR</div>
-                <Badge
-                  variant={getMetricBadgeVariant(item.metrics.ahrefsDR, 'dr')}
-                  className="w-full justify-center"
-                >
+                <div className="text-xs text-gray-500 mb-2">Ahrefs DR</div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                  item.metrics.ahrefsDR >= 70 ? 'bg-green-100 text-green-800' :
+                  item.metrics.ahrefsDR >= 50 ? 'bg-blue-100 text-blue-800' :
+                  item.metrics.ahrefsDR >= 30 ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
                   {item.metrics.ahrefsDR}
-                </Badge>
+                </span>
               </div>
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Traffic</div>
-                <Badge
-                  variant={getMetricBadgeVariant(item.metrics.organicTraffic, 'traffic')}
-                  className="w-full justify-center text-xs"
-                >
+                <div className="text-xs text-gray-500 mb-2">Traffic</div>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                   {item.metrics.organicTraffic.toLocaleString()}
-                </Badge>
+                </span>
               </div>
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Spam Score</div>
-                <Badge
-                  variant={getMetricBadgeVariant(item.metrics.spamScore, 'spam')}
-                  className="w-full justify-center"
-                >
+                <div className="text-xs text-gray-500 mb-2">Spam Score</div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                  item.metrics.spamScore <= 5 ? 'bg-green-100 text-green-800' :
+                  item.metrics.spamScore <= 15 ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
                   {item.metrics.spamScore}
-                </Badge>
+                </span>
               </div>
               <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Ref Domains</div>
-                <Badge variant="outline" className="w-full justify-center">
+                <div className="text-xs text-gray-500 mb-2">Ref Domains</div>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                   {item.metrics.referringDomains}
-                </Badge>
+                </span>
               </div>
             </div>
 
-            {/* Accepted Niches */}
+            {/* Accepted Niches - Horizontal Layout */}
             <div>
-              <div className="text-xs text-muted-foreground mb-2">Accepts Niches</div>
-              <div className="flex flex-wrap gap-1">
-                {NICHES.slice(0, 3).map((niche) => {
+              <div className="text-xs text-gray-500 mb-2">Accepts Niches</div>
+              <div className="flex items-center gap-1">
+                {NICHES.slice(0, 4).map((niche) => {
                   const Icon = niche.icon;
                   const mockAcceptedNiches = ['casino', 'loans', 'dating', 'crypto'];
                   const isAccepted = mockAcceptedNiches.includes(niche.slug);
                   
-                  return isAccepted ? (
-                    <div key={niche.slug} className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-1">
-                      <Icon className="h-3 w-3 text-primary" />
-                      <span className="text-xs">{formatMultiplier(niche.defaultMultiplier)}</span>
+                  return (
+                    <div key={niche.slug} className="flex items-center gap-0.5">
+                      <div className={`p-0.5 rounded ${isAccepted ? 'text-green-600' : 'text-gray-400 opacity-50'}`}>
+                        <Icon className="h-3 w-3" />
+                      </div>
+                      {isAccepted && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {formatMultiplier(niche.defaultMultiplier)}
+                        </span>
+                      )}
                     </div>
-                  ) : null;
+                  );
                 })}
-                {NICHES.filter(n => ['casino', 'loans', 'dating', 'crypto'].includes(n.slug)).length > 3 && (
-                  <Badge variant="outline" className="text-xs">+more</Badge>
-                )}
               </div>
             </div>
 
             {/* Quick Info */}
-            <div className="flex justify-between text-xs text-muted-foreground">
+            <div className="flex justify-between text-xs text-gray-500">
               <span>No License: {item.id.charCodeAt(0) % 3 === 0 ? 'Yes' : 'No'}</span>
               <span>Tag: {['Text', 'Image', 'Unknown'][item.id.charCodeAt(1) % 3]}</span>
             </div>
-          </CardContent>
+          </div>
 
-          <CardFooter className="pt-0 space-y-2">
-            <div className="w-full space-y-2">
-              <Button
-                onClick={() => handleAddToCart(item)}
-                disabled={addingToCart === item.id}
-                className={`w-full transition-all hover:scale-105 ${
-                  addedToCart === item.id
-                    ? "bg-green-600 hover:bg-green-700 text-white glass-button-success"
-                    : "glass-button-primary"
-                }`}
-                size="sm"
-              >
-                {addingToCart === item.id ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                    <span>Adding...</span>
-                  </div>
-                ) : addedToCart === item.id ? (
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4" />
-                    <span>Added!</span>
-                  </div>
-                ) : (
-                  <>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Add to Cart
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="w-full glass-button"
-              >
-                <Link to={`/marketplace/${item.id}`}>
-                  <Info className="h-4 w-4 mr-2" />
-                  View Details
-                </Link>
-              </Button>
-            </div>
-          </CardFooter>
-        </Card>
+          {/* Footer */}
+          <div className="px-6 pb-6 space-y-2">
+            <Button
+              onClick={() => handleAddToCart(item)}
+              disabled={addingToCart === item.id}
+              className="w-full h-10 bg-black text-white hover:bg-gray-800 rounded-lg font-medium transition-colors"
+            >
+              {addingToCart === item.id ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Adding...</span>
+                </div>
+              ) : addedToCart === item.id ? (
+                <div className="flex items-center gap-2 text-green-400">
+                  <Check className="h-4 w-4" />
+                  <span>Added!</span>
+                </div>
+              ) : (
+                <>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
+              asChild
+            >
+              <Link to={`/marketplace/${item.id}`}>
+                <Info className="h-4 w-4 mr-2" />
+                View Details
+              </Link>
+            </Button>
+          </div>
+        </div>
       ))}
     </div>
   );
