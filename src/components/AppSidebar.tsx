@@ -50,8 +50,8 @@ export function AppSidebar() {
   const navigationItems = getContextAwareNavigation(currentRole, userRoles, currentPath);
 
   const isActive = (path: string) => {
-    if (path === "/dashboard") {
-      return currentPath === "/" || currentPath === "/dashboard";
+    if (path === "/dashboard/marketplace") {
+      return currentPath === "/" || currentPath === "/dashboard" || currentPath === "/dashboard/marketplace";
     }
     return currentPath === path;
   };

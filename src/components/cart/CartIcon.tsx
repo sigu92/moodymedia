@@ -46,18 +46,18 @@ export function CartIcon({ onClick, className, isOpen = false }: CartIconProps) 
       onClick={handleClick}
       className={`relative ${isMobile ? 'h-8 w-8' : 'h-9 w-9'} ${
         isAnimating ? 'animate-pulse' : ''
-      } transition-all duration-200 hover:scale-110 ${className}`}
+      } transition-all duration-200 hover:scale-110 text-white hover:bg-white/10 ${className}`}
       aria-label={`Shopping cart, ${cartCount === 0 ? 'no items' : cartCount === 1 ? '1 item' : `${cartCount} items`}`}
       aria-expanded={isOpen}
       aria-haspopup="dialog"
       aria-describedby="cart-badge"
     >
-      <ShoppingBag className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} />
+      <ShoppingBag className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'} text-white`} />
       {cartCount > 0 && (
         <Badge
           id="cart-badge"
           variant="destructive"
-          className={`absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold ${
+          className={`absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold bg-white text-black ${
             isAnimating ? 'animate-bounce' : ''
           }`}
           aria-label={`${cartCount > 99 ? '99 plus' : cartCount} items in cart`}

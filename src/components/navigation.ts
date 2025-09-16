@@ -21,7 +21,7 @@ export interface NavigationItem {
 }
 
 export const buyerItems: NavigationItem[] = [
-  { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Dashboard", url: "/dashboard/marketplace", icon: Home },
   { title: "Marketplace", url: "/marketplace", icon: Search },
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Cart", url: "/cart", icon: ShoppingCart },
@@ -95,11 +95,12 @@ export const getContextAwareNavigation = (currentRole: string | null, userRoles?
   }
 
   // Define route contexts - determine navigation based on current page location
-  const buyerRoutes = ['/marketplace', '/cart', '/orders', '/transactions'];
+  const buyerRoutes = ['/marketplace', '/cart', '/orders', '/transactions', '/dashboard/marketplace'];
   const publisherRoutes = ['/publisher', '/dashboard/publisher', '/publisher/orders', '/publisher/sites'];
 
   // Special handling for dashboard - show based on currentRole context
   const isDashboard = currentPath === '/dashboard' || currentPath === '/';
+  const isMarketplaceDashboard = currentPath === '/dashboard/marketplace';
   const isPublisherDashboard = currentPath === '/dashboard/publisher';
 
   // Determine context based on current path
@@ -114,7 +115,7 @@ export const getContextAwareNavigation = (currentRole: string | null, userRoles?
     }));
   }
 
-  if (isDashboard && currentRole !== 'publisher') {
+  if ((isDashboard || isMarketplaceDashboard) && currentRole !== 'publisher') {
     return buyerItems.map(item => ({
       ...item,
       title: item.title === 'Dashboard' ? 'Marketplace Dashboard' : item.title

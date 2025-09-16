@@ -184,13 +184,17 @@ Detta designsystem ska användas genomgående på hela sajten för:
 
 ## Komponenter som följer detta tema:
 - ✅ AppSidebar (uppdaterad - svart accent för knappar och badges)
+- ✅ TopNav (uppdaterad - svart bas med vit kontrast, vit cart, dold role badge, extra spacing, Dashboard pekar nu på /dashboard/marketplace)
 - ✅ Index.tsx hero section
 - ✅ Floating icons hero
 - ✅ Dashboard (grön accent för brand highlights)
+- ✅ Marketplace (komplett redesign med minimalistisk tema + flytande ikoner i bakgrunden - 6 ikoner: Facebook, X, Google, YouTube, Globe, LinkedIn - positionerade symmetriskt runt hero-sektionen med 2% margin från kanterna)
 - 🔄 Andra komponenter ska uppdateras successivt
 
 ## Färganvändning per komponent:
 - **Sidebar:** Svart accent för knappar och badges (clean, minimalistisk)
+- **TopNav:** Svart accent för aktiva länkar, grå för inaktiva
 - **Dashboard:** Grön accent för brand highlights och success states
 - **Hero sections:** Grön accent för brand highlights
+- **Marketplace:** Grön accent för brand highlights, svart för CTA-knappar
 - **Status:** Grön för success, röd för errors, gul för warnings
