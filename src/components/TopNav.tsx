@@ -20,7 +20,7 @@ import { CartIcon } from "./cart/CartIcon";
 import { CartSidebar } from "./cart/CartSidebar";
 import { CheckoutModal } from "./checkout/CheckoutModal";
 import { User, LogOut, Settings } from "lucide-react";
-import logoImage from '@/assets/moody-media-logo-new.png';
+// import logoImage from '@/assets/moody-media-logo-new.png';
 import { useState } from "react";
 
 export function TopNav() {
@@ -80,7 +80,9 @@ export function TopNav() {
     <header className="h-14 flex items-center justify-between px-6 bg-background/95 backdrop-blur-sm border-b border-border shadow-soft transition-all duration-500 ease-out animate-slide-in-right">
       {/* Logo - Hidden in marketplace mode */}
       <div className="flex items-center gap-4 opacity-0 pointer-events-none">
-        <img src={logoImage} alt="Moody Media" className="h-8 w-auto" />
+        <div className="text-lg font-bold text-teal-600 tracking-wide">
+          MOODY MEDIA
+        </div>
       </div>
 
       {/* Navigation */}

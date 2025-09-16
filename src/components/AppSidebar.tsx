@@ -5,7 +5,7 @@ import { useCart } from "@/hooks/useCart";
 import { useNotifications } from "@/hooks/useNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import logoImage from '@/assets/moody-media-logo-new.png';
+// import logoImage from '@/assets/moody-media-logo-new.png';
 import { getContextAwareNavigation } from "./navigation";
 import { RoleIndicator } from "./RoleIndicator";
 import { RoleSwitcher } from "./RoleSwitcher";
@@ -57,10 +57,10 @@ export function AppSidebar() {
   };
 
   const getNavClassName = (path: string) => {
-    const baseClasses = "flex items-center gap-3 w-full rounded-lg transition-all duration-300";
+    const baseClasses = "flex items-center gap-3 w-full p-3 rounded-lg transition-all duration-200 font-medium";
     return isActive(path) 
-      ? `${baseClasses} glass-button-primary text-primary-foreground font-medium shadow-glass` 
-      : `${baseClasses} hover:glass-button text-muted-foreground hover:text-foreground`;
+      ? `${baseClasses} bg-black text-white shadow-sm` 
+      : `${baseClasses} text-gray-600 hover:bg-gray-50 hover:text-gray-900`;
   };
 
   const getUserInitials = (email: string) => {
@@ -139,42 +139,44 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className={`${state === "collapsed" ? "w-16" : "w-64"} bg-background border-r border-border`}
+      className={`${state === "collapsed" ? "w-16" : "w-64"} bg-white border-r border-gray-200`}
     >
-      <SidebarHeader className="border-b border-border">
-        <div className="flex items-center justify-center px-3 py-4">
-          <img src={logoImage} alt="Moody Media" className="h-16 w-auto" />
+      <SidebarHeader className="border-b border-gray-200 py-6">
+        <div className="flex items-center justify-center px-6">
+          <div className="text-xl font-bold text-gray-800 tracking-wide">
+            MOODY MEDIA
+          </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-4 py-6">
         <SidebarGroup>
-          <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>
+          <SidebarGroupLabel className={`${state === "collapsed" ? "sr-only" : ""} text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4`}>
             Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-2">
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-10">
+                  <SidebarMenuButton asChild className="h-auto p-0">
                     <NavLink 
                       to={item.url} 
                       className={getNavClassName(item.url)}
                       title={state === "collapsed" ? item.title : undefined}
                     >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
                       {state !== "collapsed" && (
                         <div className="flex items-center justify-between w-full">
-                          <span className="text-sm">{item.title}</span>
+                          <span className="text-sm font-medium">{item.title}</span>
                           {item.title === "Cart" && getCartBadgeCount() && (
-                            <Badge variant="secondary" className="h-5 text-xs">
+                            <span className="bg-black text-white text-xs px-2 py-1 rounded-full">
                               {getCartBadgeCount()}
-                            </Badge>
+                            </span>
                           )}
                           {item.title === "Notifications" && getNotificationBadgeCount() && (
-                            <Badge variant="destructive" className="h-5 text-xs">
+                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
                               {getNotificationBadgeCount()}
-                            </Badge>
+                            </span>
                           )}
                         </div>
                       )}
@@ -187,14 +189,14 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border p-2 space-y-2">
+      <SidebarFooter className="border-t border-gray-200 p-4 space-y-3">
         {/* System Admin Button - Show prominently for system admins */}
         {user && isSystemAdmin && (
           <Button
             variant="default"
             size="sm"
             asChild
-            className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold shadow-lg text-xs flex items-center gap-2"
+            className="w-full bg-black text-white hover:bg-gray-800 font-medium text-sm flex items-center gap-2 p-3 rounded-lg"
             title={state === "collapsed" ? "System Administration" : undefined}
           >
             <NavLink to="/admin" className="flex items-center gap-2">
@@ -221,18 +223,17 @@ export function AppSidebar() {
 
         {/* Publisher Promotion - Show for users without publisher role */}
         {user && !hasRole('publisher') && (
-          <div className="glass-card p-3 border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-            <div className="text-center space-y-2">
-              <h4 className="text-sm font-semibold text-foreground">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="text-center space-y-3">
+              <h4 className="text-sm font-semibold text-gray-800">
                 Do you have media sites?
               </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p className="text-xs text-gray-600 leading-relaxed">
                 Start a publishing account and start selling your links here today
               </p>
               <Button
                 size="sm"
-                variant="premium"
-                className="w-full text-xs h-8"
+                className="w-full text-xs h-8 bg-black text-white hover:bg-gray-800 rounded-lg"
                 onClick={handleStartPublishing}
               >
                 Start Publishing
@@ -245,16 +246,16 @@ export function AppSidebar() {
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-accent rounded-lg">
+              <Button variant="ghost" className="w-full justify-start h-auto p-3 hover:bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3 w-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">
+                  <Avatar className="h-8 w-8 bg-gray-100">
+                    <AvatarFallback className="text-xs font-medium text-gray-700 bg-gray-100">
                       {getUserInitials(user.email || '')}
                     </AvatarFallback>
                   </Avatar>
                   {state !== "collapsed" && (
                     <div className="flex-1 min-w-0 text-left">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium text-gray-800 truncate">
                         {user.email?.split('@')[0]}
                       </p>
                       <div className="mt-1">
@@ -265,25 +266,25 @@ export function AppSidebar() {
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200 shadow-lg">
+              <DropdownMenuLabel className="text-gray-700 font-medium">My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-gray-200" />
               <DropdownMenuItem asChild>
-                <NavLink to="/profile" className="flex items-center gap-2 cursor-pointer">
+                <NavLink to="/profile" className="flex items-center gap-2 cursor-pointer text-gray-700 hover:bg-gray-50">
                   <User className="h-4 w-4" />
                   Profile Settings
                 </NavLink>
               </DropdownMenuItem>
               {(hasRole('admin') || isSystemAdmin) && (
                 <DropdownMenuItem asChild>
-                  <NavLink to="/admin" className="flex items-center gap-2 cursor-pointer">
+                  <NavLink to="/admin" className="flex items-center gap-2 cursor-pointer text-gray-700 hover:bg-gray-50">
                     <Settings className="h-4 w-4" />
                     {isSystemAdmin ? 'System Admin' : 'Admin Panel'}
                   </NavLink>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="flex items-center gap-2 cursor-pointer text-destructive">
+              <DropdownMenuSeparator className="bg-gray-200" />
+              <DropdownMenuItem onClick={signOut} className="flex items-center gap-2 cursor-pointer text-red-600 hover:bg-red-50">
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>

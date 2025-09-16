@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/hooks/useCart';
+import { useCart, CartItem } from '@/hooks/useCart';
 import { CheckoutValidator, CheckoutFormData, CheckoutValidationError, calculateVATForCountry, getVATConfig } from '@/utils/checkoutUtils';
-import { MockPaymentProcessor, MockPaymentResult } from '@/utils/mockPaymentProcessor';
 import { stripeConfig, validateStripeEnvironment } from '@/config/stripe';
 import { useOrders, OrderItem } from '@/hooks/useOrders';
 import { generateOrderNumber } from '@/hooks/useOrders';
@@ -16,10 +15,15 @@ import {
   calculateOrderTotals,
   handleStripeError
 } from '@/utils/stripeUtils';
+import { customerManager } from '@/utils/customerUtils';
+import { errorHandler, ErrorContext } from '@/utils/errorHandling';
+import { paymentRetry } from '@/utils/paymentRetry';
+import { paymentAnalytics } from '@/utils/paymentAnalytics';
+import { cartRecovery } from '@/utils/cartRecovery';
 
-export type CheckoutStep = 'cart-review' | 'billing-payment' | 'content-upload' | 'confirmation';
+export type CheckoutStep = 'cart-review' | 'payment-method' | 'billing-info' | 'content-upload' | 'confirmation';
 
-const CHECKOUT_STEPS: CheckoutStep[] = ['cart-review', 'billing-payment', 'content-upload', 'confirmation'];
+const CHECKOUT_STEPS: CheckoutStep[] = ['cart-review', 'payment-method', 'billing-info', 'content-upload', 'confirmation'];
 
 // Interface for Stripe payment results
 export interface StripePaymentResult {
@@ -38,6 +42,7 @@ export interface UseCheckoutReturn {
   validationErrors: CheckoutValidationError[];
   isLoading: boolean;
   isSubmitting: boolean;
+  cartItems: CartItem[];
 
   // Actions
   goToNextStep: () => Promise<boolean>;
@@ -49,7 +54,7 @@ export interface UseCheckoutReturn {
 
   // Stripe-specific actions
   processStripePayment: (formData: CheckoutFormData) => Promise<StripePaymentResult>;
-  handleStripeReturn: (sessionId: string) => Promise<boolean>;
+  handleStripeReturn: (sessionId: string) => Promise<{ success: boolean; orderData?: any; sessionData?: any }>;
 
   // Validation
   validateCurrentStep: () => CheckoutValidationError[];
@@ -69,22 +74,55 @@ export const useCheckout = (): UseCheckoutReturn => {
   const { cartItems, clearCart } = useCart();
   const { createOrder } = useOrders();
 
+  // Logging system for payment processing - only log in development
+  const logPaymentProcess = (step: string, data?: any) => {
+    if (import.meta.env.DEV) {
+      console.log(`[STRIPE-PAYMENT] ${step}`, data || '');
+    }
+  };
+
   // Process Stripe payment by creating checkout session
   const processStripePayment = useCallback(async (formData: CheckoutFormData): Promise<StripePaymentResult> => {
+    logPaymentProcess('Starting Stripe payment process', {
+      formData: {
+        billingInfo: formData.billingInfo,
+        paymentMethod: formData.paymentMethod,
+        cartItemsCount: cartItems?.length || 0
+      },
+      user: user?.id
+    });
+
     try {
+      // Validate Stripe configuration
+      logPaymentProcess('Validating Stripe configuration');
+      if (!stripeConfig.isConfigured()) {
+        logPaymentProcess('Stripe configuration validation failed');
+        return {
+          success: false,
+          error: 'Stripe is not configured. Please contact support.',
+          requiresRedirect: false,
+        };
+      }
+      logPaymentProcess('Stripe configuration validated successfully');
+
       // Validate cart for Stripe processing
+      logPaymentProcess('Validating cart for Stripe processing', { cartItems });
       const cartValidation = validateCartForStripe(cartItems);
       if (!cartValidation.isValid) {
+        logPaymentProcess('Cart validation failed', cartValidation.errors);
         return {
           success: false,
           error: cartValidation.errors.join(', '),
           requiresRedirect: false,
         };
       }
+      logPaymentProcess('Cart validation passed');
 
       // Create or get Stripe customer
       const customerEmail = formData.billingInfo?.email || user?.email;
+      logPaymentProcess('Preparing customer data', { customerEmail, billingInfo: formData.billingInfo });
       if (!customerEmail) {
+        logPaymentProcess('Customer email validation failed');
         return {
           success: false,
           error: 'Customer email is required for payment processing',
@@ -92,26 +130,56 @@ export const useCheckout = (): UseCheckoutReturn => {
         };
       }
 
-      const customer = await createOrGetStripeCustomer(
+      // Use customer manager to get or create customer
+      const customerName = `${formData.billingInfo?.firstName || ''} ${formData.billingInfo?.lastName || ''}`.trim();
+      logPaymentProcess('Creating/retrieving Stripe customer', { 
+        userId: user?.id, 
+        customerEmail, 
+        customerName 
+      });
+      
+      const customerResult = await customerManager.getOrCreate(
+        user?.id || '',
         customerEmail,
-        `${formData.billingInfo?.firstName || ''} ${formData.billingInfo?.lastName || ''}`.trim(),
-        {
-          user_id: user?.id || '',
-          company: formData.billingInfo?.company || '',
-        }
+        customerName || undefined
       );
 
+      if (!customerResult.success || !customerResult.customerId) {
+        logPaymentProcess('Customer creation/retrieval failed', customerResult);
+        return {
+          success: false,
+          error: customerResult.error || 'Failed to create or retrieve customer',
+          requiresRedirect: false,
+        };
+      }
+
+      const customer = { id: customerResult.customerId };
+      logPaymentProcess('Customer created/retrieved successfully', { customerId: customer.id });
+
       // Convert cart items to Stripe line items
+      logPaymentProcess('Converting cart items to Stripe line items', { cartItems });
       const lineItems = convertCartToStripeLineItems(cartItems);
+      logPaymentProcess('Line items converted', { lineItems });
 
       // Generate checkout URLs
       const baseUrl = window.location.origin;
       const { successUrl, cancelUrl } = generateCheckoutUrls(baseUrl);
+      logPaymentProcess('Generated checkout URLs', { successUrl, cancelUrl });
 
       // Create session metadata
       const metadata = createSessionMetadata(formData, user?.id);
+      logPaymentProcess('Created session metadata', { metadata });
 
       // Create Stripe checkout session
+      logPaymentProcess('Creating Stripe checkout session', {
+        lineItems,
+        customerId: customer.id,
+        customerEmail,
+        successUrl,
+        cancelUrl,
+        metadata
+      });
+
       const sessionData = await createStripeSession({
         lineItems,
         customerId: customer.id,
@@ -126,6 +194,12 @@ export const useCheckout = (): UseCheckoutReturn => {
         },
       });
 
+      logPaymentProcess('Stripe checkout session created successfully', {
+        sessionId: sessionData.sessionId,
+        checkoutUrl: sessionData.url,
+        customerId: sessionData.customerId
+      });
+
       return {
         success: true,
         sessionId: sessionData.sessionId,
@@ -134,17 +208,77 @@ export const useCheckout = (): UseCheckoutReturn => {
         requiresRedirect: true,
       };
     } catch (error) {
+      logPaymentProcess('Error processing Stripe payment', { error });
       console.error('Error processing Stripe payment:', error);
+      
+      // Create error context
+      const errorContext: ErrorContext = {
+        userId: user?.id,
+        sessionId: undefined,
+        amount: calculateOrderTotals(cartItems).total,
+        currency: 'EUR',
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      };
+
+      logPaymentProcess('Error context created', errorContext);
+
+      // Handle error with comprehensive error system
+      const errorDetails = errorHandler.display(error, errorContext, {
+        showToast: true,
+        includeErrorCode: true
+      });
+
+      logPaymentProcess('Error handled', { errorDetails });
+
+      // Track analytics
+      await paymentAnalytics.track('payment_failed', {
+        userId: user?.id,
+        amount: errorContext.amount,
+        currency: errorContext.currency,
+        metadata: { stage: 'session_creation' }
+      });
+
+      // Create retry session if error is retryable
+      if (errorDetails.retryable) {
+        const retrySession = paymentRetry.createSession(error, errorContext);
+        
+        // Schedule auto-retry for appropriate errors
+        if (errorHandler.shouldRetry(errorDetails, 1)) {
+          paymentRetry.scheduleAutoRetry(retrySession.sessionId, async () => {
+            return await processStripePayment(formData);
+          });
+        }
+      }
+
+      // Track cart abandonment for certain error types
+      if (errorDetails.category === 'user_action_required' || 
+          errorDetails.severity === 'high') {
+        await cartRecovery.trackAbandonment(
+          user?.id || '',
+          errorContext.sessionId || `session_${Date.now()}`,
+          cartItems,
+          formData.billingInfo,
+          errorDetails,
+          {
+            totalAmount: errorContext.amount || 0,
+            currency: errorContext.currency || 'EUR',
+            lastAttemptAt: errorContext.timestamp
+          }
+        );
+      }
+
       return {
         success: false,
-        error: handleStripeError(error),
+        error: errorDetails.userMessage,
         requiresRedirect: false,
       };
     }
   }, [cartItems, user]);
 
   // Handle return from Stripe checkout
-  const handleStripeReturn = useCallback(async (sessionId: string): Promise<boolean> => {
+  const handleStripeReturn = useCallback(async (sessionId: string): Promise<{ success: boolean; orderData?: any; sessionData?: any }> => {
     try {
       // Verify payment completion
       const { verifyPaymentCompletion } = await import('@/utils/stripeUtils');
@@ -155,7 +289,7 @@ export const useCheckout = (): UseCheckoutReturn => {
           field: 'payment',
           message: 'Payment was not completed. Please try again.'
         }]);
-        return false;
+        return { success: false };
       }
 
       // Retrieve pending order data from session storage
@@ -165,7 +299,7 @@ export const useCheckout = (): UseCheckoutReturn => {
           field: 'general',
           message: 'Order data not found. Please start checkout again.'
         }]);
-        return false;
+        return { success: false };
       }
 
       const orderData = JSON.parse(pendingOrderData);
@@ -175,12 +309,26 @@ export const useCheckout = (): UseCheckoutReturn => {
       const orderNumber = generateOrderNumber();
       const orderTotals = calculateOrderTotals(storedCartItems);
 
+      // Build lookup map for O(1) access instead of O(n) find per cart item
+      const formItemsLookup = new Map();
+      if (storedFormData.cartItems) {
+        storedFormData.cartItems.forEach((fi: any) => {
+          formItemsLookup.set(fi.id, fi);
+        });
+      }
+
       const orderItems: OrderItem[] = storedCartItems.map((cartItem: any) => {
-        const formItem = storedFormData.cartItems?.find((fi: any) => fi.id === cartItem.id);
+        const formItem = formItemsLookup.get(cartItem.id);
+        
+        // Log warning if domain is missing to surface data issues
+        if (!cartItem.domain) {
+          console.warn(`Cart item ${cartItem.id} is missing domain information`, cartItem);
+        }
+        
         return {
           id: cartItem.id,
           mediaOutletId: cartItem.mediaOutletId,
-          domain: cartItem.domain || 'Unknown Domain',
+          domain: cartItem.domain ?? '',
           category: cartItem.category || 'General',
           price: cartItem.finalPrice || cartItem.price,
           quantity: cartItem.quantity || 1,
@@ -193,31 +341,27 @@ export const useCheckout = (): UseCheckoutReturn => {
 
       const orderResult = await createOrder({
         orderNumber,
-        publisherId: orderItems[0]?.mediaOutletId || '', // This needs to be corrected
+        userId: user?.id || '',
         items: orderItems,
         billingInfo: storedFormData.billingInfo,
-        contentPreferences: storedFormData.contentPreferences,
         notes: storedFormData.notes,
-        paymentMethod: 'stripe',
-        paymentId: paymentVerification.paymentIntentId,
-        status: 'paid',
+        paymentMethod: {
+          type: 'stripe',
+          paymentId: paymentVerification.paymentIntentId,
+        },
+        status: 'completed',
         subtotal: orderTotals.subtotal,
         vatAmount: orderTotals.vatAmount,
         totalAmount: orderTotals.total,
-        // Stripe-specific fields
-        stripeSessionId: sessionId,
-        stripeCustomerId: paymentVerification.customerId,
-        stripePaymentIntentId: paymentVerification.paymentIntentId,
-        paymentMethodType: paymentVerification.paymentMethodType,
-        paymentMethodLast4: paymentVerification.paymentMethodLast4,
+        currency: 'EUR',
       });
 
-      if (!orderResult.success) {
+      if (!orderResult) {
         setValidationErrors([{
           field: 'general',
-          message: orderResult.error || 'Failed to create order after successful payment. Please contact support.'
+          message: 'Failed to create order after successful payment. Please contact support.'
         }]);
-        return false;
+        return { success: false };
       }
 
       // Clear cart and session storage
@@ -225,20 +369,31 @@ export const useCheckout = (): UseCheckoutReturn => {
       sessionStorage.removeItem('stripe_session_id');
       sessionStorage.removeItem('pending_order_data');
 
-      console.log('Order created successfully after Stripe payment:', {
-        orderId: orderResult.orderId,
-        orderNumber,
-        paymentIntentId: paymentVerification.paymentIntentId,
-      });
+      if (import.meta.env.DEV) {
+        console.log('Order created successfully after Stripe payment:', {
+          orderId: orderResult.id,
+          orderNumber,
+          paymentIntentId: paymentVerification.paymentIntentId,
+        });
+      }
 
-      return true;
+      return { 
+        success: true, 
+        orderData: {
+          orderId: orderResult.id,
+          orderNumber,
+          amount: orderTotals.total,
+          currency: 'EUR',
+        },
+        sessionData: paymentVerification
+      };
     } catch (error) {
       console.error('Error handling Stripe return:', error);
       setValidationErrors([{
         field: 'general',
         message: 'Failed to process payment completion. Please contact support.'
       }]);
-      return false;
+      return { success: false };
     }
   }, [createOrder, clearCart]);
 
@@ -250,7 +405,8 @@ export const useCheckout = (): UseCheckoutReturn => {
       quantity: item.quantity ?? 1,
       nicheId: undefined, // Will be set by user in step 1
       contentOption: 'self-provided' as const, // Default, will be set by user
-    }))
+    })),
+    paymentMethod: { type: 'stripe' } // Initialize with default payment method
   }));
   const [validationErrors, setValidationErrors] = useState<CheckoutValidationError[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -289,13 +445,36 @@ export const useCheckout = (): UseCheckoutReturn => {
   }, [currentStep, formData]);
 
   const goToNextStep = useCallback(async (): Promise<boolean> => {
-    if (!canGoNext) return false;
+    if (!canGoNext) {
+      return false;
+    }
 
     setIsLoading(true);
 
     try {
+      // Get fresh formData to ensure we have the latest state
+      const currentFormData = formData;
+
+      console.log('[GO TO NEXT DEBUG]', {
+        currentStep,
+        currentFormData,
+        paymentMethod: currentFormData.paymentMethod,
+        hasPaymentMethod: !!currentFormData.paymentMethod,
+        paymentMethodType: currentFormData.paymentMethod?.type,
+        stepValidation: { 'payment-method': !!currentFormData.paymentMethod?.type }
+      });
+
       // Validate current step
-      const errors = CheckoutValidator.validateStep(currentStep, formData);
+      const errors = CheckoutValidator.validateStep(currentStep, currentFormData);
+
+      console.log('[VALIDATION RESULT]', {
+        currentStep,
+        errors: errors.map(e => ({ field: e.field, message: e.message })),
+        errorCount: errors.length,
+        paymentMethodInFormData: currentFormData.paymentMethod,
+        billingInfo: currentFormData.billingInfo
+      });
+
       setValidationErrors(errors);
 
       if (errors.length > 0) {
@@ -317,7 +496,7 @@ export const useCheckout = (): UseCheckoutReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [canGoNext, currentStep, formData, currentStepIndex]);
+  }, [canGoNext, currentStep, currentStepIndex, formData]); // Keep formData dependency but minimize logging
 
   const goToPreviousStep = useCallback(() => {
     if (!canGoBack) return;
@@ -336,13 +515,35 @@ export const useCheckout = (): UseCheckoutReturn => {
   }, [currentStepIndex]);
 
   const updateFormData = useCallback((data: Partial<CheckoutFormData>) => {
-    setFormData(prev => ({ ...prev, ...data }));
+    console.log('[UPDATE FORM DATA]', {
+      incomingData: data,
+      willUpdate: true
+    });
+    setFormData(prev => {
+      const newData = { ...prev, ...data };
+      console.log('[FORM DATA UPDATED]', {
+        oldData: prev,
+        newData: newData
+      });
+      return newData;
+    });
     // Clear validation errors for fields that were updated
     setValidationErrors([]);
-  }, []);
+  }, []); // Remove formData dependency to prevent circular updates
 
   const submitCheckout = useCallback(async (): Promise<boolean> => {
+    logPaymentProcess('Starting checkout submission', { 
+      userId: user?.id, 
+      currentStep, 
+      formData: {
+        paymentMethod: formData.paymentMethod,
+        billingInfo: formData.billingInfo,
+        cartItemsCount: cartItems?.length || 0
+      }
+    });
+
     if (!user?.id) {
+      logPaymentProcess('Checkout failed - user not authenticated');
       setValidationErrors([{
         field: 'auth',
         message: 'You must be logged in to complete checkout.'
@@ -354,163 +555,157 @@ export const useCheckout = (): UseCheckoutReturn => {
 
     try {
       // Final validation of all data
+      logPaymentProcess('Performing final validation');
       const errors = CheckoutValidator.validateStep('confirmation', formData);
       if (errors.length > 0) {
+        logPaymentProcess('Final validation failed', errors);
         setValidationErrors(errors);
         return false;
       }
+      logPaymentProcess('Final validation passed');
 
       // Validate Stripe configuration before processing payment
-      const shouldUseMock = stripeConfig.shouldUseMockPayments();
-      
-      if (!shouldUseMock) {
-        // If we're trying to use real Stripe, validate configuration
-        const stripeValidation = validateStripeEnvironment();
-        if (!stripeValidation.isValid) {
-          setValidationErrors([
-            {
-              field: 'stripe_config',
-              message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
-            },
-            {
-              field: 'general',
-              message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
-            }
-          ]);
-          return false;
-        }
-      }
-      
-      console.log(`Processing payment with ${shouldUseMock ? 'mock' : 'Stripe'} processor...`);
-      
-      // Select and instantiate appropriate payment processor
-      if (shouldUseMock) {
-        // Use mock payment processor for development/testing
-        const paymentResult: MockPaymentResult = await MockPaymentProcessor.processPayment(formData, {
-          simulateDelay: true, // Enable realistic delay simulation
-          simulateFailure: false, // Set to true to test failure scenarios
-        });
-
-        if (!paymentResult.success) {
-          setValidationErrors([{
-            field: 'payment',
-            message: paymentResult.error || 'Payment processing failed. Please try again.'
-          }]);
-          return false;
-        }
-
-        // Log successful mock payment for debugging
-        console.log('Mock payment processed successfully:', {
-          paymentId: paymentResult.paymentId,
-          paymentMethod: formData.paymentMethod?.type,
-          simulatedDelay: paymentResult.simulatedDelay,
-        });
-      } else {
-        // Use real Stripe payment processing
-        const stripeResult = await processStripePayment(formData);
-
-        if (!stripeResult.success) {
-          setValidationErrors([{
-            field: 'payment',
-            message: stripeResult.error || 'Payment processing failed. Please try again.'
-          }]);
-          return false;
-        }
-
-        // For Stripe payments, we need to redirect to checkout
-        if (stripeResult.requiresRedirect && stripeResult.checkoutUrl) {
-          console.log('Redirecting to Stripe checkout:', stripeResult.checkoutUrl);
-          
-          // Store session data for later verification
-          if (stripeResult.sessionId) {
-            sessionStorage.setItem('stripe_session_id', stripeResult.sessionId);
-            sessionStorage.setItem('pending_order_data', JSON.stringify({
-              formData,
-              cartItems,
-              timestamp: Date.now(),
-            }));
+      logPaymentProcess('Validating Stripe environment');
+      const stripeValidation = validateStripeEnvironment();
+      if (!stripeValidation.isValid) {
+        logPaymentProcess('Stripe environment validation failed', stripeValidation.errors);
+        setValidationErrors([
+          {
+            field: 'stripe_config',
+            message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
+          },
+          {
+            field: 'general',
+            message: `Stripe configuration error: ${stripeValidation.errors.join(', ')}`
           }
-
-          // Redirect to Stripe checkout
-          window.location.href = stripeResult.checkoutUrl;
-          return true; // Return true as the redirect is successful
-        }
-
-        console.log('Stripe payment session created:', {
-          sessionId: stripeResult.sessionId,
-          customerId: stripeResult.customerId,
-        });
+        ]);
+        return false;
       }
+      logPaymentProcess('Stripe environment validation passed');
+      
+      if (import.meta.env.DEV) {
+        console.log('Processing payment with Stripe...');
+      }
+      logPaymentProcess('Starting Stripe payment processing');
+      
+      // Use real Stripe payment processing
+      const stripeResult = await processStripePayment(formData);
 
-      // Create order record in database
-      console.log('Creating order record...');
-      const orderNumber = generateOrderNumber();
-
-      // Prepare order items
-      const orderItems: OrderItem[] = cartItems.map(cartItem => {
-        const formItem = formData.cartItems?.find(fi => fi.id === cartItem.id);
-        return {
-          id: `${cartItem.id}_${Date.now()}`,
-          cartItemId: cartItem.id,
-          domain: cartItem.domain,
-          category: cartItem.category,
-          niche: cartItem.nicheId,
-          price: cartItem.finalPrice || cartItem.price,
-          quantity: formItem?.quantity || 1,
-          contentOption: formItem?.contentOption || 'self-provided',
-          nicheId: formItem?.nicheId,
-          uploadedFiles: [], // Would be populated from uploaded files state
-          googleDocsLinks: [], // Would be populated from uploaded links state
-        };
-      });
-
-      // Calculate totals with country-specific VAT (with FP precision fixes)
-      const rawSubtotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-      const subtotal = Math.round(rawSubtotal * 100) / 100; // Round to cents to avoid FP drift
-      const billingCountry = formData.billingInfo?.address?.country;
-      const taxId = formData.billingInfo?.taxId;
-      const vatAmount = await calculateVATForCountry(subtotal, billingCountry, taxId);
-      const totalAmount = Math.round((subtotal + vatAmount) * 100) / 100; // Round final total to cents
-
-      // Create order data
-      const orderData = {
-        orderNumber,
-        userId: user.id,
-        status: 'action_needed' as const,
-        totalAmount,
-        subtotal,
-        vatAmount,
-        currency: 'EUR',
-
-        billingInfo: formData.billingInfo!,
-        paymentMethod: {
-          type: formData.paymentMethod?.type || 'stripe',
-          poNumber: formData.paymentMethod?.poNumber,
-          paymentId: paymentResult.paymentId,
-        },
-
-        items: orderItems,
-
-        notes: `Payment processed via ${formData.paymentMethod?.type || 'stripe'}`,
-      };
-
-      // Create the order in database
-      const createdOrder = await createOrder(orderData);
-
-      if (!createdOrder) {
+      if (!stripeResult.success) {
+        logPaymentProcess('Stripe payment processing failed', stripeResult);
         setValidationErrors([{
-          field: 'order_creation',
-          message: 'Failed to create order record. Please contact support.'
+          field: 'payment',
+          message: stripeResult.error || 'Payment processing failed. Please try again.'
         }]);
         return false;
       }
 
-      console.log('Order created successfully:', createdOrder.id);
+      logPaymentProcess('Stripe payment processing successful', stripeResult);
 
-      // Clear cart on successful checkout
-      await clearCart();
+      // For Stripe payments, we need to redirect to checkout
+      if (stripeResult.requiresRedirect && stripeResult.checkoutUrl) {
+        logPaymentProcess('Preparing redirect to Stripe checkout', {
+          checkoutUrl: stripeResult.checkoutUrl,
+          sessionId: stripeResult.sessionId
+        });
+        console.log('Redirecting to Stripe checkout:', stripeResult.checkoutUrl);
+          
+        // Store session data for later verification
+        if (stripeResult.sessionId) {
+          sessionStorage.setItem('stripe_session_id', stripeResult.sessionId);
+          sessionStorage.setItem('pending_order_data', JSON.stringify({
+            formData,
+            cartItems,
+            timestamp: Date.now(),
+          }));
+          logPaymentProcess('Session data stored for later verification');
+        }
 
-      return true;
+        // Redirect to Stripe checkout
+        logPaymentProcess('Redirecting to Stripe checkout');
+        window.location.href = stripeResult.checkoutUrl;
+        return true; // Return true as the redirect is successful
+      } else {
+        logPaymentProcess('Stripe payment session created (no redirect)', {
+          sessionId: stripeResult.sessionId,
+          customerId: stripeResult.customerId,
+        });
+        console.log('Stripe payment session created:', {
+          sessionId: stripeResult.sessionId,
+          customerId: stripeResult.customerId,
+        });
+
+        // Create order record in database
+        logPaymentProcess('Creating order record in database');
+        console.log('Creating order record...');
+        const orderNumber = generateOrderNumber();
+
+        // Prepare order items
+        const orderItems: OrderItem[] = cartItems.map(cartItem => {
+          const formItem = formData.cartItems?.find(fi => fi.id === cartItem.id);
+          return {
+            id: `${cartItem.id}_${Date.now()}`,
+            cartItemId: cartItem.id,
+            domain: cartItem.domain || '',
+            category: cartItem.category || '',
+            niche: cartItem.nicheId || null,
+            price: cartItem.finalPrice || cartItem.price,
+            quantity: formItem?.quantity || 1,
+            contentOption: formItem?.contentOption || 'self-provided',
+            nicheId: formItem?.nicheId,
+            uploadedFiles: [], // Would be populated from uploaded files state
+            googleDocsLinks: [], // Would be populated from uploaded links state
+          };
+        });
+
+        // Calculate totals with country-specific VAT (with FP precision fixes)
+        const rawSubtotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+        const subtotal = Math.round(rawSubtotal * 100) / 100; // Round to cents to avoid FP drift
+        const billingCountry = formData.billingInfo?.address?.country;
+        const taxId = formData.billingInfo?.taxId;
+        const vatAmount = await calculateVATForCountry(subtotal, billingCountry, taxId);
+        const totalAmount = Math.round((subtotal + vatAmount) * 100) / 100; // Round final total to cents
+
+        // Create order data
+        const orderData = {
+          orderNumber,
+          userId: user?.id,
+          status: 'action_needed' as const,
+          totalAmount,
+          subtotal,
+          vatAmount,
+          currency: 'EUR',
+
+          billingInfo: formData.billingInfo!,
+          paymentMethod: {
+            type: formData.paymentMethod?.type || 'stripe',
+            poNumber: formData.paymentMethod?.poNumber,
+            paymentId: stripeResult.sessionId,
+          },
+
+          items: orderItems,
+
+          notes: `Payment processed via ${formData.paymentMethod?.type || 'stripe'}`,
+        };
+
+        // Create the order in database
+        const createdOrder = await createOrder(orderData);
+
+        if (!createdOrder) {
+          setValidationErrors([{
+            field: 'order_creation',
+            message: 'Failed to create order record. Please contact support.'
+          }]);
+          return false;
+        }
+
+        console.log('Order created successfully:', createdOrder.id);
+
+        // Clear cart on successful checkout
+        await clearCart();
+
+        return true;
+      }
     } catch (error) {
       console.error('Checkout submission error:', error);
       setValidationErrors([{
@@ -529,6 +724,8 @@ export const useCheckout = (): UseCheckoutReturn => {
       cartItems: prev.cartItems && prev.cartItems.length > 0
         ? prev.cartItems
         : cartItems.map(item => ({ id: item.id, quantity: item.quantity ?? 1, contentOption: 'self-provided' as const })),
+      paymentMethod: prev.paymentMethod || { type: 'stripe' }, // Preserve or set default payment method
+      billingInfo: prev.billingInfo, // Preserve billing info if it exists
     }));
     setValidationErrors([]);
     setIsLoading(false);
@@ -542,6 +739,7 @@ export const useCheckout = (): UseCheckoutReturn => {
     validationErrors,
     isLoading,
     isSubmitting,
+    cartItems, // Add cartItems to the return object
 
     // Actions
     goToNextStep,

@@ -477,7 +477,7 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             {currentStep === 1 && (
               <div className="text-center space-y-4">
                 <div className="space-y-2">
-                  <h3 className="text-lg font-medium">Welcome to Moody Media! 👋</h3>
+                  <h3 className="text-lg font-medium">Welcome to <span className="text-teal-600 tracking-wide">MOODY MEDIA</span>! 👋</h3>
                   <p className="text-muted-foreground">
                     You're signed up as a <Badge variant="outline" className="mx-1">{primaryRole}</Badge>
                     {primaryRole === 'buyer' && "Ready to purchase high-quality link placements?"}
@@ -734,7 +734,7 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     <div className="space-y-4">
                       <CheckCircle className="h-20 w-20 text-green-500 mx-auto" />
                       <div>
-                        <h3 className="text-2xl font-medium">Welcome to Moody Media! 🎉</h3>
+                        <h3 className="text-2xl font-medium">Welcome to <span className="text-teal-600 tracking-wide">MOODY MEDIA</span>! 🎉</h3>
                         <p className="text-muted-foreground mt-2">
                           Your account is ready! {isAlsoPublisher ? "You now have both buyer and publisher rights." : "Start exploring our marketplace of quality media outlets."}
                         </p>

@@ -1,11 +1,55 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Max-Age": "600",
 };
+
+// Zod schema for request body validation
+const LineItemSchema = z.object({
+  price_data: z.object({
+    currency: z.string().default('eur'),
+    product_data: z.object({
+      name: z.string(),
+      description: z.string().optional(),
+      metadata: z.record(z.string()).optional(),
+    }),
+    unit_amount: z.number().int().positive(),
+  }).optional(),
+  price: z.string().optional(),
+  quantity: z.number().int().positive().default(1),
+});
+
+const ShippingAddressCollectionSchema = z.object({
+  allowed_countries: z.array(z.string()).default(['US', 'CA', 'GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'SE', 'NO', 'DK', 'FI']),
+});
+
+const AutomaticTaxSchema = z.object({
+  enabled: z.boolean(),
+});
+
+const CreateCheckoutRequestSchema = z.object({
+  line_items: z.array(LineItemSchema).min(1, "At least one line item is required").refine((items) => {
+    return items.every(item => item.price || item.price_data);
+  }, "Each line item must have either 'price' or 'price_data'"),
+  customer_id: z.string().optional(),
+  customer_email: z.string().email().optional(),
+  success_url: z.string().url().optional(),
+  cancel_url: z.string().url().optional(),
+  metadata: z.record(z.string()).optional(),
+  mode: z.enum(['payment', 'setup', 'subscription']).default('payment'),
+  billing_address_collection: z.enum(['auto', 'required']).default('required'),
+  shipping_address_collection: ShippingAddressCollectionSchema.optional(),
+  payment_method_types: z.array(z.string()).default(['card']),
+  allow_promotion_codes: z.boolean().default(true),
+  automatic_tax: AutomaticTaxSchema.optional(),
+  currency: z.string().default('eur'),
+});
 
 // Helper logging function
 const logStep = (step: string, details?: any) => {
@@ -24,19 +68,13 @@ serve(async (req) => {
     // Check if Stripe secret key is configured
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
-      logStep("Stripe key not configured - returning mock data");
-      
-      // Return mock checkout URL for development/demo purposes
-      const origin = req.headers.get("origin") || "http://localhost:3000";
-      const mockSessionId = `mock_session_${Date.now()}`;
-      
+      logStep("Stripe key not configured");
       return new Response(JSON.stringify({ 
-        url: `${origin}/payment-success?session_id=${mockSessionId}&mock=true`,
-        mock: true,
-        message: "Mock checkout created - Stripe integration not configured yet"
+        error: "Stripe is not configured. Please contact support.",
+        code: "STRIPE_NOT_CONFIGURED"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
+        status: 503,
       });
     }
 
@@ -58,26 +96,43 @@ serve(async (req) => {
     
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get request body
-    const { 
-      line_items, 
-      customer_id, 
-      customer_email, 
-      success_url, 
-      cancel_url, 
-      metadata,
-      mode = 'payment',
-      billing_address_collection = 'required',
-      shipping_address_collection,
-      payment_method_types = ['card'],
-      allow_promotion_codes = true,
-      automatic_tax,
-      currency = 'eur'
-    } = await req.json();
+    // Validate request body
+    const requestBody = await req.json();
     
-    if (!line_items || line_items.length === 0) {
-      throw new Error("No line items provided");
+    let validatedData;
+    try {
+      validatedData = CreateCheckoutRequestSchema.parse(requestBody);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessage = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+        logStep("Validation error", { errors: error.errors });
+        return new Response(JSON.stringify({ 
+          error: `Invalid request data: ${errorMessage}`,
+          details: error.errors 
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+      throw error;
     }
+
+    // Extract validated data
+    const {
+      line_items,
+      customer_id,
+      customer_email,
+      success_url,
+      cancel_url,
+      metadata,
+      mode,
+      billing_address_collection,
+      shipping_address_collection,
+      payment_method_types,
+      allow_promotion_codes,
+      automatic_tax,
+      currency
+    } = validatedData;
 
     logStep("Line items received", { itemCount: line_items.length });
 
@@ -90,14 +145,32 @@ serve(async (req) => {
     
     logStep("Customer info", { customerId: finalCustomerId, email: finalCustomerEmail });
 
+    // Validate and get safe origin for URLs
+    const incomingOrigin = req.headers.get("origin") || new URL(req.url).origin;
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://moodymedia.app',
+      'https://app.moodymedia.com',
+      // Add your production domains here
+    ];
+    
+    let safeOrigin = incomingOrigin;
+    if (!allowedOrigins.includes(incomingOrigin)) {
+      // Use first allowed origin as fallback or return error
+      safeOrigin = allowedOrigins[0];
+      logStep("Origin not in allowlist, using fallback", { incomingOrigin, safeOrigin });
+    }
+
     // Create checkout session
     const sessionConfig: any = {
       line_items,
       mode,
-      success_url: success_url || `${req.headers.get("origin") || "http://localhost:3000"}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancel_url || `${req.headers.get("origin") || "http://localhost:3000"}/cart?canceled=true`,
+      success_url: success_url || `${safeOrigin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel_url || `${safeOrigin}/cart?canceled=true`,
       payment_method_types,
       billing_address_collection,
+      client_reference_id: user.id,
       metadata: {
         user_id: user.id,
         ...metadata,

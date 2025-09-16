@@ -1,91 +1,134 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, CheckCircle, FileText, Globe, Verified, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import React, { useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, Clock, AlertCircle, Package } from 'lucide-react';
 
-interface OrderTimelineProps {
-  currentStatus: string;
-  createdAt: string;
-  updatedAt: string;
-  publicationDate?: string;
+interface OrderData {
+  id?: string;
+  orderNumber?: string;
+  status?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  completedAt?: Date;
 }
 
-export const OrderTimeline = ({ currentStatus, createdAt, updatedAt, publicationDate }: OrderTimelineProps) => {
-  const timelineSteps = [
-    { key: 'requested', label: 'Order Requested', icon: Clock },
-    { key: 'accepted', label: 'Order Accepted', icon: CheckCircle },
-    { key: 'content_received', label: 'Content Received', icon: FileText },
-    { key: 'published', label: 'Published', icon: Globe },
-    { key: 'verified', label: 'Verified', icon: Verified },
+interface OrderTimelineProps {
+  orderId?: string;
+  status?: string;
+  orderData?: OrderData;
+}
+
+export const OrderTimeline: React.FC<OrderTimelineProps> = ({ orderId, status, orderData }) => {
+  // Compute stable timestamps once using useMemo to prevent re-computation on every render
+  const stableTimestamps = useMemo(() => {
+    const baseDate = orderData?.createdAt || new Date();
+    return {
+      orderPlaced: baseDate.toLocaleDateString(),
+      paymentProcessed: new Date(baseDate.getTime() + 1 * 60 * 60 * 1000).toLocaleDateString(), // 1 hour later
+      contentReview: orderData?.updatedAt?.toLocaleDateString() || 'In Progress',
+      published: orderData?.completedAt?.toLocaleDateString() || (status === 'completed' ? baseDate.toLocaleDateString() : 'Pending')
+    };
+  }, [orderData?.createdAt, orderData?.updatedAt, orderData?.completedAt, status]);
+
+  const steps = [
+    {
+      id: 1,
+      title: 'Order Placed',
+      description: 'Your order has been received',
+      status: 'completed',
+      timestamp: stableTimestamps.orderPlaced,
+    },
+    {
+      id: 2,
+      title: 'Payment Processed',
+      description: 'Payment has been confirmed',
+      status: 'completed',
+      timestamp: stableTimestamps.paymentProcessed,
+    },
+    {
+      id: 3,
+      title: 'Content Review',
+      description: 'Publisher is reviewing your content',
+      status: status === 'completed' ? 'completed' : 'in_progress',
+      timestamp: status === 'completed' ? stableTimestamps.contentReview : 'In Progress',
+    },
+    {
+      id: 4,
+      title: 'Published',
+      description: 'Your link has been published',
+      status: status === 'completed' ? 'completed' : 'pending',
+      timestamp: status === 'completed' ? stableTimestamps.published : 'Pending',
+    },
   ];
 
-  const getStepStatus = (stepKey: string) => {
-    const statusOrder = ['requested', 'accepted', 'content_received', 'published', 'verified'];
-    const currentIndex = statusOrder.indexOf(currentStatus);
-    const stepIndex = statusOrder.indexOf(stepKey);
-    
-    if (stepIndex <= currentIndex) return 'completed';
-    if (stepIndex === currentIndex + 1) return 'current';
-    return 'pending';
+  const getStatusIcon = (stepStatus: string) => {
+    switch (stepStatus) {
+      case 'completed':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'in_progress':
+        return <Clock className="h-5 w-5 text-blue-500" />;
+      case 'pending':
+        return <Package className="h-5 w-5 text-gray-400" />;
+      default:
+        return <AlertCircle className="h-5 w-5 text-gray-400" />;
+    }
   };
 
-  const getStepDate = (stepKey: string) => {
-    if (stepKey === 'requested') return new Date(createdAt).toLocaleDateString();
-    if (stepKey === 'published' && publicationDate) return new Date(publicationDate).toLocaleDateString();
-    if (getStepStatus(stepKey) === 'completed') return new Date(updatedAt).toLocaleDateString();
-    return null;
+  const getStatusBadge = (stepStatus: string) => {
+    switch (stepStatus) {
+      case 'completed':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Completed</Badge>;
+      case 'in_progress':
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">In Progress</Badge>;
+      case 'pending':
+        return <Badge variant="outline">Pending</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <AlertCircle className="h-5 w-5" />
-          Order Progress
+          <Package className="h-5 w-5" />
+          Order Timeline
         </CardTitle>
+        <CardDescription>
+          Track the progress of your order #{orderId}
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {timelineSteps.map((step, index) => {
-            const Icon = step.icon;
-            const status = getStepStatus(step.key);
-            const date = getStepDate(step.key);
-            
-            return (
-              <div key={step.key} className="flex items-center gap-4">
-                <div className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-full border-2",
-                  status === 'completed' && "bg-green-100 border-green-300 text-green-700",
-                  status === 'current' && "bg-blue-100 border-blue-300 text-blue-700",
-                  status === 'pending' && "bg-muted border-muted-foreground/20 text-muted-foreground"
-                )}>
-                  <Icon className="h-4 w-4" />
+        <div className="space-y-6">
+          {steps.map((step, index) => (
+            <div key={step.id} className="flex items-start gap-4">
+              <div className="flex flex-col items-center">
+                <div className={`rounded-full p-2 ${
+                  step.status === 'completed' ? 'bg-green-100' :
+                  step.status === 'in_progress' ? 'bg-blue-100' : 'bg-gray-100'
+                }`}>
+                  {getStatusIcon(step.status)}
                 </div>
-                
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className={cn(
-                      "text-sm font-medium",
-                      status === 'completed' && "text-green-700",
-                      status === 'current' && "text-blue-700",
-                      status === 'pending' && "text-muted-foreground"
-                    )}>
-                      {step.label}
-                    </p>
-                    {date && (
-                      <p className="text-xs text-muted-foreground">{date}</p>
-                    )}
-                  </div>
-                </div>
-                
-                {index < timelineSteps.length - 1 && (
-                  <div className={cn(
-                    "absolute left-4 mt-8 w-0.5 h-4",
-                    status === 'completed' ? "bg-green-300" : "bg-muted-foreground/20"
-                  )} style={{ marginLeft: '15px', transform: 'translateY(16px)' }} />
+                {index < steps.length - 1 && (
+                  <div className={`w-0.5 h-12 mt-2 ${
+                    step.status === 'completed' ? 'bg-green-200' : 'bg-gray-200'
+                  }`} />
                 )}
               </div>
-            );
-          })}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">{step.title}</h3>
+                  {getStatusBadge(step.status)}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {step.description}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {step.timestamp}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

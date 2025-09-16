@@ -44,7 +44,7 @@ const MarketplaceDashboard = ({ stats, recentOrders, favoritedMedia }: Marketpla
       {/* Förbättrad Hero-sektion */}
       <div className="glass-card-primary p-8 gradient-header text-white">
         <div className="max-w-4xl">
-          <h2 className="text-3xl font-heading font-bold mb-3">Welcome to Moody Media Marketplace</h2>
+          <h2 className="text-3xl font-heading font-bold mb-3">Welcome to <span className="text-teal-600 tracking-wide">MOODY MEDIA</span> Marketplace</h2>
           <p className="text-white/90 mb-6 text-lg leading-relaxed max-w-2xl">
             Discover premium SEO opportunities with transparent pricing and real metrics. 
             Connect with verified publishers and grow your digital presence.

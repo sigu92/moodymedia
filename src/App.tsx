@@ -36,6 +36,10 @@ import NotFound from "./pages/NotFound";
 import PriceAnalytics from "./pages/PriceAnalytics";
 import LinkMonitoring from "./pages/LinkMonitoring";
 import Settings from "./pages/Settings";
+import { CheckoutSuccess } from "./pages/CheckoutSuccess";
+import { CheckoutCancel } from "./pages/CheckoutCancel";
+import { CheckoutRecover } from "./pages/CheckoutRecover";
+import { OrderConfirmationPage } from "./components/orders/OrderConfirmationPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +52,10 @@ const AppLayout = () => {
     '/marketplace',
     '/dashboard/marketplace',
     '/orders',
+    '/checkout/success',
+    '/checkout/cancel',
+    '/checkout/recover',
+    '/orders/confirmation',
     '/price-analytics',
     '/link-monitoring',
     '/referral'  // Referral can be accessed by both buyers and publishers
@@ -101,9 +109,9 @@ const AppLayout = () => {
           {shouldUseMarketplaceMode ? (
             <TopNav />
           ) : (
-            <header className="h-12 flex items-center border-b border-border bg-background px-4 transition-all duration-500 ease-in-out">
-              <SidebarTrigger className="ml-4" />
-              <h1 className="ml-4 font-semibold">Moody Media</h1>
+            <header className="h-16 flex items-center border-b border-gray-200 bg-white px-6 transition-all duration-200 ease-in-out">
+              <SidebarTrigger className="ml-2" />
+              <h1 className="ml-6 font-bold text-gray-800 tracking-wide text-lg">MOODY MEDIA</h1>
             </header>
           )}
 
@@ -151,6 +159,15 @@ const AppLayout = () => {
               <Route path="/admin" element={<SystemAdminRoute><AdminSystem /></SystemAdminRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              
+              {/* Checkout flow routes */}
+              <Route path="/checkout/success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
+              <Route path="/checkout/cancel" element={<ProtectedRoute><CheckoutCancel /></ProtectedRoute>} />
+              <Route path="/checkout/recover" element={<ProtectedRoute><CheckoutRecover /></ProtectedRoute>} />
+              <Route path="/orders/:orderId/confirmation" element={<ProtectedRoute><OrderConfirmationPage /></ProtectedRoute>} />
+              <Route path="/orders/confirmation/:orderId" element={<ProtectedRoute><OrderConfirmationPage /></ProtectedRoute>} />
+              
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

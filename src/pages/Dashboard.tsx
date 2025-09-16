@@ -49,13 +49,13 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+    <div className="min-h-screen bg-white">
+      <main className="max-w-6xl mx-auto px-6 py-12">
+        <div className="mb-12">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">Welcome to Moody Media</h1>
-              <p className="text-muted-foreground">Your SEO marketplace platform</p>
+              <h1 className="text-4xl font-bold text-gray-800 mb-3">Welcome to <span className="text-green-600 tracking-wide">MOODY MEDIA</span></h1>
+              <p className="text-lg text-gray-600">Your premium SEO marketplace platform</p>
             </div>
 
             {/* Role Switcher for dual-role users */}
@@ -70,22 +70,22 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {/* Quick Actions */}
-          <div className="glass-card p-6">
-            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-            <div className="space-y-3">
+          <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Quick Actions</h2>
+            <div className="space-y-4">
               <button
                 onClick={() => navigate('/marketplace')}
-                className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent transition-colors"
+                className="w-full text-left p-4 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <span className="text-primary font-semibold">M</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center">
+                    <span className="text-white font-semibold text-lg">M</span>
                   </div>
                   <div>
-                    <div className="font-medium">Browse Marketplace</div>
-                    <div className="text-sm text-muted-foreground">Find media outlets for your campaigns</div>
+                    <div className="font-semibold text-gray-800">Browse Marketplace</div>
+                    <div className="text-sm text-gray-600">Find media outlets for your campaigns</div>
                   </div>
                 </div>
               </button>
@@ -93,15 +93,15 @@ const Dashboard = () => {
               {userRoles?.includes('publisher') && (
                 <button
                   onClick={() => navigate('/dashboard/publisher')}
-                  className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent transition-colors"
+                  className="w-full text-left p-4 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center">
-                      <span className="text-green-600 font-semibold">P</span>
-                    </div>
+                  <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-semibold text-lg">P</span>
+                  </div>
                     <div>
-                      <div className="font-medium">Publisher Dashboard</div>
-                      <div className="text-sm text-muted-foreground">Manage your media outlets</div>
+                      <div className="font-semibold text-gray-800">Publisher Dashboard</div>
+                      <div className="text-sm text-gray-600">Manage your media outlets</div>
                     </div>
                   </div>
                 </button>
@@ -109,15 +109,15 @@ const Dashboard = () => {
 
               <button
                 onClick={() => navigate('/orders')}
-                className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent transition-colors"
+                className="w-full text-left p-4 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-600 font-semibold">O</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-semibold text-lg">O</span>
                   </div>
                   <div>
-                    <div className="font-medium">View Orders</div>
-                    <div className="text-sm text-muted-foreground">Track your campaigns</div>
+                    <div className="font-semibold text-gray-800">View Orders</div>
+                    <div className="text-sm text-gray-600">Track your campaigns</div>
                   </div>
                 </div>
               </button>
@@ -125,72 +125,72 @@ const Dashboard = () => {
           </div>
 
           {/* Account Status */}
-          <div className="glass-card p-6">
-            <h2 className="text-xl font-semibold mb-4">Account Status</h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                <span className="text-sm">Account Setup</span>
-                <span className="text-green-600 font-medium">Complete</span>
+          <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Account Status</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="text-sm font-medium text-gray-700">Account Setup</span>
+                <span className="text-green-600 font-semibold">Complete</span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                <span className="text-sm">User Roles</span>
-                <div className="flex flex-wrap gap-1">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="text-sm font-medium text-gray-700">User Roles</span>
+                <div className="flex flex-wrap gap-2">
                   {userRoles?.includes('system_admin') && (
-                    <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">System Admin</span>
+                    <span className="text-xs bg-red-100 text-red-800 px-3 py-1 rounded-full font-medium">System Admin</span>
                   )}
                   {userRoles?.includes('admin') && (
-                    <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Admin</span>
+                    <span className="text-xs bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">Admin</span>
                   )}
                   {userRoles?.includes('publisher') && (
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Publisher</span>
+                    <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">Publisher</span>
                   )}
                   {userRoles?.includes('buyer') && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Buyer</span>
+                    <span className="text-xs bg-gray-100 text-gray-800 px-3 py-1 rounded-full font-medium">Buyer</span>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-                <span className="text-sm">Features</span>
-                <span className="text-purple-600 font-medium">Enabled</span>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="text-sm font-medium text-gray-700">Features</span>
+                <span className="text-green-600 font-semibold">Enabled</span>
               </div>
             </div>
           </div>
 
-          {/* Recent Activity */}
-          <div className="glass-card p-6">
-            <h2 className="text-xl font-semibold mb-4">Get Started</h2>
-            <div className="space-y-3">
-              <div className="p-3 border border-border rounded-lg">
-                <h3 className="font-medium mb-1">Explore the Marketplace</h3>
-                <p className="text-sm text-muted-foreground mb-2">
+          {/* Get Started */}
+          <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Get Started</h2>
+            <div className="space-y-4">
+              <div className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                <h3 className="font-semibold text-gray-800 mb-2">Explore the Marketplace</h3>
+                <p className="text-sm text-gray-600 mb-3">
                   Browse verified media outlets and place your first order
                 </p>
                 <button
                   onClick={() => navigate('/marketplace')}
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-black font-medium hover:text-gray-600 transition-colors"
                 >
                   Start browsing →
                 </button>
               </div>
 
-              <div className="p-3 border border-border rounded-lg">
-                <h3 className="font-medium mb-1">Need Help?</h3>
-                <p className="text-sm text-muted-foreground">
+              <div className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                <h3 className="font-semibold text-gray-800 mb-2">Need Help?</h3>
+                <p className="text-sm text-gray-600 mb-3">
                   Check out our pricing and analytics tools
                 </p>
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-3">
                   <button
                     onClick={() => navigate('/pricing')}
-                    className="text-sm text-primary hover:underline"
+                    className="text-sm text-black font-medium hover:text-gray-600 transition-colors"
                   >
                     Pricing
                   </button>
-                  <span className="text-muted-foreground">•</span>
+                  <span className="text-gray-400">•</span>
                   <button
                     onClick={() => navigate('/price-analytics')}
-                    className="text-sm text-primary hover:underline"
+                    className="text-sm text-black font-medium hover:text-gray-600 transition-colors"
                   >
                     Analytics
                   </button>

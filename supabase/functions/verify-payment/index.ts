@@ -21,122 +21,18 @@ serve(async (req) => {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const { sessionId } = await req.json();
-    
-    // Handle mock sessions (when Stripe is not configured)
-    if (!stripeKey || sessionId.startsWith('mock_session_')) {
-      logStep("Processing mock payment verification", { sessionId });
-      
-      // Use service role key for database operations
-      const supabaseService = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        { auth: { persistSession: false } }
-      );
-
-      // Get user from session metadata (passed in mock session ID)
-      let userId: string;
-      if (sessionId.startsWith('mock_session_')) {
-        // For mock sessions, we need to get the actual user ID from the request header
-        // The timestamp is just for uniqueness, we need the actual authenticated user
-        const authHeader = req.headers.get('authorization');
-        if (!authHeader) {
-          throw new Error("No authorization header found for mock session");
-        }
-
-        // Create client with anon key to verify the user token
-        const supabaseAuth = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-        );
-
-        const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(
-          authHeader.replace('Bearer ', '')
-        );
-
-        if (authError || !user) {
-          throw new Error("Invalid user token");
-        }
-
-        userId = user.id;
-        logStep("Extracted user ID from auth token", { userId });
-      } else {
-        throw new Error("Invalid mock session format");
-      }
-
-      // Fetch actual cart items for this user
-      const { data: cartItems, error: cartError } = await supabaseService
-        .from("cart_items")
-        .select("media_outlet_id, price, currency, niche_id, base_price, price_multiplier, final_price")
-        .eq("user_id", userId);
-
-      if (cartError) {
-        logStep("Error fetching cart items", { error: cartError });
-        throw cartError;
-      }
-
-      if (!cartItems || cartItems.length === 0) {
-        logStep("No cart items found for user", { userId });
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: "No cart items found",
-          mock: true
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        });
-      }
-
-      // Create orders from cart items
-      const orders = cartItems.map((item: any) => ({
-        buyer_id: userId,
-        media_outlet_id: item.media_outlet_id,
-        status: "requested",
-        price: item.final_price || item.price,
-        currency: item.currency,
-        stripe_session_id: sessionId,
-        niche_id: item.niche_id,
-        base_price: item.base_price || item.price,
-        price_multiplier: item.price_multiplier || 1.0,
-        final_price: item.final_price || item.price
-      }));
-
-      const { error: insertError } = await supabaseService
-        .from("orders")
-        .insert(orders);
-
-      if (insertError) {
-        logStep("Error creating mock orders", { error: insertError });
-        throw insertError;
-      }
-
-      // Clear user's cart
-      const { error: clearCartError } = await supabaseService
-        .from("cart_items")
-        .delete()
-        .eq("user_id", userId);
-
-      if (clearCartError) {
-        logStep("Error clearing cart", { error: clearCartError });
-        // Don't throw error for cart clearing failure
-      }
-
-      const totalAmount = cartItems.reduce((sum: number, item: any) => sum + (item.price * 100), 0);
-      
-      logStep("Mock orders created successfully", { orderCount: orders.length, totalAmount });
-
+    if (!stripeKey) {
+      logStep("Stripe key not configured");
       return new Response(JSON.stringify({ 
-        success: true, 
-        orders: orders.length,
-        amount: totalAmount,
-        mock: true,
-        message: "Mock payment processed successfully"
+        error: "Stripe is not configured. Please contact support.",
+        code: "STRIPE_NOT_CONFIGURED"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
+        status: 503,
       });
     }
 
+    const { sessionId } = await req.json();
     if (!sessionId) {
       throw new Error("No session ID provided");
     }

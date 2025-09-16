@@ -92,8 +92,8 @@ const Auth = () => {
         )}
         
         <div className="text-center">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Moody Media
+          <h1 className="text-3xl font-bold text-teal-600 tracking-wide">
+            MOODY MEDIA
           </h1>
           <p className="text-muted-foreground mt-2">
             Your SEO marketplace platform

@@ -25,14 +25,42 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    // Initialize Supabase client with proper environment variable validation
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    if (!supabaseUrl) {
+      throw new Error('SUPABASE_URL environment variable is not configured')
+    }
+    
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseServiceKey) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is not configured')
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization')!
-    const token = authHeader.replace('Bearer ', '')
+    // Get and validate the authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header is required' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header must start with "Bearer "' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    const token = authHeader.slice(7) // Remove "Bearer " prefix
 
     // Get user from token
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
@@ -47,11 +75,14 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { email, name, metadata } = await req.json()
+    const requestBody = await req.json()
+    const { email: requestEmail, name, metadata } = requestBody.body || requestBody
 
-    if (!email) {
+    // Use authenticated user's email as canonical email for security
+    const canonicalEmail = user.email;
+    if (!canonicalEmail) {
       return new Response(
-        JSON.stringify({ error: 'Email is required' }),
+        JSON.stringify({ error: 'User email not available' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -59,42 +90,71 @@ serve(async (req) => {
       )
     }
 
-    // Check if customer already exists in Stripe by email
-    const existingCustomers = await stripe.customers.list({
-      email: email,
+    // If request includes email and it differs from authenticated user's email, reject
+    if (requestEmail && requestEmail.toLowerCase() !== canonicalEmail.toLowerCase()) {
+      return new Response(
+        JSON.stringify({ error: 'Cannot create customer for different email address' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Use canonical email from authenticated user
+    const trimmedEmail = canonicalEmail.trim().toLowerCase();
+
+    // Sanitize email for Stripe search query to prevent injection - escape all Lucene reserved characters
+    const luceneReservedChars = /[+\-&|!(){}[\]^"~*?:\\\/]/g;
+    const sanitizedEmail = trimmedEmail.replace(/["\\]/g, '\\$&').replace(luceneReservedChars, '\\$&');
+    
+    // Check if customer already exists in Stripe by email using search API for better performance
+    const searchResponse = await stripe.customers.search({
+      query: `email:"${sanitizedEmail}"`,
       limit: 1,
     })
 
     let customer
-    if (existingCustomers.data.length > 0) {
+    if (searchResponse.data.length > 0) {
       // Customer exists, return existing customer
-      customer = existingCustomers.data[0]
+      customer = searchResponse.data[0]
       
-      // Update metadata if provided
+      // Update metadata if provided - ensure all values are strings for Stripe
       if (metadata && Object.keys(metadata).length > 0) {
+        const sanitizedMetadata = Object.entries(metadata).reduce((acc, [key, value]) => {
+          acc[key] = value != null ? String(value) : '';
+          return acc;
+        }, {} as Record<string, string>);
+        
         customer = await stripe.customers.update(customer.id, {
           metadata: {
             ...customer.metadata,
-            ...metadata,
+            ...sanitizedMetadata,
             updated_at: new Date().toISOString(),
           }
         })
       }
     } else {
-      // Create new customer
+      // Create new customer - ensure all metadata values are strings for Stripe
+      const sanitizedMetadata = metadata ? Object.entries(metadata).reduce((acc, [key, value]) => {
+        acc[key] = value != null ? String(value) : '';
+        return acc;
+      }, {} as Record<string, string>) : {};
+      
       customer = await stripe.customers.create({
-        email,
+        email: trimmedEmail,
         name: name || undefined,
         metadata: {
-          ...metadata,
+          user_id: user?.id || '',
           created_via: 'moodymedia_api',
           created_at: new Date().toISOString(),
+          ...sanitizedMetadata,
         }
       })
     }
 
     // Log customer creation/retrieval
-    console.log(`Stripe customer ${existingCustomers.data.length > 0 ? 'retrieved' : 'created'}:`, {
+    console.log(`Stripe customer ${searchResponse.data.length > 0 ? 'retrieved' : 'created'}:`, {
       customerId: customer.id,
       email: customer.email,
       name: customer.name,
@@ -103,6 +163,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        customerId: customer.id,
         id: customer.id,
         email: customer.email,
         name: customer.name,

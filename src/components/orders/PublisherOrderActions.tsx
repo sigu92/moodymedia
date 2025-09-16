@@ -1,191 +1,112 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { CheckCircle, X, Globe, AlertTriangle, Clock } from "lucide-react";
-import { Order } from "@/hooks/useOrders";
-import { OrderStatusBadge } from "./OrderStatusBadge";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { MessageSquare, CheckCircle, XCircle, Eye, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface PublisherOrderActionsProps {
-  order: Order;
-  onStatusUpdate: (orderId: string, status: string, publicationUrl?: string) => Promise<void>;
+  orderId?: string;
+  status?: string;
+  onApprove?: () => void;
+  onReject?: () => void;
+  onMessage?: () => void;
+  onViewDetails?: (orderId: string) => void;
 }
 
-export const PublisherOrderActions = ({ order, onStatusUpdate }: PublisherOrderActionsProps) => {
-  const [publicationUrl, setPublicationUrl] = useState('');
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false);
+export const PublisherOrderActions: React.FC<PublisherOrderActionsProps> = ({
+  orderId,
+  status,
+  onApprove,
+  onReject,
+  onMessage,
+  onViewDetails,
+}) => {
+  const navigate = useNavigate();
 
-  const handleStatusUpdate = async (newStatus: string) => {
-    setIsUpdating(true);
-    try {
-      await onStatusUpdate(order.id, newStatus, publicationUrl || undefined);
-      setPublicationUrl('');
-      setRejectionReason('');
-    } finally {
-      setIsUpdating(false);
+  const handleViewDetails = () => {
+    if (onViewDetails && orderId) {
+      onViewDetails(orderId);
+    } else if (orderId) {
+      // Fallback: navigate to order details page
+      navigate(`/orders/${orderId}`);
+    } else {
+      console.warn('Cannot view details: orderId is missing');
+    }
+  };
+  const getActionsForStatus = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+      case 'in_review':
+        return (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={onApprove}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={onReject}
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Reject
+            </Button>
+          </div>
+        );
+      case 'approved':
+        return (
+          <Badge variant="default" className="bg-green-100 text-green-800">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Approved
+          </Badge>
+        );
+      case 'rejected':
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            Rejected
+          </Badge>
+        );
+      case 'completed':
+        return (
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={onMessage}>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Message
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleViewDetails}
+              disabled={!orderId}
+              title={!orderId ? "Order ID not available" : "View order details"}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              View Details
+              <ExternalLink className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        );
+      default:
+        return (
+          <Badge variant="secondary">
+            Status: {status || 'Unknown'}
+          </Badge>
+        );
     }
   };
 
-  const canAccept = order.status === 'requested';
-  const canMarkReceived = order.status === 'accepted' && order.briefing && order.anchor && order.target_url;
-  const canPublish = order.status === 'content_received';
-  const canVerify = order.status === 'published';
-
-  const getEstimatedDelivery = () => {
-    if (!order.media_outlets) return null;
-    const leadTime = 7; // Default lead time, could come from media outlet
-    const orderDate = new Date(order.created_at);
-    const deliveryDate = new Date(orderDate.getTime() + leadTime * 24 * 60 * 60 * 1000);
-    return deliveryDate.toLocaleDateString();
-  };
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Publisher Actions</span>
-          <OrderStatusBadge status={order.status} showIcon />
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {/* Order Summary */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Order Value:</span>
-            <span className="text-lg font-semibold">€{order.price} {order.currency}</span>
-          </div>
-          
-          {getEstimatedDelivery() && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Est. Delivery:</span>
-              <span className="text-sm text-muted-foreground">{getEstimatedDelivery()}</span>
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        {/* Content Requirements Check */}
-        {order.status === 'accepted' && (
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Content Requirements Status:</Label>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                {order.briefing ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Clock className="h-4 w-4 text-amber-600" />
-                )}
-                <span className="text-sm">Briefing {order.briefing ? 'provided' : 'pending'}</span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {order.anchor ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Clock className="h-4 w-4 text-amber-600" />
-                )}
-                <span className="text-sm">Anchor text {order.anchor ? 'provided' : 'pending'}</span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {order.target_url ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Clock className="h-4 w-4 text-amber-600" />
-                )}
-                <span className="text-sm">Target URL {order.target_url ? 'provided' : 'pending'}</span>
-              </div>
-            </div>
-            
-            {!canMarkReceived && (
-              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <span className="text-sm text-amber-700">
-                  Waiting for buyer to provide all content requirements
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          {canAccept && (
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => handleStatusUpdate('accepted')} 
-                disabled={isUpdating}
-                className="flex-1"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Accept Order
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleStatusUpdate('rejected')} 
-                disabled={isUpdating}
-                className="flex-1"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Decline
-              </Button>
-            </div>
-          )}
-
-          {canMarkReceived && (
-            <Button 
-              onClick={() => handleStatusUpdate('content_received')} 
-              disabled={isUpdating}
-              className="w-full"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Mark Content Received
-            </Button>
-          )}
-
-          {canPublish && (
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="publication-url">Publication URL *</Label>
-                <Input
-                  id="publication-url"
-                  placeholder="https://yourdomain.com/published-article"
-                  value={publicationUrl}
-                  onChange={(e) => setPublicationUrl(e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-              <Button 
-                onClick={() => handleStatusUpdate('published')} 
-                disabled={isUpdating || !publicationUrl}
-                className="w-full"
-              >
-                <Globe className="h-4 w-4 mr-2" />
-                Mark as Published
-              </Button>
-            </div>
-          )}
-
-          {canVerify && (
-            <Button 
-              onClick={() => handleStatusUpdate('verified')} 
-              disabled={isUpdating}
-              variant="outline"
-              className="w-full"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Verify Publication
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center justify-between">
+      <div className="text-sm text-muted-foreground">
+        Order #{orderId}
+      </div>
+      {getActionsForStatus(status)}
+    </div>
   );
 };

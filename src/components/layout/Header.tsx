@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from "@/components/ui/badge";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useCart } from "@/hooks/useCart";
-import logoImage from '@/assets/moody-media-logo.png';
+// import logoImage from '@/assets/moody-media-logo.png';
 import { 
   ShoppingCart, 
   BarChart3, 
@@ -63,7 +63,9 @@ const Header = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <img src={logoImage} alt="Moody Media" className="h-8 w-auto" />
+              <div className="text-xl font-bold text-teal-600 tracking-wide">
+                MOODY MEDIA
+              </div>
             </Link>
           </div>
           
