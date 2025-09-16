@@ -40,7 +40,7 @@ const PublisherDashboard = ({ stats, recentOrders }: PublisherDashboardProps) =>
       {/* Publisher Hero */}
       <div className="glass-card p-8 mb-8 bg-gradient-moody text-white">
         <div className="max-w-4xl">
-          <h2 className="text-2xl font-bold mb-2">Moody Media Publisher Hub</h2>
+          <h2 className="text-2xl font-bold mb-2"><span className="text-teal-600 tracking-wide">MOODY MEDIA</span> Publisher Hub</h2>
           <p className="text-white/80 mb-6">
             Monetize your media outlets effectively. Manage orders, track earnings, and grow your publisher business 
             with our comprehensive suite of tools.

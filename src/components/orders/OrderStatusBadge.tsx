@@ -1,66 +1,62 @@
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, FileText, Globe, Verified } from "lucide-react";
+import { CheckCircle, Clock, AlertCircle, XCircle, Loader2 } from "lucide-react";
 
 interface OrderStatusBadgeProps {
   status: string;
-  showIcon?: boolean;
 }
 
-export const OrderStatusBadge = ({ status, showIcon = false }: OrderStatusBadgeProps) => {
+export const OrderStatusBadge = ({ status }: OrderStatusBadgeProps) => {
   const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'requested':
-        return {
-          variant: 'secondary' as const,
-          className: 'text-amber-700 bg-amber-50 border-amber-200',
-          icon: Clock,
-          label: 'Requested'
-        };
-      case 'accepted':
-        return {
-          variant: 'default' as const,
-          className: 'text-blue-700 bg-blue-50 border-blue-200',
-          icon: CheckCircle,
-          label: 'Accepted'
-        };
-      case 'content_received':
-        return {
-          variant: 'outline' as const,
-          className: 'text-purple-700 bg-purple-50 border-purple-200',
-          icon: FileText,
-          label: 'Content Received'
-        };
+    switch (status.toLowerCase()) {
+      case 'completed':
       case 'published':
         return {
           variant: 'default' as const,
-          className: 'text-green-700 bg-green-50 border-green-200',
-          icon: Globe,
-          label: 'Published'
+          icon: CheckCircle,
+          className: 'bg-green-100 text-green-800 hover:bg-green-100',
         };
-      case 'verified':
+      case 'pending':
+      case 'in_review':
         return {
           variant: 'secondary' as const,
-          className: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-          icon: Verified,
-          label: 'Verified'
+          icon: Clock,
+          className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+        };
+      case 'processing':
+      case 'in_progress':
+        return {
+          variant: 'secondary' as const,
+          icon: Loader2,
+          className: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+        };
+      case 'cancelled':
+      case 'rejected':
+        return {
+          variant: 'destructive' as const,
+          icon: XCircle,
+          className: '',
+        };
+      case 'failed':
+        return {
+          variant: 'destructive' as const,
+          icon: AlertCircle,
+          className: '',
         };
       default:
         return {
-          variant: 'secondary' as const,
-          className: 'text-muted-foreground bg-muted',
+          variant: 'outline' as const,
           icon: Clock,
-          label: status.replace('_', ' ')
+          className: '',
         };
     }
   };
 
   const config = getStatusConfig(status);
-  const Icon = config.icon;
 
   return (
-    <Badge variant={config.variant} className={config.className}>
-      {showIcon && <Icon className="h-3 w-3 mr-1" />}
-      {config.label}
+    <Badge variant={config.variant} className={`flex items-center gap-1 ${config.className}`}>
+      <config.icon className="h-3 w-3" />
+      <span className="capitalize">{status.replace('_', ' ')}</span>
     </Badge>
   );
 };

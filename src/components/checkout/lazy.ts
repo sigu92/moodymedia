@@ -26,8 +26,51 @@ export const LazyStep1CartReview = createLazyComponent(
   React.createElement(CartReviewSkeleton)
 );
 
-export const LazyStep2BillingPayment = createLazyComponent(
+export const LazyStep2PaymentMethod = createLazyComponent(
   () => import('./Step2BillingPayment').then(m => ({ default: m.Step2BillingPayment })),
+  React.createElement('div', {
+    className: "space-y-6 p-4"
+  }, [
+    React.createElement('div', {
+      key: 'title',
+      className: "h-6 bg-muted rounded w-1/2"
+    }),
+    React.createElement('div', {
+      key: 'payment-methods',
+      className: "space-y-4"
+    }, [1, 2, 3].map(i =>
+      React.createElement('div', {
+        key: i,
+        className: "border rounded-lg p-4"
+      }, [
+        React.createElement('div', {
+          key: 'header',
+          className: "flex items-center justify-between mb-2"
+        }, [
+          React.createElement('div', {
+            key: 'icon',
+            className: "h-6 w-6 bg-muted rounded"
+          }),
+          React.createElement('div', {
+            key: 'name',
+            className: "h-4 bg-muted rounded w-32"
+          }),
+          React.createElement('div', {
+            key: 'price',
+            className: "h-4 bg-muted rounded w-16"
+          })
+        ]),
+        React.createElement('div', {
+          key: 'description',
+          className: "h-3 bg-muted rounded w-3/4"
+        })
+      ])
+    ))
+  ])
+);
+
+export const LazyStep3BillingInfo = createLazyComponent(
+  () => import('./Step3BillingInfo').then(m => ({ default: m.Step3BillingInfo })),
   React.createElement('div', {
     className: "space-y-6 p-4"
   }, [
@@ -82,7 +125,7 @@ export const LazyStep2BillingPayment = createLazyComponent(
   ])
 );
 
-export const LazyStep3ContentUpload = createLazyComponent(
+export const LazyStep4ContentUpload = createLazyComponent(
   () => import('./Step3ContentUpload').then(m => ({ default: m.Step3ContentUpload })),
   React.createElement('div', {
     className: "space-y-4 p-4"
@@ -113,7 +156,7 @@ export const LazyStep3ContentUpload = createLazyComponent(
   ])
 );
 
-export const LazyStep4OrderConfirmation = createLazyComponent(
+export const LazyStep5OrderConfirmation = createLazyComponent(
   () => import('./Step4OrderConfirmation').then(m => ({ default: m.Step4OrderConfirmation })),
   React.createElement('div', {
     className: "space-y-6 p-4"
@@ -197,6 +240,7 @@ export const preloadCheckoutComponents = () => {
 export const preloadAllCheckoutComponents = () => {
   preloadComponent(() => import('./Step1CartReview'));
   preloadComponent(() => import('./Step2BillingPayment'));
+  preloadComponent(() => import('./Step3BillingInfo'));
   preloadComponent(() => import('./Step3ContentUpload'));
   preloadComponent(() => import('./Step4OrderConfirmation'));
   preloadComponent(() => import('./ProgressIndicator'));

@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X, ArrowLeft, ArrowRight, AlertCircle, Loader2, CheckCircle2, Clock } from 'lucide-react';
+import { X, ArrowLeft, ArrowRight, AlertCircle, Loader2, CheckCircle2, Clock, CreditCard, ExternalLink } from 'lucide-react';
 import { ProgressIndicator } from './ProgressIndicator';
+import { preloadAllCheckoutComponents } from './lazy';
 import {
   LazyStep1CartReview,
-  LazyStep2BillingPayment,
-  LazyStep3ContentUpload,
-  LazyStep4OrderConfirmation
+  LazyStep2PaymentMethod,
+  LazyStep3BillingInfo,
+  LazyStep4ContentUpload,
+  LazyStep5OrderConfirmation
 } from './lazy';
 import { useCart } from '@/hooks/useCart';
 import { useCheckout } from '@/hooks/useCheckout';
 import { CheckoutValidationError } from '@/utils/checkoutUtils';
 import { useToast } from '@/hooks/use-toast';
+import { stripeConfig } from '@/config/stripe';
 
 export interface CheckoutModalProps {
   open: boolean;
@@ -20,7 +23,7 @@ export interface CheckoutModalProps {
   onComplete?: () => void;
 }
 
-export type CheckoutStep = 'cart-review' | 'billing-payment' | 'content-upload' | 'confirmation';
+export type CheckoutStep = 'cart-review' | 'payment-method' | 'billing-info' | 'content-upload' | 'confirmation';
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   open,
@@ -50,7 +53,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
   const [stepValidation, setStepValidation] = useState<Record<CheckoutStep, boolean>>({
     'cart-review': false,
-    'billing-payment': false,
+    'payment-method': false,
+    'billing-info': false,
     'content-upload': false,
     'confirmation': false,
   });
@@ -58,19 +62,51 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Reset to first step when modal opens
   useEffect(() => {
     if (open) {
+      // Preload all checkout components for better UX
+      preloadAllCheckoutComponents();
+
       resetCheckout();
       setStepValidation({
         'cart-review': false,
-        'billing-payment': false,
+        'payment-method': false,
+        'billing-info': false,
         'content-upload': false,
         'confirmation': false,
       });
     }
   }, [open, resetCheckout]);
 
+  // Debug step validation changes - only log when validation actually changes
+  useEffect(() => {
+    if (import.meta.env.DEV && currentStep === 'payment-method') {
+      console.log('[MODAL STEP VALIDATION]', {
+        stepValidation,
+        currentStep,
+        currentStepValid: stepValidation[currentStep],
+        canGoNext: !isLastStep && stepValidation[currentStep],
+        paymentMethodValid: stepValidation['payment-method']
+      });
+    }
+  }, [stepValidation['payment-method'], currentStep]); // Only depend on payment-method validation and currentStep
+
   const handleNext = async () => {
+    console.log('[NEXT BUTTON CLICK]', {
+      currentStep,
+      stepValidation: stepValidation[currentStep],
+      allStepValidations: stepValidation,
+      canGoNext,
+      validationErrors,
+      timestamp: new Date().toISOString()
+    });
+
     // Check if current step is valid before proceeding
     if (!stepValidation[currentStep]) {
+      console.log('[VALIDATION FAILED]', {
+        currentStep,
+        stepValidationForCurrent: stepValidation[currentStep],
+        reason: 'Current step validation is false'
+      });
+
       // Show validation error feedback
       toast({
         title: "Validation Error",
@@ -90,6 +126,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
+    console.log('[PROCEEDING TO NEXT STEP]');
     await goToNextStep();
   };
 
@@ -98,10 +135,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   const handleStepValidationChange = (step: CheckoutStep, isValid: boolean) => {
-    setStepValidation(prev => ({
-      ...prev,
-      [step]: isValid
-    }));
+    console.log('[STEP VALIDATION CHANGE]', {
+      step,
+      isValid,
+      currentStep,
+      timestamp: new Date().toISOString()
+    });
+
+    setStepValidation(prev => {
+      const newState = {
+        ...prev,
+        [step]: isValid
+      };
+
+      console.log('[STEP VALIDATION UPDATED]', {
+        step,
+        oldValue: prev[step],
+        newValue: isValid,
+        changed: prev[step] !== isValid,
+        fullState: newState,
+        currentStepValid: newState[currentStep],
+        canGoNext: newState[currentStep] && currentStep !== 'confirmation'
+      });
+
+      return newState;
+    });
   };
 
   const handleComplete = async () => {
@@ -109,10 +167,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setProgressMessage('Processing your order...');
     setEstimatedTime(3);
 
-    // Simulate progress updates
-    const progressSteps = [
+    // Determine if using Stripe or mock payments
+    const isUsingStripe = stripeConfig.isConfigured();
+
+    // Stripe-specific progress steps
+    const progressSteps = isUsingStripe ? [
       { message: 'Validating order details...', time: 2 },
-      { message: 'Processing payment...', time: 2 },
+      { message: 'Creating Stripe checkout session...', time: 3 },
+      { message: 'Redirecting to Stripe checkout...', time: 2 },
+    ] : [
+      { message: 'Validating order details...', time: 2 },
+      { message: 'Processing mock payment...', time: 2 },
       { message: 'Creating order records...', time: 2 },
       { message: 'Sending confirmation...', time: 1 },
     ];
@@ -125,12 +190,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     const success = await submitCheckout();
     if (success) {
-      setProgressMessage('Order completed successfully!');
-      setEstimatedTime(null);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setShowLoadingOverlay(false);
-      onOpenChange(false);
-      onComplete?.();
+      if (isUsingStripe) {
+        try {
+          setProgressMessage('Redirecting to Stripe...');
+          setEstimatedTime(null);
+          // Don't close the overlay immediately for Stripe - user will be redirected
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error('Stripe redirect error:', error);
+          toast({
+            title: "Redirect Error",
+            description: "Failed to redirect to Stripe. Please try again or contact support.",
+            variant: "destructive"
+          });
+        } finally {
+          // Cleanup if redirect fails or takes too long
+          setShowLoadingOverlay(false);
+          onOpenChange(false);
+          setProgressMessage('');
+          setEstimatedTime(null);
+        }
+      } else {
+        setProgressMessage('Order completed successfully!');
+        setEstimatedTime(null);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setShowLoadingOverlay(false);
+        onOpenChange(false);
+        onComplete?.();
+      }
     } else {
       setShowLoadingOverlay(false);
       setProgressMessage('');
@@ -163,13 +250,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const renderLoadingOverlay = () => {
     if (!showLoadingOverlay) return null;
 
+    const isStripeFlow = progressMessage?.includes('Stripe') || progressMessage?.includes('checkout session');
+    const isRedirecting = progressMessage?.includes('Redirecting');
+
     return (
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
         <div className="bg-background border rounded-lg p-6 shadow-lg max-w-sm w-full mx-4">
           <div className="flex flex-col items-center text-center space-y-4">
             <div className="relative">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <CheckCircle2 className="h-6 w-6 text-green-600 absolute top-3 left-3 opacity-0 animate-pulse" />
+              {isStripeFlow ? (
+                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+                  <CreditCard className="h-6 w-6 text-blue-600" />
+                </div>
+              ) : (
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              )}
+              
+              {isRedirecting && (
+                <ExternalLink className="h-4 w-4 text-blue-600 absolute -top-1 -right-1 animate-bounce" />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -177,17 +276,41 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {progressMessage || 'Processing...'}
               </h3>
 
-              {estimatedTime && (
+              {isStripeFlow && (
+                <p className="text-sm text-muted-foreground">
+                  {stripeConfig.isTestMode ? 
+                    'Using Stripe test mode - no real payment will be processed' :
+                    'Secure payment processing via Stripe'
+                  }
+                </p>
+              )}
+
+              {estimatedTime && !isRedirecting && (
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
                   <span>Estimated time: {estimatedTime}s</span>
                 </div>
               )}
 
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }} />
-              </div>
+              {isRedirecting ? (
+                <div className="w-full bg-blue-100 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full animate-pulse transition-all duration-1000" style={{ width: '90%' }} />
+                </div>
+              ) : (
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
+              )}
             </div>
+
+            {isRedirecting && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  You will be redirected to Stripe's secure checkout page. 
+                  Do not close this window.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -202,21 +325,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             onValidationChange={(isValid) => handleStepValidationChange('cart-review', isValid)}
           />
         );
-      case 'billing-payment':
+      case 'payment-method':
         return (
-          <LazyStep2BillingPayment
-            onValidationChange={(isValid) => handleStepValidationChange('billing-payment', isValid)}
+          <LazyStep2PaymentMethod
+            onValidationChange={(isValid) => handleStepValidationChange('payment-method', isValid)}
+          />
+        );
+      case 'billing-info':
+        return (
+          <LazyStep3BillingInfo
+            onValidationChange={(isValid) => handleStepValidationChange('billing-info', isValid)}
           />
         );
       case 'content-upload':
         return (
-          <LazyStep3ContentUpload
+          <LazyStep4ContentUpload
             onValidationChange={(isValid) => handleStepValidationChange('content-upload', isValid)}
           />
         );
       case 'confirmation':
         return (
-          <LazyStep4OrderConfirmation
+          <LazyStep5OrderConfirmation
             onValidationChange={(isValid) => handleStepValidationChange('confirmation', isValid)}
             onOrderComplete={(orderId) => {
               console.log('Order completed:', orderId);
@@ -304,13 +433,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           <DialogTitle className="text-lg font-semibold sm:text-xl">
             Checkout
           </DialogTitle>
+          <DialogDescription>
+            Complete your order by reviewing your cart, providing billing information, and processing payment.
+          </DialogDescription>
 
           <ProgressIndicator
             currentStep={currentStepIndex + 1}
-            totalSteps={4}
+            totalSteps={5}
             steps={[
               { id: 'cart-review', title: 'Cart Review', description: 'Review items' },
-              { id: 'billing-payment', title: 'Billing & Payment', description: 'Enter payment details' },
+              { id: 'payment-method', title: 'Payment Method', description: 'Choose payment' },
+              { id: 'billing-info', title: 'Billing Info', description: 'Enter details' },
               { id: 'content-upload', title: 'Content Upload', description: 'Upload content' },
               { id: 'confirmation', title: 'Confirmation', description: 'Confirm order' }
             ]}

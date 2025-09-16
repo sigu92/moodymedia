@@ -1,3 +1,5 @@
+import { countries } from '@/data/countries';
+
 export interface CheckoutValidationError {
   field: string;
   message: string;
@@ -54,7 +56,21 @@ export class CheckoutValidator {
   static validateBillingInfo(data: CheckoutFormData['billingInfo']): CheckoutValidationError[] {
     const errors: CheckoutValidationError[] = [];
 
+    console.log('[VALIDATE BILLING INFO]', {
+      hasData: !!data,
+      data: data ? {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        street: data.address?.street,
+        city: data.address?.city,
+        postalCode: data.address?.postalCode,
+        country: data.address?.country
+      } : null
+    });
+
     if (!data) {
+      console.log('[VALIDATE BILLING INFO] No data provided');
       errors.push({ field: 'billingInfo', message: 'Billing information is required' });
       return errors;
     }
@@ -89,8 +105,58 @@ export class CheckoutValidator {
 
     if (!data.address?.postalCode?.trim()) {
       errors.push({ field: 'postalCode', message: 'Postal code is required' });
-    } else if (!POSTAL_CODE_REGEX.test(data.address.postalCode)) {
-      errors.push({ field: 'postalCode', message: 'Please enter a valid postal code' });
+    } else {
+      // Country-specific postal code validation
+      let isValidPostalCode = false;
+      const postalCode = data.address.postalCode.trim();
+      const country = data.address.country;
+
+      switch (country) {
+        case 'SE':
+          // Swedish format: XXX XX (e.g., 163 44)
+          isValidPostalCode = /^\d{3} ?\d{2}$/.test(postalCode);
+          console.log('[POSTAL CODE VALIDATION SE]', {
+            postalCode,
+            isValid: isValidPostalCode,
+            regex: /^\d{3} ?\d{2}$/.test(postalCode)
+          });
+          break;
+        case 'US':
+          // US format: XXXXX or XXXXX-XXXX
+          isValidPostalCode = /^\d{5}(-\d{4})?$/.test(postalCode);
+          break;
+        case 'GB':
+          // UK format: XX XX or XXXX XXX or similar
+          isValidPostalCode = /^[A-Z]{1,2}\d[A-Z\d]? \d[A-Z]{2}$/i.test(postalCode);
+          break;
+        case 'DE':
+          // German format: XXXXX
+          isValidPostalCode = /^\d{5}$/.test(postalCode);
+          break;
+        case 'FR':
+          // French format: XXXXX
+          isValidPostalCode = /^\d{5}$/.test(postalCode);
+          break;
+        default:
+          // Generic validation for other countries
+          isValidPostalCode = POSTAL_CODE_REGEX.test(postalCode);
+      }
+
+      if (!isValidPostalCode) {
+        const countryName = countries.find(c => c.code === country)?.name || country;
+        const examples = {
+          'SE': '163 44',
+          'US': '12345 or 12345-6789',
+          'GB': 'SW1A 1AA',
+          'DE': '12345',
+          'FR': '75001'
+        };
+        const example = examples[country] || 'your local format';
+        errors.push({
+          field: 'postalCode',
+          message: `Invalid postal code for ${countryName}. Please use format: ${example}`
+        });
+      }
     }
 
     if (!data.address?.country?.trim()) {
@@ -105,6 +171,11 @@ export class CheckoutValidator {
     if (data.taxId && !TAX_ID_REGEX.test(data.taxId)) {
       errors.push({ field: 'taxId', message: 'Please enter a valid tax ID' });
     }
+
+    console.log('[VALIDATE BILLING INFO RESULT]', {
+      errors: errors.map(e => ({ field: e.field, message: e.message })),
+      errorCount: errors.length
+    });
 
     return errors;
   }
@@ -121,9 +192,10 @@ export class CheckoutValidator {
       errors.push({ field: 'paymentType', message: 'Payment type is required' });
     }
 
-    // Stripe-specific validation
-    if (data.type === 'stripe' && !data.stripePaymentMethodId) {
-      errors.push({ field: 'stripePaymentMethod', message: 'Please select a payment method' });
+    // Stripe-specific validation - no specific payment method ID needed for hosted checkout
+    if (data.type === 'stripe') {
+      // For Stripe hosted checkout, we just need the type to be 'stripe'
+      // The actual payment method selection happens on Stripe's side
     }
 
     // Invoice-specific validation
@@ -160,19 +232,34 @@ export class CheckoutValidator {
   }
 
   static validateStep(
-    step: 'cart-review' | 'billing-payment' | 'content-upload' | 'confirmation',
+    step: 'cart-review' | 'payment-method' | 'billing-info' | 'content-upload' | 'confirmation',
     data: CheckoutFormData
   ): CheckoutValidationError[] {
     const errors: CheckoutValidationError[] = [];
+
+    console.log('[VALIDATE STEP]', {
+      step,
+      hasBillingInfo: !!data.billingInfo,
+      hasPaymentMethod: !!data.paymentMethod,
+      billingInfo: data.billingInfo ? {
+        firstName: data.billingInfo.firstName,
+        lastName: data.billingInfo.lastName,
+        email: data.billingInfo.email,
+        address: data.billingInfo.address
+      } : null
+    });
 
     switch (step) {
       case 'cart-review':
         errors.push(...this.validateCartItems(data.cartItems));
         break;
 
-      case 'billing-payment':
-        errors.push(...this.validateBillingInfo(data.billingInfo));
+      case 'payment-method':
         errors.push(...this.validatePaymentMethod(data.paymentMethod));
+        break;
+
+      case 'billing-info':
+        errors.push(...this.validateBillingInfo(data.billingInfo));
         break;
 
       case 'content-upload':

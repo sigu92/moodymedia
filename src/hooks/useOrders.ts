@@ -72,6 +72,11 @@ export interface OrderData {
   // Order Items
   items: OrderItem[];
 
+  // Content fields
+  briefing?: string;
+  anchor?: string;
+  target_url?: string;
+
   // Metadata
   notes?: string;
   createdAt: Date;
@@ -88,7 +93,9 @@ interface CreateOrderRPCResponse {
 export interface UseOrdersReturn {
   createOrder: (orderData: Omit<OrderData, 'id' | 'createdAt' | 'updatedAt'>) => Promise<OrderData | null>;
   updateOrderStatus: (orderId: string, status: OrderData['status']) => Promise<boolean>;
+  updateOrderContent: (orderId: string, briefing: string, anchor: string, targetUrl: string) => Promise<boolean>;
   getUserOrders: () => Promise<OrderData[]>;
+  getOrderById: (orderId: string) => Promise<OrderData | null>;
   isLoading: boolean;
   error: string | null;
 }
@@ -142,6 +149,11 @@ export const useOrders = (): UseOrdersReturn => {
         payment_method: orderData.paymentMethod.type,
         payment_po_number: orderData.paymentMethod.poNumber,
         payment_id: orderData.paymentMethod.paymentId,
+
+        // Content fields
+        briefing: orderData.briefing,
+        anchor: orderData.anchor,
+        target_url: orderData.target_url,
 
         // Metadata
         notes: orderData.notes,
@@ -246,6 +258,135 @@ export const useOrders = (): UseOrdersReturn => {
   }, []);
 
   /**
+   * Update order content fields
+   */
+  const updateOrderContent = useCallback(async (
+    orderId: string,
+    briefing: string,
+    anchor: string,
+    targetUrl: string
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          briefing,
+          anchor,
+          target_url: targetUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        throw new Error(`Failed to update order content: ${error.message}`);
+      }
+
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update order content';
+      setError(errorMessage);
+      return false;
+    }
+  }, []);
+
+  /**
+   * Get a single order by ID
+   */
+  const getOrderById = useCallback(async (orderId: string): Promise<OrderData | null> => {
+    if (!user?.id) {
+      setError('User not authenticated');
+      return null;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (*)
+        `)
+        .eq('id', orderId)
+        .eq('user_id', user.id) // Ensure user can only access their own orders
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') { // No rows returned
+          setError('Order not found');
+          return null;
+        }
+        throw new Error(`Failed to fetch order: ${error.message}`);
+      }
+
+      // Transform the data to match our interface
+      const transformedOrder: OrderData = {
+        id: order.id,
+        orderNumber: order.order_number,
+        userId: order.user_id,
+        status: order.status,
+        totalAmount: order.total_amount,
+        subtotal: order.subtotal,
+        vatAmount: order.vat_amount,
+        currency: order.currency,
+
+        billingInfo: {
+          firstName: order.billing_first_name,
+          lastName: order.billing_last_name,
+          company: order.billing_company,
+          email: order.billing_email,
+          phone: order.billing_phone,
+          address: {
+            street: order.billing_address_street,
+            city: order.billing_address_city,
+            postalCode: order.billing_address_postal,
+            country: order.billing_address_country,
+          },
+          taxId: order.billing_tax_id,
+        },
+
+        paymentMethod: {
+          type: order.payment_method,
+          poNumber: order.payment_po_number,
+          paymentId: order.payment_id,
+        },
+
+        items: order.order_items.map((item: OrderItemRow) => ({
+          id: item.id,
+          cartItemId: item.cart_item_id,
+          domain: item.domain,
+          category: item.category,
+          niche: item.niche,
+          price: item.price,
+          quantity: item.quantity,
+          contentOption: item.content_option,
+          nicheId: item.niche_id,
+          uploadedFiles: item.uploaded_files,
+          googleDocsLinks: item.google_docs_links,
+        })),
+
+        briefing: order.briefing,
+        anchor: order.anchor,
+        target_url: order.target_url,
+
+        notes: order.notes,
+        createdAt: new Date(order.created_at),
+        updatedAt: new Date(order.updated_at),
+      };
+
+      return transformedOrder;
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch order';
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
+
+  /**
    * Get user's orders
    */
   const getUserOrders = useCallback(async (): Promise<OrderData[]> => {
@@ -317,6 +458,10 @@ export const useOrders = (): UseOrdersReturn => {
           googleDocsLinks: item.google_docs_links,
         })),
 
+        briefing: order.briefing,
+        anchor: order.anchor,
+        target_url: order.target_url,
+
         notes: order.notes,
         createdAt: new Date(order.created_at),
         updatedAt: new Date(order.updated_at),
@@ -336,7 +481,9 @@ export const useOrders = (): UseOrdersReturn => {
   return {
     createOrder,
     updateOrderStatus,
+    updateOrderContent,
     getUserOrders,
+    getOrderById,
     isLoading,
     error,
   };
