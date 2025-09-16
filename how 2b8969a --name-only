@@ -1,0 +1,33 @@
+[33mcommit 2b8969a0f3c07af14f6ff8824088665e3bf7d62c[m
+Author: sigu92 <simon@moodymedia.se>
+Date:   Tue Sep 16 18:02:52 2025 +0200
+
+    feat: Complete marketplace redesign with minimalist theme and floating icons
+    
+    - Redesigned marketplace with 5-step plan implementation
+    - Added floating icons background with 6 media platform icons (Google, X, Facebook, LinkedIn, YouTube, Globe)
+    - Positioned icons symmetrically around hero section with 2% margin from edges
+    - Created temporary grid system for precise icon positioning
+    - Redesigned TopNav with black base and white contrasts
+    - Moved cart to right side next to user menu
+    - Made cart white to match black TopNav theme
+    - Removed visible role badge for cleaner look
+    - Added extra spacing under TopNav (12px)
+    - Updated buyer navigation to point Dashboard to /dashboard/marketplace
+    - Maintained backward compatibility with old /dashboard route
+    - Updated all navigation components (TopNav, AppSidebar, DualRoleNavigation)
+    - Enhanced DESIGN_SYSTEM.md with comprehensive theme documentation
+    - Implemented ultra-smart filter bar with integrated smart filters
+    - Redesigned table/grid components with minimalist styling
+    - All components now follow consistent black/white/green color hierarchy
+
+DESIGN_SYSTEM.md
+src/components/AppSidebar.tsx
+src/components/DualRoleNavigation.tsx
+src/components/TopNav.tsx
+src/components/cart/CartIcon.tsx
+src/components/marketplace/MarketplaceGridView.tsx
+src/components/marketplace/MarketplaceTable.tsx
+src/components/navigation.ts
+src/components/ui/floating-icons-background.tsx
+src/pages/Marketplace.tsx
