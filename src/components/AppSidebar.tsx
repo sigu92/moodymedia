@@ -84,31 +84,61 @@ export function AppSidebar() {
     if (!user) return;
 
     try {
+      console.log('🚀 Starting publisher account setup for user:', user.id);
+
       // Assign publisher role using the add_publisher_role function
       const { data, error } = await supabase.rpc('add_publisher_role', {
         p_user_id: user.id
       });
 
+      console.log('📊 add_publisher_role response:', { data, error });
+
+      // Check for RPC call errors first
       if (error) {
-        console.error('Error assigning publisher role:', error);
+        console.error('❌ RPC Error assigning publisher role:', error);
         toast({
           title: "Error",
-          description: "Failed to set up your publishing account. Please try again.",
+          description: `Failed to set up your publishing account: ${error.message || 'Unknown error'}. Please try again.`,
           variant: "destructive",
         });
         return;
       }
 
+      // Check the function's response data for success/failure
+      if (data && typeof data === 'object') {
+        if (data.success === false) {
+          console.error('❌ Function returned failure:', data);
+          toast({
+            title: "Error",
+            description: `Failed to set up your publishing account: ${data.error || 'Function returned failure'}. Please try again.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        console.log('✅ Function returned success:', data);
+      }
+
+      console.log('✅ Publisher role assigned successfully');
+
       // Also ensure buyer role exists (should already exist, but just in case)
-      await supabase
+      console.log('🔄 Ensuring buyer role exists...');
+      const { error: buyerError } = await supabase
         .from('user_role_assignments')
         .upsert({
           user_id: user.id,
           role: 'buyer'
         }, { onConflict: 'user_id,role' });
 
+      if (buyerError) {
+        console.warn('⚠️ Buyer role upsert failed (might be expected):', buyerError);
+      } else {
+        console.log('✅ Buyer role ensured');
+      }
+
       // Immediately refresh user roles in auth context for instant UI update
+      console.log('🔄 Refreshing user roles...');
       await fetchUserRoles(user.id);
+      console.log('✅ User roles refreshed');
 
       toast({
         title: "Welcome to Publishing!",
@@ -116,13 +146,14 @@ export function AppSidebar() {
       });
 
       // Navigate to settings page where they can fill out organization info
+      console.log('🚀 Navigating to settings...');
       navigate('/settings');
 
     } catch (error) {
-      console.error('Error in handleStartPublishing:', error);
+      console.error('❌ Unexpected error in handleStartPublishing:', error);
       toast({
         title: "Error",
-        description: "Failed to set up your publishing account. Please try again.",
+        description: `Failed to set up your publishing account: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
     }

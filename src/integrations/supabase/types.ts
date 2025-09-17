@@ -18,7 +18,7 @@ export type Database = {
         Row: {
           action: string
           actor_id: string | null
-          created_at: string
+          created_at: string | null
           entity_id: string | null
           entity_type: string
           id: string
@@ -28,7 +28,7 @@ export type Database = {
         Insert: {
           action: string
           actor_id?: string | null
-          created_at?: string
+          created_at?: string | null
           entity_id?: string | null
           entity_type: string
           id?: string
@@ -38,48 +38,12 @@ export type Database = {
         Update: {
           action?: string
           actor_id?: string | null
-          created_at?: string
+          created_at?: string | null
           entity_id?: string | null
           entity_type?: string
           id?: string
           metadata?: Json | null
           user_id?: string
-        }
-        Relationships: []
-      }
-      audit_log: {
-        Row: {
-          action: string
-          actor_user_id: string
-          after_data: Json | null
-          before_data: Json | null
-          created_at: string
-          id: string
-          metadata: Json | null
-          target_id: string | null
-          target_table: string
-        }
-        Insert: {
-          action: string
-          actor_user_id: string
-          after_data?: Json | null
-          before_data?: Json | null
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          target_id?: string | null
-          target_table: string
-        }
-        Update: {
-          action?: string
-          actor_user_id?: string
-          after_data?: Json | null
-          before_data?: Json | null
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          target_id?: string | null
-          target_table?: string
         }
         Relationships: []
       }
@@ -94,7 +58,7 @@ export type Database = {
           niche_id: string | null
           price: number
           price_multiplier: number | null
-          quantity: number
+          quantity: number | null
           user_id: string
         }
         Insert: {
@@ -107,7 +71,7 @@ export type Database = {
           niche_id?: string | null
           price: number
           price_multiplier?: number | null
-          quantity?: number
+          quantity?: number | null
           user_id: string
         }
         Update: {
@@ -120,7 +84,7 @@ export type Database = {
           niche_id?: string | null
           price?: number
           price_multiplier?: number | null
-          quantity?: number
+          quantity?: number | null
           user_id?: string
         }
         Relationships: [
@@ -169,45 +133,6 @@ export type Database = {
           },
         ]
       }
-      imports: {
-        Row: {
-          batch_id: string
-          created_at: string
-          created_by: string
-          failed: number
-          id: string
-          log_data: Json | null
-          row_count: number
-          source: string
-          source_url: string | null
-          succeeded: number
-        }
-        Insert: {
-          batch_id?: string
-          created_at?: string
-          created_by: string
-          failed?: number
-          id?: string
-          log_data?: Json | null
-          row_count?: number
-          source: string
-          source_url?: string | null
-          succeeded?: number
-        }
-        Update: {
-          batch_id?: string
-          created_at?: string
-          created_by?: string
-          failed?: number
-          id?: string
-          log_data?: Json | null
-          row_count?: number
-          source?: string
-          source_url?: string | null
-          succeeded?: number
-        }
-        Relationships: []
-      }
       listings: {
         Row: {
           created_at: string
@@ -237,190 +162,56 @@ export type Database = {
           },
         ]
       }
-      margin_operation_audit: {
-        Row: {
-          admin_user_id: string
-          bulk_operation_count: number | null
-          bulk_operation_index: number | null
-          error_message: string | null
-          id: string
-          margin_percentage: number | null
-          margin_type: string | null
-          margin_value: number | null
-          metadata: Json | null
-          new_price: number | null
-          operation_id: string
-          operation_status: string
-          operation_timestamp: string
-          operation_type: string
-          previous_price: number | null
-          purchase_price: number | null
-          review_notes: string | null
-          submission_id: string
-        }
-        Insert: {
-          admin_user_id: string
-          bulk_operation_count?: number | null
-          bulk_operation_index?: number | null
-          error_message?: string | null
-          id?: string
-          margin_percentage?: number | null
-          margin_type?: string | null
-          margin_value?: number | null
-          metadata?: Json | null
-          new_price?: number | null
-          operation_id: string
-          operation_status?: string
-          operation_timestamp?: string
-          operation_type: string
-          previous_price?: number | null
-          purchase_price?: number | null
-          review_notes?: string | null
-          submission_id: string
-        }
-        Update: {
-          admin_user_id?: string
-          bulk_operation_count?: number | null
-          bulk_operation_index?: number | null
-          error_message?: string | null
-          id?: string
-          margin_percentage?: number | null
-          margin_type?: string | null
-          margin_value?: number | null
-          metadata?: Json | null
-          new_price?: number | null
-          operation_id?: string
-          operation_status?: string
-          operation_timestamp?: string
-          operation_type?: string
-          previous_price?: number | null
-          purchase_price?: number | null
-          review_notes?: string | null
-          submission_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "margin_operation_audit_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: false
-            referencedRelation: "media_outlets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       media_outlets: {
         Row: {
-          accepts_no_license: boolean | null
-          accepts_no_license_status: string | null
-          admin_tags: string[] | null
           category: string
-          content_types: string[] | null
           country: string
           created_at: string
           currency: string
           domain: string
-          forbidden_topics: string[] | null
           guidelines: string | null
           id: string
           is_active: boolean
           language: string
           lead_time_days: number
-          max_word_count: number | null
-          min_word_count: number | null
           niches: string[]
           price: number
-          publisher_id: string
-          purchase_price: number | null
-          required_format: string | null
-          review_notes: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          sale_note: string | null
-          sale_price: number | null
-          source: string | null
-          sponsor_tag: string | null
-          sponsor_tag_status: string | null
-          sponsor_tag_type: string | null
-          status: Database["public"]["Enums"]["media_outlet_status"]
-          submitted_at: string | null
-          submitted_by: string | null
-          turnaround_time: string | null
+          publisher_id: string | null
+          status: string | null
           updated_at: string
         }
         Insert: {
-          accepts_no_license?: boolean | null
-          accepts_no_license_status?: string | null
-          admin_tags?: string[] | null
           category: string
-          content_types?: string[] | null
           country: string
           created_at?: string
           currency?: string
           domain: string
-          forbidden_topics?: string[] | null
           guidelines?: string | null
           id?: string
           is_active?: boolean
           language: string
           lead_time_days?: number
-          max_word_count?: number | null
-          min_word_count?: number | null
           niches?: string[]
           price: number
-          publisher_id: string
-          purchase_price?: number | null
-          required_format?: string | null
-          review_notes?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          sale_note?: string | null
-          sale_price?: number | null
-          source?: string | null
-          sponsor_tag?: string | null
-          sponsor_tag_status?: string | null
-          sponsor_tag_type?: string | null
-          status?: Database["public"]["Enums"]["media_outlet_status"]
-          submitted_at?: string | null
-          submitted_by?: string | null
-          turnaround_time?: string | null
+          publisher_id?: string | null
+          status?: string | null
           updated_at?: string
         }
         Update: {
-          accepts_no_license?: boolean | null
-          accepts_no_license_status?: string | null
-          admin_tags?: string[] | null
           category?: string
-          content_types?: string[] | null
           country?: string
           created_at?: string
           currency?: string
           domain?: string
-          forbidden_topics?: string[] | null
           guidelines?: string | null
           id?: string
           is_active?: boolean
           language?: string
           lead_time_days?: number
-          max_word_count?: number | null
-          min_word_count?: number | null
           niches?: string[]
           price?: number
-          publisher_id?: string
-          purchase_price?: number | null
-          required_format?: string | null
-          review_notes?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          sale_note?: string | null
-          sale_price?: number | null
-          source?: string | null
-          sponsor_tag?: string | null
-          sponsor_tag_status?: string | null
-          sponsor_tag_type?: string | null
-          status?: Database["public"]["Enums"]["media_outlet_status"]
-          submitted_at?: string | null
-          submitted_by?: string | null
-          turnaround_time?: string | null
+          publisher_id?: string | null
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -469,50 +260,21 @@ export type Database = {
           },
         ]
       }
-      niche_multipliers_global: {
-        Row: {
-          created_at: string
-          default_multiplier: number
-          id: string
-          niche_id: string
-        }
-        Insert: {
-          created_at?: string
-          default_multiplier?: number
-          id?: string
-          niche_id: string
-        }
-        Update: {
-          created_at?: string
-          default_multiplier?: number
-          id?: string
-          niche_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "niche_multipliers_global_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: true
-            referencedRelation: "niches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       niches: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           label: string
           slug: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           label: string
           slug: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           label?: string
           slug?: string
@@ -521,72 +283,72 @@ export type Database = {
       }
       notification_settings: {
         Row: {
-          created_at: string
-          email_notifications: boolean
+          created_at: string | null
+          email_notifications: boolean | null
           id: string
-          marketing_emails: boolean
-          order_updates: boolean
-          push_notifications: boolean
-          referral_updates: boolean
-          updated_at: string
+          marketing_emails: boolean | null
+          order_updates: boolean | null
+          push_notifications: boolean | null
+          referral_updates: boolean | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
-          email_notifications?: boolean
+          created_at?: string | null
+          email_notifications?: boolean | null
           id?: string
-          marketing_emails?: boolean
-          order_updates?: boolean
-          push_notifications?: boolean
-          referral_updates?: boolean
-          updated_at?: string
+          marketing_emails?: boolean | null
+          order_updates?: boolean | null
+          push_notifications?: boolean | null
+          referral_updates?: boolean | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
-          email_notifications?: boolean
+          created_at?: string | null
+          email_notifications?: boolean | null
           id?: string
-          marketing_emails?: boolean
-          order_updates?: boolean
-          push_notifications?: boolean
-          referral_updates?: boolean
-          updated_at?: string
+          marketing_emails?: boolean | null
+          order_updates?: boolean | null
+          push_notifications?: boolean | null
+          referral_updates?: boolean | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
       notifications: {
         Row: {
-          created_at: string
+          created_at: string | null
           data: Json | null
           id: string
           message: string
-          read: boolean
+          read: boolean | null
           title: string
           type: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           data?: Json | null
           id?: string
           message: string
-          read?: boolean
+          read?: boolean | null
           title: string
           type: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           data?: Json | null
           id?: string
           message?: string
-          read?: boolean
+          read?: boolean | null
           title?: string
           type?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -597,8 +359,6 @@ export type Database = {
           created_at: string
           id: string
           media_outlet_id: string
-          message: string | null
-          original_price: number
           publisher_id: string
           status: string
           suggested_price: number
@@ -608,8 +368,6 @@ export type Database = {
           created_at?: string
           id?: string
           media_outlet_id: string
-          message?: string | null
-          original_price?: number
           publisher_id: string
           status?: string
           suggested_price: number
@@ -619,8 +377,6 @@ export type Database = {
           created_at?: string
           id?: string
           media_outlet_id?: string
-          message?: string | null
-          original_price?: number
           publisher_id?: string
           status?: string
           suggested_price?: number
@@ -673,64 +429,49 @@ export type Database = {
       orders: {
         Row: {
           anchor: string | null
-          base_price: number | null
           briefing: string | null
           buyer_id: string
           created_at: string
           currency: string
-          final_price: number | null
           id: string
           media_outlet_id: string
-          niche_id: string | null
           price: number
-          price_multiplier: number | null
           publication_date: string | null
           publication_url: string | null
           publisher_id: string
           status: Database["public"]["Enums"]["order_status"]
-          stripe_session_id: string | null
           target_url: string | null
           updated_at: string
         }
         Insert: {
           anchor?: string | null
-          base_price?: number | null
           briefing?: string | null
           buyer_id: string
           created_at?: string
           currency?: string
-          final_price?: number | null
           id?: string
           media_outlet_id: string
-          niche_id?: string | null
           price: number
-          price_multiplier?: number | null
           publication_date?: string | null
           publication_url?: string | null
           publisher_id: string
           status?: Database["public"]["Enums"]["order_status"]
-          stripe_session_id?: string | null
           target_url?: string | null
           updated_at?: string
         }
         Update: {
           anchor?: string | null
-          base_price?: number | null
           briefing?: string | null
           buyer_id?: string
           created_at?: string
           currency?: string
-          final_price?: number | null
           id?: string
           media_outlet_id?: string
-          niche_id?: string | null
           price?: number
-          price_multiplier?: number | null
           publication_date?: string | null
           publication_url?: string | null
           publisher_id?: string
           status?: Database["public"]["Enums"]["order_status"]
-          stripe_session_id?: string | null
           target_url?: string | null
           updated_at?: string
         }
@@ -742,168 +483,59 @@ export type Database = {
             referencedRelation: "media_outlets"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "orders_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
-            referencedRelation: "niches"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      org_settings: {
-        Row: {
-          company_name: string
-          created_at: string
-          id: string
-          name: string
-          notification_email: string
-          orders_email: string
-          primary_email: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          company_name: string
-          created_at?: string
-          id?: string
-          name: string
-          notification_email: string
-          orders_email: string
-          primary_email: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          company_name?: string
-          created_at?: string
-          id?: string
-          name?: string
-          notification_email?: string
-          orders_email?: string
-          primary_email?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       organizations: {
         Row: {
-          address_line_1: string | null
-          address_line_2: string | null
-          bank_account_number: string | null
-          bank_name: string | null
-          bank_routing_number: string | null
-          business_registration_number: string | null
-          city: string | null
-          company_logo_url: string | null
-          contact_person_email: string | null
-          contact_person_name: string | null
           country: string
           created_at: string
-          default_currency: string | null
-          iban: string | null
           id: string
-          invoice_notes: string | null
           name: string
-          organizational_number: string | null
-          payment_terms: string | null
-          phone_number: string | null
-          postal_code: string | null
-          state_province: string | null
-          swift_bic: string | null
-          tax_id: string | null
-          updated_at: string | null
           vat_number: string | null
-          website: string | null
         }
         Insert: {
-          address_line_1?: string | null
-          address_line_2?: string | null
-          bank_account_number?: string | null
-          bank_name?: string | null
-          bank_routing_number?: string | null
-          business_registration_number?: string | null
-          city?: string | null
-          company_logo_url?: string | null
-          contact_person_email?: string | null
-          contact_person_name?: string | null
           country: string
           created_at?: string
-          default_currency?: string | null
-          iban?: string | null
           id?: string
-          invoice_notes?: string | null
           name: string
-          organizational_number?: string | null
-          payment_terms?: string | null
-          phone_number?: string | null
-          postal_code?: string | null
-          state_province?: string | null
-          swift_bic?: string | null
-          tax_id?: string | null
-          updated_at?: string | null
           vat_number?: string | null
-          website?: string | null
         }
         Update: {
-          address_line_1?: string | null
-          address_line_2?: string | null
-          bank_account_number?: string | null
-          bank_name?: string | null
-          bank_routing_number?: string | null
-          business_registration_number?: string | null
-          city?: string | null
-          company_logo_url?: string | null
-          contact_person_email?: string | null
-          contact_person_name?: string | null
           country?: string
           created_at?: string
-          default_currency?: string | null
-          iban?: string | null
           id?: string
-          invoice_notes?: string | null
           name?: string
-          organizational_number?: string | null
-          payment_terms?: string | null
-          phone_number?: string | null
-          postal_code?: string | null
-          state_province?: string | null
-          swift_bic?: string | null
-          tax_id?: string | null
-          updated_at?: string | null
           vat_number?: string | null
-          website?: string | null
         }
         Relationships: []
       }
       outlet_niche_rules: {
         Row: {
           accepted: boolean
-          created_at: string
+          created_at: string | null
           id: string
           media_outlet_id: string
           multiplier: number
           niche_id: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           accepted?: boolean
-          created_at?: string
+          created_at?: string | null
           id?: string
           media_outlet_id: string
           multiplier?: number
           niche_id: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           accepted?: boolean
-          created_at?: string
+          created_at?: string | null
           id?: string
           media_outlet_id?: string
           multiplier?: number
           niche_id?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -922,42 +554,51 @@ export type Database = {
           },
         ]
       }
-      payout_requests: {
+      payment_retry_sessions: {
         Row: {
-          amount: number
-          created_at: string
-          id: string
-          notes: string | null
-          processed_at: string | null
-          processed_by: string | null
-          referrer_user_id: string
-          requested_at: string
+          backoff_multiplier: number
+          created_at: string | null
+          current_attempt: number
+          error_context: Json | null
+          last_attempt_at: string | null
+          max_attempts: number
+          max_delay: number
+          next_retry_at: string | null
+          retry_delay: number
+          retryable_errors: string[] | null
+          session_id: string
           status: string
-          updated_at: string
+          user_id: string
         }
         Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          notes?: string | null
-          processed_at?: string | null
-          processed_by?: string | null
-          referrer_user_id: string
-          requested_at?: string
+          backoff_multiplier?: number
+          created_at?: string | null
+          current_attempt?: number
+          error_context?: Json | null
+          last_attempt_at?: string | null
+          max_attempts?: number
+          max_delay?: number
+          next_retry_at?: string | null
+          retry_delay?: number
+          retryable_errors?: string[] | null
+          session_id: string
           status?: string
-          updated_at?: string
+          user_id: string
         }
         Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          notes?: string | null
-          processed_at?: string | null
-          processed_by?: string | null
-          referrer_user_id?: string
-          requested_at?: string
+          backoff_multiplier?: number
+          created_at?: string | null
+          current_attempt?: number
+          error_context?: Json | null
+          last_attempt_at?: string | null
+          max_attempts?: number
+          max_delay?: number
+          next_retry_at?: string | null
+          retry_delay?: number
+          retryable_errors?: string[] | null
+          session_id?: string
           status?: string
-          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -990,88 +631,26 @@ export type Database = {
           },
         ]
       }
-      referral_transactions: {
-        Row: {
-          amount: number
-          created_at: string
-          description: string | null
-          id: string
-          paid_at: string | null
-          referral_id: string
-          status: string
-          type: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          paid_at?: string | null
-          referral_id: string
-          status?: string
-          type: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          paid_at?: string | null
-          referral_id?: string
-          status?: string
-          type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "referral_transactions_referral_id_fkey"
-            columns: ["referral_id"]
-            isOneToOne: false
-            referencedRelation: "referrals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       referrals: {
         Row: {
           code: string
           created_at: string
-          first_order_date: string | null
           id: string
           referred_user_id: string | null
-          reward_amount: number | null
-          reward_paid: boolean | null
-          status: string | null
-          total_orders: number | null
-          total_spent: number | null
           user_id: string
         }
         Insert: {
           code: string
           created_at?: string
-          first_order_date?: string | null
           id?: string
           referred_user_id?: string | null
-          reward_amount?: number | null
-          reward_paid?: boolean | null
-          status?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
           user_id: string
         }
         Update: {
           code?: string
           created_at?: string
-          first_order_date?: string | null
           id?: string
           referred_user_id?: string | null
-          reward_amount?: number | null
-          reward_paid?: boolean | null
-          status?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
           user_id?: string
         }
         Relationships: []
@@ -1134,7 +713,7 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
-          memo: string | null
+          memo?: string | null
           type: string
           user_id: string
         }
@@ -1153,51 +732,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_publisher_role: {
-        Args: { p_user_id: string }
-        Returns: Json
+      cleanup_expired_retry_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
-      create_notification: {
-        Args: {
-          notification_data?: Json
-          notification_message: string
-          notification_title: string
-          notification_type: string
-          target_user_id: string
-        }
-        Returns: string
-      }
-      create_onboarding_media_outlet: {
-        Args: {
-          p_category: string
-          p_country?: string
-          p_domain: string
-          p_niches?: string[]
-          p_price: number
-          p_user_id: string
-        }
-        Returns: Json
+      get_active_retry_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          current_attempt: number
+          max_attempts: number
+          next_retry_at: string
+          session_id: string
+        }[]
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
-      }
-      get_user_roles: {
-        Args: { _user_id?: string }
-        Returns: Database["public"]["Enums"]["app_role"][]
-      }
-      get_user_roles_array: {
-        Args: { user_uuid?: string }
-        Returns: string[]
-      }
-      handle_secure_user_signup: {
-        Args: {
-          p_email: string
-          p_referral_code?: string
-          p_role?: string
-          p_user_id: string
-        }
-        Returns: Json
       }
       has_role: {
         Args: {
@@ -1206,44 +757,9 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_platform_admin: {
-        Args: { _user_id?: string }
-        Returns: boolean
-      }
-      is_user_admin: {
-        Args: { user_uuid?: string }
-        Returns: boolean
-      }
-      log_activity: {
-        Args: {
-          activity_action: string
-          activity_entity_id?: string
-          activity_entity_type: string
-          activity_metadata?: Json
-          actor_user_id: string
-          target_user_id: string
-        }
-        Returns: string
-      }
-      update_onboarding_profile: {
-        Args: {
-          p_bio?: string
-          p_company?: string
-          p_country?: string
-          p_display_name: string
-          p_user_id: string
-          p_vat_number?: string
-        }
-        Returns: Json
-      }
-      user_has_role: {
-        Args: { role_name: string; user_uuid: string }
-        Returns: boolean
-      }
     }
     Enums: {
-      app_role: "admin" | "publisher" | "buyer" | "system_admin"
-      media_outlet_status: "pending" | "approved" | "rejected" | "active"
+      app_role: "admin" | "publisher" | "buyer"
       order_status:
         | "requested"
         | "accepted"
@@ -1377,8 +893,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "publisher", "buyer", "system_admin"],
-      media_outlet_status: ["pending", "approved", "rejected", "active"],
+      app_role: ["admin", "publisher", "buyer"],
       order_status: [
         "requested",
         "accepted",
