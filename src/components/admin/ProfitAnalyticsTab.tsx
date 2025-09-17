@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,7 @@ export function ProfitAnalyticsTab() {
   const [timeRange, setTimeRange] = useState<'30d' | '90d' | '1y' | 'all'>('90d');
   const { toast } = useToast();
 
-  const fetchProfitAnalytics = async () => {
+  const fetchProfitAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch all active listings with pricing data
@@ -220,11 +220,11 @@ export function ProfitAnalyticsTab() {
       ),
       monthlyTrends: monthlyTrendsArray
     };
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchProfitAnalytics();
-  }, [timeRange]);
+  }, [fetchProfitAnalytics, timeRange]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

@@ -77,8 +77,7 @@ export function createLazyComponent<T extends ComponentType<Record<string, unkno
 
   const Wrapped: React.FC<Record<string, unknown>> = (props) => (
     <LazyWrapper fallback={fallback}>
-      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-      <LazyComponent {...props} />
+      <LazyComponent {...(props as React.ComponentProps<T>)} />
     </LazyWrapper>
   );
 

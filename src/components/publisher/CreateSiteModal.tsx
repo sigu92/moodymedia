@@ -402,8 +402,8 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
       } else if (error instanceof Error && error.message.includes('Publisher role required')) {
         toast.error('You must have publisher privileges to submit websites');
       } else if (error instanceof Error && error.message.includes('Validation failed')) {
-        const anyErr = error as any;
-        const details = Array.isArray(anyErr?.details) ? `: ${anyErr.details.join(', ')}` : '';
+        const err = error as { details?: unknown };
+        const details = Array.isArray(err?.details) ? `: ${(err.details as string[]).join(', ')}` : '';
         toast.error(`Submission validation failed${details}`);
       } else if (error instanceof Error && error.message.includes('fetch')) {
         toast.error('Network error. Please check your connection and try again.');

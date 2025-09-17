@@ -47,13 +47,13 @@ export function MarketplaceManager() {
 
   const loadData = useCallback(async () => {
     await Promise.all([loadUserGroups(), loadSubmissions()]);
-  }, []);
+  }, [loadUserGroups, loadSubmissions]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const loadUserGroups = async () => {
+  const loadUserGroups = useCallback(async () => {
     try {
       console.log('[MarketplaceManager] Loading user groups...');
 
@@ -127,9 +127,9 @@ export function MarketplaceManager() {
         variant: "destructive"
       });
     }
-  };
+  }, [toast]);
 
-  const loadSubmissions = async () => {
+  const loadSubmissions = useCallback(async () => {
     try {
       setLoading(true);
       console.log('[MarketplaceManager] Starting to load submissions...');
@@ -205,7 +205,7 @@ export function MarketplaceManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const handleUserSelect = async (userId: string | null) => {
     setSelectedUserId(userId);

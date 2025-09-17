@@ -28,7 +28,7 @@ interface WebhookTestResult {
   test: string;
   success: boolean;
   error?: string;
-  response?: any;
+  response?: Record<string, unknown>;
 }
 
 interface WebhookTestSummary {
@@ -44,7 +44,7 @@ interface WebhookTestResults {
 
 interface WebhookResponse {
   success: boolean;
-  response?: any;
+  response?: Record<string, unknown>;
   error?: string;
 }
 
