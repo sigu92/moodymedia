@@ -327,7 +327,12 @@ export const getReceiptDeliveryStatus = async (orderId: string): Promise<{
       sent: boolean;
       sentAt?: string;
     };
-    emailHistory: any[];
+    emailHistory: Array<{
+      type: string;
+      sentAt: string;
+      status: 'success' | 'failed';
+      error?: string;
+    }>;
   };
   error?: string;
 }> => {

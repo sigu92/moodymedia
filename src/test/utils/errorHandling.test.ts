@@ -25,8 +25,8 @@ vi.mock('@/hooks/use-toast', () => ({
 }))
 
 describe('Error Handling Utils', () => {
-  let mockToast: any
-  let mockLocalStorage: any
+  let mockToast: unknown
+  let mockLocalStorage: unknown
 
   beforeEach(() => {
     vi.clearAllMocks()

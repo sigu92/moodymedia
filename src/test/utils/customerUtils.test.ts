@@ -59,7 +59,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getOrCreateStripeCustomer(
         'user_123',
@@ -85,7 +85,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock customer creation
       const mockCustomerData = {
@@ -109,14 +109,14 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any).mockReturnValueOnce({
+      } as unknown).mockReturnValueOnce({
         upsert: vi.fn().mockReturnValue({
           onConflict: vi.fn().mockResolvedValue({
             data: null,
             error: null,
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getOrCreateStripeCustomer(
         'user_123',
@@ -153,7 +153,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getOrCreateStripeCustomer(
         'user_123',
@@ -177,7 +177,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock customer creation error
       mockSupabase.functions.invoke.mockResolvedValue({
@@ -207,7 +207,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock customer creation with missing ID
       mockSupabase.functions.invoke.mockResolvedValue({
@@ -237,7 +237,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock customer creation
       mockSupabase.functions.invoke.mockResolvedValue({
@@ -255,14 +255,14 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any).mockReturnValueOnce({
+      } as unknown).mockReturnValueOnce({
         upsert: vi.fn().mockReturnValue({
           onConflict: vi.fn().mockResolvedValue({
             data: null,
             error: null,
           }),
         }),
-      } as any)
+      } as unknown)
 
       const orgSettings = {
         name: 'Test Org',
@@ -297,7 +297,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock customer creation
       mockSupabase.functions.invoke.mockResolvedValue({
@@ -316,7 +316,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any).mockReturnValue({
+      } as unknown).mockReturnValue({
         upsert: vi.fn().mockReturnValue({
           onConflict: vi.fn().mockImplementation(() => {
             updateCallCount++
@@ -332,7 +332,7 @@ describe('Customer Utils', () => {
             })
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getOrCreateStripeCustomer(
         'user_123',
@@ -363,7 +363,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getCustomerProfile('user_123')
 
@@ -383,7 +383,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getCustomerProfile('user_123')
 
@@ -406,7 +406,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock Stripe update
       mockSupabase.functions.invoke.mockResolvedValue({
@@ -422,7 +422,7 @@ describe('Customer Utils', () => {
             error: null,
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await updateCustomerProfile('user_123', {
         email: 'new@example.com',
@@ -442,7 +442,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await updateCustomerProfile('user_123', {
         email: 'new@example.com',
@@ -465,7 +465,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock Stripe update error
       mockSupabase.functions.invoke.mockResolvedValue({
@@ -498,7 +498,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getCustomerPaymentMethods('user_123')
 
@@ -521,7 +521,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock payment methods fetch
       const mockPaymentMethods = [
@@ -562,7 +562,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await getCustomerPaymentMethods('user_123')
 
@@ -585,7 +585,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock payment methods fetch error
       mockSupabase.functions.invoke.mockResolvedValue({
@@ -614,7 +614,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock update
       mockSupabase.from.mockReturnValueOnce({
@@ -624,7 +624,7 @@ describe('Customer Utils', () => {
             error: null,
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await setDefaultPaymentMethod('user_123', 'pm_123')
 
@@ -641,7 +641,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await setDefaultPaymentMethod('user_123', 'pm_123')
 
@@ -662,7 +662,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock update error
       mockSupabase.from.mockReturnValueOnce({
@@ -672,7 +672,7 @@ describe('Customer Utils', () => {
             error: { message: 'Update failed' },
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await setDefaultPaymentMethod('user_123', 'pm_123')
 
@@ -698,7 +698,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       // Mock update to clear default
       mockSupabase.from.mockReturnValueOnce({
@@ -708,7 +708,7 @@ describe('Customer Utils', () => {
             error: null,
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await removePaymentMethod('user_123', 'pm_123')
 
@@ -725,7 +725,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await removePaymentMethod('user_123', 'pm_123')
 
@@ -749,7 +749,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await removePaymentMethod('user_123', 'pm_123')
 
@@ -775,7 +775,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await syncCustomerData('user_123')
 
@@ -797,7 +797,7 @@ describe('Customer Utils', () => {
             }),
           }),
         }),
-      } as any)
+      } as unknown)
 
       const result = await syncCustomerData('user_123')
 
