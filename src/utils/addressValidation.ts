@@ -160,17 +160,6 @@ export const validateAddress = (
   const format = getAddressFormat(address.country);
   const country = countries.find(c => c.code === address.country);
 
-  // Debug logging - temporarily disabled for compatibility
-  if (false) {
-    console.log('[ADDRESS VALIDATION]', {
-      input: address,
-      format: {
-        country: format.country,
-        postalCodePattern: format.postalCodePattern.toString(),
-        postalCodeLabel: format.postalCodeLabel
-      }
-    });
-  }
 
   // Validate required fields
   if (!address.street?.trim()) {
@@ -192,15 +181,6 @@ export const validateAddress = (
     const pattern = format.postalCodePattern;
     const isValid = pattern.test(postalCode);
 
-    // Debug logging - temporarily disabled for compatibility
-    if (false) {
-      console.log('[POSTAL CODE VALIDATION]', {
-        postalCode,
-        pattern: pattern.toString(),
-        isValid,
-        expectedFormat: format.country === 'Sweden' ? 'XXX XX (e.g. 163 44)' : pattern.toString()
-      });
-    }
 
     if (!isValid) {
       errors.push(`${format.postalCodeLabel} format is invalid for ${format.country}. Expected format: ${format.country === 'Sweden' ? 'XXX XX (e.g. 163 44)' : pattern.toString()}`);

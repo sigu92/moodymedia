@@ -64,7 +64,8 @@ serve(async (req) => {
     }
     
     // Handle both camelCase and lowercase variations
-    let { billingInfo, cartItems, cartitems } = requestBody;
+    const { cartItems, cartitems } = requestBody;
+    let billingInfo = requestBody.billingInfo;
     const finalCartItems = cartItems || cartitems;
     
     console.log('✅ Extracted data:', { 
