@@ -94,7 +94,7 @@ describe('metricValidation', () => {
       const metrics = {
         ahrefs_dr: { value: 50, min: 0, max: 100 },
         spam_score: { value: 'invalid', min: 0, max: 100 },
-        organic_traffic: { value: 1000, min: 0, max: Number.MAX_SAFE_INTEGER }
+        organic_traffic: { value: 1000, min: 0, max: Number.MAX_SAFE_INTEGER };
       };
 
       const result = validateMetrics(metrics);

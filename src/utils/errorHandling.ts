@@ -312,7 +312,7 @@ export const STRIPE_ERROR_MAPPINGS: Record<string, ErrorDetails> = {
 /**
  * Maps a Stripe error to our standardized error details
  */
-export const mapStripeError = (error: any): ErrorDetails => {
+export const mapStripeError = (error: unknown): ErrorDetails => {
   if (!error) {
     return STRIPE_ERROR_MAPPINGS['unknown_error'];
   }
@@ -364,7 +364,7 @@ export const mapStripeError = (error: any): ErrorDetails => {
  * Logs error details for analytics and debugging
  */
 export const logPaymentError = async (
-  error: any, 
+  error: unknown, 
   context: ErrorContext,
   errorDetails: ErrorDetails
 ): Promise<void> => {
@@ -414,7 +414,7 @@ export const logPaymentError = async (
  * Displays user-friendly error message with toast notification
  */
 export const displayPaymentError = (
-  error: any,
+  error: unknown,
   context: ErrorContext,
   options: {
     showToast?: boolean;
@@ -543,7 +543,7 @@ export const errorHandler = {
 
 // Make error handler available globally in development
 if (import.meta.env.DEV) {
-  (window as any).errorHandler = errorHandler;
+  (window as { errorHandler?: typeof errorHandler }).errorHandler = errorHandler;
   console.log('🔧 Error handler available globally as: window.errorHandler');
   console.log('📚 Usage examples:');
   console.log('  - errorHandler.map(stripeError) - Map Stripe error to details');

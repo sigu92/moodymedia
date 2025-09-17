@@ -24,15 +24,15 @@ import { render as customRender, mockUser } from '@/test/test-utils'
 // Mock all external dependencies
 vi.mock('@/hooks/useWebhooks', () => ({
   useWebhooks: vi.fn(),
-}))
+}));
 
 vi.mock('@/hooks/useOrders', () => ({
   useOrders: vi.fn(),
-}))
+}));
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
-}))
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -55,11 +55,11 @@ vi.mock('@/integrations/supabase/client', () => ({
       })),
     })),
   },
-}))
+}));
 
 vi.mock('@/hooks/use-toast', () => ({
   toast: vi.fn(),
-}))
+}));
 
 describe('Webhook Processing Performance', () => {
   const mockUser = {
@@ -68,7 +68,7 @@ describe('Webhook Processing Performance', () => {
     user_metadata: {
       full_name: 'Admin User',
     },
-  }
+  };
 
   const mockWebhookEvent = {
     id: 'evt_test_123',
@@ -91,14 +91,14 @@ describe('Webhook Processing Performance', () => {
     processed_at: null,
     error: null,
     retry_count: 0,
-  }
+  };
 
   let mockWebhookHook: any
   let mockOrderHook: any
   let mockAuthHook: any
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
     
     // Mock auth
     mockAuthHook = {
@@ -107,8 +107,8 @@ describe('Webhook Processing Performance', () => {
       signOut: vi.fn(),
       isLoading: false,
       isAuthenticated: true,
-    }
-    vi.mocked(useAuth).mockReturnValue(mockAuthHook)
+    };
+    vi.mocked(useAuth).mockReturnValue(mockAuthHook);
 
     // Mock webhook hook
     mockWebhookHook = {
@@ -120,8 +120,8 @@ describe('Webhook Processing Performance', () => {
       processWebhook: vi.fn(),
       deleteWebhook: vi.fn(),
       getWebhookStats: vi.fn(),
-    }
-    vi.mocked(useWebhooks).mockReturnValue(mockWebhookHook)
+    };
+    vi.mocked(useWebhooks).mockReturnValue(mockWebhookHook);
 
     // Mock order hook
     mockOrderHook = {
@@ -131,25 +131,25 @@ describe('Webhook Processing Performance', () => {
       updateOrderStatus: vi.fn(),
       getOrderById: vi.fn(),
       refreshOrders: vi.fn(),
-    }
-    vi.mocked(useOrders).mockReturnValue(mockOrderHook)
-  })
+    };
+    vi.mocked(useOrders).mockReturnValue(mockOrderHook);
+  });
 
   afterEach(() => {
-    vi.resetAllMocks()
-  })
+    vi.resetAllMocks();
+  });
 
   describe('Webhook Event Processing Performance', () => {
     it('should process webhook events within acceptable time limits', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock webhook processing with timing
-      const startTime = performance.now()
+      const startTime = performance.now();
       mockWebhookHook.processWebhook.mockImplementation(async () => {
         // Simulate webhook processing delay
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        const endTime = performance.now()
+        const endTime = performance.now();
         const duration = endTime - startTime
         
         return {
@@ -157,22 +157,22 @@ describe('Webhook Processing Performance', () => {
           orderUpdated: true,
           orderStatus: 'paid',
           duration,
-        }
-      })
+        };
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Process webhook
-      await user.click(screen.getByText(/process/i))
+      await user.click(screen.getByText(/process/i));
 
       await waitFor(() => {
-        expect(mockWebhookHook.processWebhook).toHaveBeenCalled()
-      })
+        expect(mockWebhookHook.processWebhook).toHaveBeenCalled();
+      });
 
       // Verify performance
-      const result = await mockWebhookHook.processWebhook('evt_test_123')
+      const result = await mockWebhookHook.processWebhook('evt_test_123');
       expect(result.duration).toBeLessThan(500) // Should complete within 500ms
-    })
+    });
 
     it('should handle high-volume webhook processing efficiently', async () => {
       const webhookEvents = Array.from({ length: 1000 }, (_, i) => ({
@@ -191,28 +191,28 @@ describe('Webhook Processing Performance', () => {
             },
           },
         },
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const processingTimes = []
 
       // Process all webhooks
       for (const event of webhookEvents) {
-        const eventStart = performance.now()
+        const eventStart = performance.now();
         
         // Simulate webhook processing
-        await new Promise(resolve => setTimeout(resolve, 10))
+        await new Promise(resolve => setTimeout(resolve, 10));
         
-        const eventEnd = performance.now()
-        processingTimes.push(eventEnd - eventStart)
-      }
+        const eventEnd = performance.now();
+        processingTimes.push(eventEnd - eventStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
       const avgProcessingTime = processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length
-      const maxProcessingTime = Math.max(...processingTimes)
+      const maxProcessingTime = Math.max(...processingTimes);
       const p95ProcessingTime = processingTimes.sort((a, b) => a - b)[Math.floor(processingTimes.length * 0.95)]
 
       // Performance assertions
@@ -220,7 +220,7 @@ describe('Webhook Processing Performance', () => {
       expect(maxProcessingTime).toBeLessThan(100) // Max should be under 100ms
       expect(p95ProcessingTime).toBeLessThan(80) // 95th percentile should be under 80ms
       expect(totalDuration).toBeLessThan(15000) // Total should be under 15 seconds
-    })
+    });
 
     it('should handle concurrent webhook processing', async () => {
       const concurrentWebhooks = Array.from({ length: 50 }, (_, i) => ({
@@ -239,40 +239,40 @@ describe('Webhook Processing Performance', () => {
             },
           },
         },
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
 
       // Process all webhooks concurrently
       const results = await Promise.all(
         concurrentWebhooks.map(async (event) => {
-          const eventStart = performance.now()
+          const eventStart = performance.now();
           
           // Simulate webhook processing
-          await new Promise(resolve => setTimeout(resolve, 50))
+          await new Promise(resolve => setTimeout(resolve, 50));
           
-          const eventEnd = performance.now()
+          const eventEnd = performance.now();
           return {
             ...event,
             duration: eventEnd - eventStart,
             success: true,
-          }
-        })
-      )
+          };
+        });
+      );
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
       const avgProcessingTime = results.reduce((sum, result) => sum + result.duration, 0) / results.length
-      const maxProcessingTime = Math.max(...results.map(result => result.duration))
+      const maxProcessingTime = Math.max(...results.map(result => result.duration));
 
       // Performance assertions
       expect(avgProcessingTime).toBeLessThan(100) // Average should be under 100ms
       expect(maxProcessingTime).toBeLessThan(200) // Max should be under 200ms
       expect(totalDuration).toBeLessThan(1000) // Total should be under 1 second
-    })
-  })
+    });
+  });
 
   describe('Database Operations Performance', () => {
     it('should perform database updates efficiently', async () => {
@@ -281,33 +281,33 @@ describe('Webhook Processing Performance', () => {
         status: 'paid',
         updatedAt: new Date().toISOString(),
         webhookId: `evt_test_${i}`,
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const updateTimes = []
 
       for (const update of orderUpdates) {
-        const updateStart = performance.now()
+        const updateStart = performance.now();
         
         // Simulate database update
-        await new Promise(resolve => setTimeout(resolve, 5))
+        await new Promise(resolve => setTimeout(resolve, 5));
         
-        const updateEnd = performance.now()
-        updateTimes.push(updateEnd - updateStart)
-      }
+        const updateEnd = performance.now();
+        updateTimes.push(updateEnd - updateStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
       const avgUpdateTime = updateTimes.reduce((sum, time) => sum + time, 0) / updateTimes.length
-      const maxUpdateTime = Math.max(...updateTimes)
+      const maxUpdateTime = Math.max(...updateTimes);
 
       // Performance assertions
       expect(avgUpdateTime).toBeLessThan(20) // Average should be under 20ms
       expect(maxUpdateTime).toBeLessThan(50) // Max should be under 50ms
       expect(totalDuration).toBeLessThan(3000) // Total should be under 3 seconds
-    })
+    });
 
     it('should handle batch database operations efficiently', async () => {
       const batchSize = 100
@@ -317,28 +317,28 @@ describe('Webhook Processing Performance', () => {
           status: 'paid',
           updatedAt: new Date().toISOString(),
           webhookId: `evt_test_${batchIndex}_${itemIndex}`,
-        }))
-      )
+        }));
+      );
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const batchProcessingTimes = []
 
       for (const batch of batches) {
-        const batchStart = performance.now()
+        const batchStart = performance.now();
         
         // Simulate batch database update
         await Promise.all(
           batch.map(async (update) => {
-            await new Promise(resolve => setTimeout(resolve, 2))
+            await new Promise(resolve => setTimeout(resolve, 2));
             return update
-          })
-        )
+          });
+        );
         
-        const batchEnd = performance.now()
-        batchProcessingTimes.push(batchEnd - batchStart)
-      }
+        const batchEnd = performance.now();
+        batchProcessingTimes.push(batchEnd - batchStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
@@ -347,16 +347,16 @@ describe('Webhook Processing Performance', () => {
       // Performance assertions
       expect(avgBatchTime).toBeLessThan(250) // Average batch should be under 250ms
       expect(totalDuration).toBeLessThan(3000) // Total should be under 3 seconds
-    })
+    });
 
     it('should handle database connection pooling efficiently', async () => {
       const connectionPool = Array.from({ length: 20 }, (_, i) => ({
         connectionId: i,
         status: 'idle',
         lastUsed: Date.now(),
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const connectionTimes = []
 
       // Simulate concurrent database operations using connection pool
@@ -364,19 +364,19 @@ describe('Webhook Processing Performance', () => {
         operationId: i,
         connectionId: i % connectionPool.length,
         query: `UPDATE orders SET status = 'paid' WHERE id = 'order_${i}'`,
-      }))
+      }));
 
       for (const operation of operations) {
-        const operationStart = performance.now()
+        const operationStart = performance.now();
         
         // Simulate database operation with connection
-        await new Promise(resolve => setTimeout(resolve, 10))
+        await new Promise(resolve => setTimeout(resolve, 10));
         
-        const operationEnd = performance.now()
-        connectionTimes.push(operationEnd - operationStart)
-      }
+        const operationEnd = performance.now();
+        connectionTimes.push(operationEnd - operationStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
@@ -385,8 +385,8 @@ describe('Webhook Processing Performance', () => {
       // Performance assertions
       expect(avgConnectionTime).toBeLessThan(50) // Average should be under 50ms
       expect(totalDuration).toBeLessThan(2000) // Total should be under 2 seconds
-    })
-  })
+    });
+  });
 
   describe('Idempotency and Conflict Resolution Performance', () => {
     it('should handle idempotency checks efficiently', async () => {
@@ -406,22 +406,22 @@ describe('Webhook Processing Performance', () => {
             },
           },
         },
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const idempotencyCheckTimes = []
 
       for (const event of duplicateEvents) {
-        const checkStart = performance.now()
+        const checkStart = performance.now();
         
         // Simulate idempotency check
-        await new Promise(resolve => setTimeout(resolve, 5))
+        await new Promise(resolve => setTimeout(resolve, 5));
         
-        const checkEnd = performance.now()
-        idempotencyCheckTimes.push(checkEnd - checkStart)
-      }
+        const checkEnd = performance.now();
+        idempotencyCheckTimes.push(checkEnd - checkStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
@@ -430,7 +430,7 @@ describe('Webhook Processing Performance', () => {
       // Performance assertions
       expect(avgCheckTime).toBeLessThan(10) // Average should be under 10ms
       expect(totalDuration).toBeLessThan(1000) // Total should be under 1 second
-    })
+    });
 
     it('should handle conflict resolution efficiently', async () => {
       const conflictingEvents = Array.from({ length: 50 }, (_, i) => ({
@@ -449,22 +449,22 @@ describe('Webhook Processing Performance', () => {
             },
           },
         },
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const conflictResolutionTimes = []
 
       for (const event of conflictingEvents) {
-        const resolutionStart = performance.now()
+        const resolutionStart = performance.now();
         
         // Simulate conflict resolution
-        await new Promise(resolve => setTimeout(resolve, 15))
+        await new Promise(resolve => setTimeout(resolve, 15));
         
-        const resolutionEnd = performance.now()
-        conflictResolutionTimes.push(resolutionEnd - resolutionStart)
-      }
+        const resolutionEnd = performance.now();
+        conflictResolutionTimes.push(resolutionEnd - resolutionStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
@@ -473,8 +473,8 @@ describe('Webhook Processing Performance', () => {
       // Performance assertions
       expect(avgResolutionTime).toBeLessThan(30) // Average should be under 30ms
       expect(totalDuration).toBeLessThan(2000) // Total should be under 2 seconds
-    })
-  })
+    });
+  });
 
   describe('Error Handling and Retry Performance', () => {
     it('should handle retry mechanisms efficiently', async () => {
@@ -483,22 +483,22 @@ describe('Webhook Processing Performance', () => {
         id: `evt_test_${i}`,
         error: 'Processing failed',
         retry_count: 0,
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const retryTimes = []
 
       for (const event of failedEvents) {
-        const retryStart = performance.now()
+        const retryStart = performance.now();
         
         // Simulate retry processing
-        await new Promise(resolve => setTimeout(resolve, 20))
+        await new Promise(resolve => setTimeout(resolve, 20));
         
-        const retryEnd = performance.now()
-        retryTimes.push(retryEnd - retryStart)
-      }
+        const retryEnd = performance.now();
+        retryTimes.push(retryEnd - retryStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
@@ -507,29 +507,29 @@ describe('Webhook Processing Performance', () => {
       // Performance assertions
       expect(avgRetryTime).toBeLessThan(50) // Average should be under 50ms
       expect(totalDuration).toBeLessThan(3000) // Total should be under 3 seconds
-    })
+    });
 
     it('should handle exponential backoff efficiently', async () => {
       const retryAttempts = Array.from({ length: 10 }, (_, i) => ({
         attempt: i + 1,
         delay: Math.pow(2, i) * 1000, // Exponential backoff
         eventId: `evt_test_${i}`,
-      }))
+      }));
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       const backoffTimes = []
 
       for (const attempt of retryAttempts) {
-        const backoffStart = performance.now()
+        const backoffStart = performance.now();
         
         // Simulate exponential backoff delay
-        await new Promise(resolve => setTimeout(resolve, Math.min(attempt.delay, 10000)))
+        await new Promise(resolve => setTimeout(resolve, Math.min(attempt.delay, 10000)));
         
-        const backoffEnd = performance.now()
-        backoffTimes.push(backoffEnd - backoffStart)
-      }
+        const backoffEnd = performance.now();
+        backoffTimes.push(backoffEnd - backoffStart);
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
@@ -538,8 +538,8 @@ describe('Webhook Processing Performance', () => {
       // Performance assertions
       expect(avgBackoffTime).toBeLessThan(5000) // Average should be under 5 seconds
       expect(totalDuration).toBeLessThan(60000) // Total should be under 60 seconds
-    })
-  })
+    });
+  });
 
   describe('Memory Usage and Resource Management', () => {
     it('should maintain reasonable memory usage during webhook processing', async () => {
@@ -561,20 +561,20 @@ describe('Webhook Processing Performance', () => {
             },
           },
         },
-      }))
+      }));
 
       // Process webhooks
       for (const event of webhookEvents) {
         // Simulate webhook processing
-        await new Promise(resolve => setTimeout(resolve, 1))
-      }
+        await new Promise(resolve => setTimeout(resolve, 1));
+      };
 
       const finalMemory = performance.memory ? performance.memory.usedJSHeapSize : 0
       const memoryIncrease = finalMemory - initialMemory
 
-      // Memory increase should be reasonable (less than 50MB)
-      expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024)
-    })
+      // Memory increase should be reasonable (less than 50MB);
+      expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024);
+    });
 
     it('should clean up resources after webhook processing', async () => {
       let resourcesCreated = 0
@@ -583,7 +583,7 @@ describe('Webhook Processing Performance', () => {
       const webhookEvents = Array.from({ length: 100 }, (_, i) => ({
         ...mockWebhookEvent,
         id: `evt_test_${i}`,
-      }))
+      }));
 
       // Process webhooks
       for (const event of webhookEvents) {
@@ -591,17 +591,17 @@ describe('Webhook Processing Performance', () => {
         resourcesCreated += 3
         
         // Simulate webhook processing
-        await new Promise(resolve => setTimeout(resolve, 10))
+        await new Promise(resolve => setTimeout(resolve, 10));
         
         // Simulate resource cleanup
         resourcesCleaned += 3
-      }
+      };
 
       // Verify resource cleanup
-      expect(resourcesCreated).toBe(300)
-      expect(resourcesCleaned).toBe(300)
-      expect(resourcesCreated).toBe(resourcesCleaned)
-    })
+      expect(resourcesCreated).toBe(300);
+      expect(resourcesCleaned).toBe(300);
+      expect(resourcesCreated).toBe(resourcesCleaned);
+    });
 
     it('should handle large webhook payloads efficiently', async () => {
       const largeWebhookEvent = {
@@ -620,20 +620,20 @@ describe('Webhook Processing Performance', () => {
             },
           },
         },
-      }
+      };
 
-      const startTime = performance.now()
+      const startTime = performance.now();
       
       // Process large webhook
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      const endTime = performance.now()
+      const endTime = performance.now();
       const duration = endTime - startTime
 
       // Should process large payloads efficiently
       expect(duration).toBeLessThan(200) // Should complete within 200ms
-    })
-  })
+    });
+  });
 
   describe('Performance Monitoring and Metrics', () => {
     it('should track webhook processing metrics', async () => {
@@ -644,80 +644,80 @@ describe('Webhook Processing Performance', () => {
         maxProcessingTime: 0,
         memoryUsage: 0,
         errorRate: 0,
-      }
+      };
 
       const webhookEvents = Array.from({ length: 100 }, (_, i) => ({
         ...mockWebhookEvent,
         id: `evt_test_${i}`,
-      }))
+      }));
 
       const processingTimes = []
 
       for (const event of webhookEvents) {
-        const startTime = performance.now()
+        const startTime = performance.now();
         
         // Simulate webhook processing
-        await new Promise(resolve => setTimeout(resolve, 10))
+        await new Promise(resolve => setTimeout(resolve, 10));
         
-        const endTime = performance.now()
+        const endTime = performance.now();
         const duration = endTime - startTime
-        processingTimes.push(duration)
+        processingTimes.push(duration);
         
         metrics.totalProcessed++
-      }
+      };
 
       // Calculate metrics
       metrics.avgProcessingTime = processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length
-      metrics.maxProcessingTime = Math.max(...processingTimes)
+      metrics.maxProcessingTime = Math.max(...processingTimes);
       metrics.memoryUsage = performance.memory ? performance.memory.usedJSHeapSize : 0
 
       // Verify metrics collection
-      expect(metrics.totalProcessed).toBe(100)
-      expect(metrics.avgProcessingTime).toBeGreaterThan(0)
-      expect(metrics.maxProcessingTime).toBeGreaterThan(0)
-      expect(metrics.memoryUsage).toBeGreaterThan(0)
-    })
+      expect(metrics.totalProcessed).toBe(100);
+      expect(metrics.avgProcessingTime).toBeGreaterThan(0);
+      expect(metrics.maxProcessingTime).toBeGreaterThan(0);
+      expect(metrics.memoryUsage).toBeGreaterThan(0);
+    });
 
     it('should provide performance alerts for slow webhook processing', async () => {
       const slowWebhookEvent = {
         ...mockWebhookEvent,
         processingTime: 5000, // 5 seconds
         threshold: 1000, // 1 second threshold
-      }
+      };
 
       const alert = slowWebhookEvent.processingTime > slowWebhookEvent.threshold 
         ? 'Slow webhook processing detected' 
         : null
 
-      expect(alert).toBe('Slow webhook processing detected')
-    })
+      expect(alert).toBe('Slow webhook processing detected');
+    });
 
     it('should maintain performance under stress conditions', async () => {
       const stressTestResults = []
-      const startTime = performance.now()
+      const startTime = performance.now();
 
       // Simulate stress test with varying load
       for (let i = 0; i < 200; i++) {
-        const requestStart = performance.now()
+        const requestStart = performance.now();
         
         // Simulate varying processing time
         const delay = Math.random() * 100 + 10 // 10-110ms
-        await new Promise(resolve => setTimeout(resolve, delay))
+        await new Promise(resolve => setTimeout(resolve, delay));
         
-        const requestEnd = performance.now()
+        const requestEnd = performance.now();
         stressTestResults.push({
           requestId: i,
           duration: requestEnd - requestStart,
           success: true,
-        })
-      }
+        });
+      };
 
-      const endTime = performance.now()
+      const endTime = performance.now();
       const totalDuration = endTime - startTime
 
       // Calculate performance metrics
       const avgDuration = stressTestResults.reduce((sum, result) => sum + result.duration, 0) / stressTestResults.length
-      const maxDuration = Math.max(...stressTestResults.map(result => result.duration))
+      const maxDuration = Math.max(...stressTestResults.map(result => result.duration));
       const p95Duration = stressTestResults.sort((a, b) => a.duration - b.duration)[Math.floor(stressTestResults.length * 0.95)].duration
 
       // Performance assertions
@@ -725,6 +725,6 @@ describe('Webhook Processing Performance', () => {
       expect(maxDuration).toBeLessThan(200) // Max should be under 200ms
       expect(p95Duration).toBeLessThan(180) // 95th percentile should be under 180ms
       expect(totalDuration).toBeLessThan(25000) // Total should be under 25 seconds
-    })
-  })
-})
+    });
+  });
+});
