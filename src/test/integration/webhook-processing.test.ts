@@ -56,9 +56,9 @@ vi.mock('https://deno.land/std@0.190.0/http/server.ts', () => ({
 }))
 
 describe('Stripe Webhook Processing', () => {
-  let mockStripe: any
-  let mockSupabase: any
-  let mockServe: any
+  let mockStripe: unknown
+  let mockSupabase: unknown
+  let mockServe: unknown
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -122,8 +122,8 @@ describe('Stripe Webhook Processing', () => {
       const { default: webhookHandler } = await import('../../supabase/functions/stripe-webhook/index.ts')
       
       // Mock the serve function to capture the handler
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -140,8 +140,8 @@ describe('Stripe Webhook Processing', () => {
         method: 'GET',
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -168,8 +168,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify({ type: 'test.event' }),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -196,8 +196,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify({ type: 'test.event' }),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -236,8 +236,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -264,8 +264,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify({ type: 'test.event' }),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -311,8 +311,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -351,8 +351,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -414,8 +414,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -461,8 +461,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -510,8 +510,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -561,8 +561,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -612,8 +612,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -662,8 +662,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -706,8 +706,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -743,8 +743,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -782,8 +782,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -819,8 +819,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -850,8 +850,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify({ type: 'test.event' }),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -891,8 +891,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify({ type: 'test.event' }),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })
@@ -941,8 +941,8 @@ describe('Stripe Webhook Processing', () => {
         body: JSON.stringify(mockEvent),
       })
 
-      let capturedHandler: any
-      mockServe.mockImplementation((handler: any) => {
+      let capturedHandler: unknown
+      mockServe.mockImplementation((handler: unknown) => {
         capturedHandler = handler
         return Promise.resolve()
       })

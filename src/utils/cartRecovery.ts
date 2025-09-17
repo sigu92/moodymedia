@@ -42,9 +42,9 @@ class CartRecoverySystem {
   async trackAbandonment(
     userId: string,
     sessionId: string,
-    cartItems: any[],
-    billingInfo?: any,
-    errorDetails?: any,
+    cartItems: unknown[],
+    billingInfo?: unknown,
+    errorDetails?: unknown,
     metadata?: {
       totalAmount: number;
       currency: string;

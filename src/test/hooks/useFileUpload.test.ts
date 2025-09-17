@@ -578,7 +578,7 @@ describe('useFileUpload', () => {
 
       await act(async () => {
         try {
-          await result.current.uploadFile(null as any, 'test-path')
+          await result.current.uploadFile(null as File | null, 'test-path')
         } catch (error: unknown) {
           expect(error.message).toContain('Invalid file')
         }
