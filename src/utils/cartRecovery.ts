@@ -6,9 +6,9 @@
 export interface CartAbandonmentData {
   userId: string;
   sessionId: string;
-  cartItems: any[];
-  billingInfo?: any;
-  errorDetails?: any;
+  cartItems: unknown[];
+  billingInfo?: unknown;
+  errorDetails?: unknown;
   metadata?: {
     totalAmount: number;
     currency: string;
@@ -28,7 +28,7 @@ export interface RecoveryCampaign {
   openedAt?: number;
   clickedAt?: number;
   convertedAt?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 class CartRecoverySystem {
@@ -362,7 +362,7 @@ class CartRecoverySystem {
   /**
    * Determine abandonment reason
    */
-  private determineAbandonmentReason(errorDetails?: any): string {
+  private determineAbandonmentReason(errorDetails?: unknown): string {
     if (!errorDetails) return 'user_action';
 
     if (errorDetails.category === 'user_action_required') {

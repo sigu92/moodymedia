@@ -126,7 +126,7 @@ export const usePaymentPreferences = (): PaymentPreferencesStatus => {
 
     try {
       // Prepare metadata update
-      const metadataUpdate: Record<string, any> = {};
+      const metadataUpdate: Record<string, unknown> = {};
 
       if (newPreferences.default_payment_method !== undefined) {
         metadataUpdate.default_payment_method = newPreferences.default_payment_method;

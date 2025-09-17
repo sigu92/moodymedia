@@ -44,7 +44,7 @@ interface CartCacheConfig {
 }
 
 class CartDataCache {
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private config: CartCacheConfig;
   private cleanupTimer: NodeJS.Timeout | null = null;
 
