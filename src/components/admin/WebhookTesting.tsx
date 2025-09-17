@@ -23,19 +23,44 @@ import {
 import { webhookTester, mockStripeEvents } from '@/utils/webhookTesting';
 import { toast } from '@/hooks/use-toast';
 
+// Define proper types for webhook testing
+interface WebhookTestResult {
+  test: string;
+  success: boolean;
+  error?: string;
+  response?: any;
+}
+
+interface WebhookTestSummary {
+  total: number;
+  passed: number;
+  failed: number;
+}
+
+interface WebhookTestResults {
+  results: WebhookTestResult[];
+  summary: WebhookTestSummary;
+}
+
+interface WebhookResponse {
+  success: boolean;
+  response?: any;
+  error?: string;
+}
+
 export const WebhookTesting: React.FC = () => {
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [isSendingWebhook, setIsSendingWebhook] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   
-  const [testResults, setTestResults] = useState<any>(null);
+  const [testResults, setTestResults] = useState<WebhookTestResults | null>(null);
   const [customEventType, setCustomEventType] = useState('checkout.session.completed');
   const [customSessionId, setCustomSessionId] = useState('');
   const [customPaymentIntentId, setCustomPaymentIntentId] = useState('');
   const [customCustomerId, setCustomCustomerId] = useState('');
   const [customEmail, setCustomEmail] = useState('');
-  const [webhookResponse, setWebhookResponse] = useState<any>(null);
+  const [webhookResponse, setWebhookResponse] = useState<WebhookResponse | null>(null);
 
   const handleRunAllTests = async () => {
     setIsRunningTests(true);
@@ -329,7 +354,7 @@ export const WebhookTesting: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                {testResults.results.map((result: any, index: number) => (
+                {testResults.results.map((result: WebhookTestResult, index: number) => (
                   <div
                     key={index}
                     className={`flex items-center justify-between p-3 rounded-lg border ${

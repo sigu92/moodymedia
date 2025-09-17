@@ -240,7 +240,9 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
       // Refresh local auth session/user data
       try {
         await supabase.auth.getSession();
-      } catch (_) {}
+      } catch (error) {
+        console.warn('Failed to refresh auth session:', error);
+      }
 
       setBillingSaved(true);
       toast({

@@ -29,7 +29,7 @@ interface SimulationResult {
   scenario: string;
   duration: number;
   error?: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export const PaymentSimulator: React.FC = () => {

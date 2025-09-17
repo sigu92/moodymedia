@@ -43,7 +43,7 @@ export function CartSidebar({ id, open, onOpenChange, onOpenCheckout }: CartSide
     }, 0);
   // VAT rate configurable with fallback
   const defaultVatRate = 0.25;
-  const configuredVat = Number((import.meta as any)?.env?.VITE_VAT_RATE ?? defaultVatRate);
+  const configuredVat = Number((import.meta.env as Record<string, string | undefined>)?.VITE_VAT_RATE ?? defaultVatRate);
   const vatRate = Number.isFinite(configuredVat) && configuredVat >= 0 ? configuredVat : defaultVatRate;
   const vatAmount = subtotal * vatRate;
   const total = subtotal + vatAmount;

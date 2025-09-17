@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -45,13 +45,13 @@ export function MarketplaceManager() {
   const [stats, setStats] = useState<SubmissionStats>({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const { toast } = useToast();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     await Promise.all([loadUserGroups(), loadSubmissions()]);
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const loadUserGroups = async () => {
     try {

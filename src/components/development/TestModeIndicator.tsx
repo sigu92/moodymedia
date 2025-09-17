@@ -22,7 +22,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { stripeConfig } from '@/config/stripe';
-import { developmentMockSystem } from '@/utils/developmentMockSystem';
+import { developmentMockSystem, MockPaymentConfig } from '@/utils/developmentMockSystem';
 
 export const TestModeIndicator: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -40,7 +40,7 @@ export const TestModeIndicator: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleConfigUpdate = (updates: any) => {
+  const handleConfigUpdate = (updates: Partial<MockPaymentConfig>) => {
     const newConfig = { ...mockConfig, ...updates };
     setMockConfig(newConfig);
     developmentMockSystem.updateConfig(updates);
