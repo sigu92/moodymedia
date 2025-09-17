@@ -24,15 +24,15 @@ import { render as customRender, mockUser } from '@/test/test-utils'
 // Mock all external dependencies
 vi.mock('@/hooks/useWebhooks', () => ({
   useWebhooks: vi.fn(),
-}))
+}));
 
 vi.mock('@/hooks/useOrders', () => ({
   useOrders: vi.fn(),
-}))
+}));
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
-}))
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -55,11 +55,11 @@ vi.mock('@/integrations/supabase/client', () => ({
       })),
     })),
   },
-}))
+}));
 
 vi.mock('@/hooks/use-toast', () => ({
   toast: vi.fn(),
-}))
+}));
 
 describe('Webhook Error Scenarios and Recovery', () => {
   const mockUser = {
@@ -68,7 +68,7 @@ describe('Webhook Error Scenarios and Recovery', () => {
     user_metadata: {
       full_name: 'Admin User',
     },
-  }
+  };
 
   const mockWebhookEvent = {
     id: 'evt_test_123',
@@ -91,14 +91,14 @@ describe('Webhook Error Scenarios and Recovery', () => {
     processed_at: null,
     error: null,
     retry_count: 0,
-  }
+  };
 
   let mockWebhookHook: any
   let mockOrderHook: any
   let mockAuthHook: any
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
     
     // Mock auth
     mockAuthHook = {
@@ -107,8 +107,8 @@ describe('Webhook Error Scenarios and Recovery', () => {
       signOut: vi.fn(),
       isLoading: false,
       isAuthenticated: true,
-    }
-    vi.mocked(useAuth).mockReturnValue(mockAuthHook)
+    };
+    vi.mocked(useAuth).mockReturnValue(mockAuthHook);
 
     // Mock webhook hook
     mockWebhookHook = {
@@ -120,8 +120,8 @@ describe('Webhook Error Scenarios and Recovery', () => {
       processWebhook: vi.fn(),
       deleteWebhook: vi.fn(),
       getWebhookStats: vi.fn(),
-    }
-    vi.mocked(useWebhooks).mockReturnValue(mockWebhookHook)
+    };
+    vi.mocked(useWebhooks).mockReturnValue(mockWebhookHook);
 
     // Mock order hook
     mockOrderHook = {
@@ -131,80 +131,80 @@ describe('Webhook Error Scenarios and Recovery', () => {
       updateOrderStatus: vi.fn(),
       getOrderById: vi.fn(),
       refreshOrders: vi.fn(),
-    }
-    vi.mocked(useOrders).mockReturnValue(mockOrderHook)
-  })
+    };
+    vi.mocked(useOrders).mockReturnValue(mockOrderHook);
+  });
 
   afterEach(() => {
-    vi.resetAllMocks()
-  })
+    vi.resetAllMocks();
+  });
 
   describe('Webhook Signature Verification Errors', () => {
     it('should handle invalid webhook signatures', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock invalid signature error
       const invalidSignatureEvent = {
         ...mockWebhookEvent,
         error: 'Invalid webhook signature',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [invalidSignatureEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/invalid webhook signature/i)).toBeInTheDocument()
-      expect(screen.getByText(/security warning/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/invalid webhook signature/i)).toBeInTheDocument();
+      expect(screen.getByText(/security warning/i)).toBeInTheDocument();
+    });
 
     it('should handle missing webhook signatures', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock missing signature error
       const missingSignatureEvent = {
         ...mockWebhookEvent,
         error: 'Missing webhook signature',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [missingSignatureEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/missing webhook signature/i)).toBeInTheDocument()
-      expect(screen.getByText(/security warning/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/missing webhook signature/i)).toBeInTheDocument();
+      expect(screen.getByText(/security warning/i)).toBeInTheDocument();
+    });
 
     it('should handle malformed webhook signatures', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock malformed signature error
       const malformedSignatureEvent = {
         ...mockWebhookEvent,
         error: 'Malformed webhook signature',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [malformedSignatureEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/malformed webhook signature/i)).toBeInTheDocument()
-      expect(screen.getByText(/security warning/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/malformed webhook signature/i)).toBeInTheDocument();
+      expect(screen.getByText(/security warning/i)).toBeInTheDocument();
+    });
 
     it('should not retry signature verification errors', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock signature error
       const signatureErrorEvent = {
@@ -212,24 +212,24 @@ describe('Webhook Error Scenarios and Recovery', () => {
         error: 'Invalid webhook signature',
         processed: false,
         retry_count: 0,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [signatureErrorEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Should not show retry button for signature errors
-      expect(screen.queryByText(/retry/i)).not.toBeInTheDocument()
-      expect(screen.getByText(/cannot retry/i)).toBeInTheDocument()
-    })
-  })
+      expect(screen.queryByText(/retry/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/cannot retry/i)).toBeInTheDocument();
+    });
+  });
 
   describe('Event Processing Errors', () => {
     it('should handle unknown event types', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock unknown event type
       const unknownEvent = {
@@ -237,21 +237,21 @@ describe('Webhook Error Scenarios and Recovery', () => {
         type: 'unknown.event.type',
         error: 'Unknown event type',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [unknownEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/unknown event type/i)).toBeInTheDocument()
-      expect(screen.getByText(/unhandled event/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/unknown event type/i)).toBeInTheDocument();
+      expect(screen.getByText(/unhandled event/i)).toBeInTheDocument();
+    });
 
     it('should handle malformed event data', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock malformed event data
       const malformedEvent = {
@@ -259,21 +259,21 @@ describe('Webhook Error Scenarios and Recovery', () => {
         data: null,
         error: 'Malformed event data',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [malformedEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/malformed event data/i)).toBeInTheDocument()
-      expect(screen.getByText(/invalid payload/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/malformed event data/i)).toBeInTheDocument();
+      expect(screen.getByText(/invalid payload/i)).toBeInTheDocument();
+    });
 
     it('should handle missing required fields', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock missing required fields
       const missingFieldsEvent = {
@@ -286,21 +286,21 @@ describe('Webhook Error Scenarios and Recovery', () => {
         },
         error: 'Missing required fields',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [missingFieldsEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/missing required fields/i)).toBeInTheDocument()
-      expect(screen.getByText(/incomplete data/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/missing required fields/i)).toBeInTheDocument();
+      expect(screen.getByText(/incomplete data/i)).toBeInTheDocument();
+    });
 
     it('should handle event processing timeouts', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock processing timeout
       const timeoutEvent = {
@@ -308,174 +308,174 @@ describe('Webhook Error Scenarios and Recovery', () => {
         error: 'Event processing timeout',
         processed: false,
         retry_count: 2,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [timeoutEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/event processing timeout/i)).toBeInTheDocument()
-      expect(screen.getByText(/retry count: 2/i)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(/event processing timeout/i)).toBeInTheDocument();
+      expect(screen.getByText(/retry count: 2/i)).toBeInTheDocument();
+    });
+  });
 
   describe('Database Update Errors', () => {
     it('should handle order not found errors', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock order not found error
       const orderNotFoundEvent = {
         ...mockWebhookEvent,
         error: 'Order not found',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [orderNotFoundEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/order not found/i)).toBeInTheDocument()
-      expect(screen.getByText(/data inconsistency/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/order not found/i)).toBeInTheDocument();
+      expect(screen.getByText(/data inconsistency/i)).toBeInTheDocument();
+    });
 
     it('should handle database connection errors', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock database connection error
       const dbConnectionEvent = {
         ...mockWebhookEvent,
         error: 'Database connection failed',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [dbConnectionEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/database connection failed/i)).toBeInTheDocument()
-      expect(screen.getByText(/infrastructure error/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/database connection failed/i)).toBeInTheDocument();
+      expect(screen.getByText(/infrastructure error/i)).toBeInTheDocument();
+    });
 
     it('should handle database constraint violations', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock constraint violation error
       const constraintEvent = {
         ...mockWebhookEvent,
         error: 'Unique constraint violation',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [constraintEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/unique constraint violation/i)).toBeInTheDocument()
-      expect(screen.getByText(/data conflict/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/unique constraint violation/i)).toBeInTheDocument();
+      expect(screen.getByText(/data conflict/i)).toBeInTheDocument();
+    });
 
     it('should handle database transaction failures', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock transaction failure
       const transactionEvent = {
         ...mockWebhookEvent,
         error: 'Database transaction failed',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [transactionEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/database transaction failed/i)).toBeInTheDocument()
-      expect(screen.getByText(/rollback required/i)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(/database transaction failed/i)).toBeInTheDocument();
+      expect(screen.getByText(/rollback required/i)).toBeInTheDocument();
+    });
+  });
 
   describe('Idempotency Conflicts', () => {
     it('should handle duplicate event processing', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock duplicate event
       const duplicateEvent = {
         ...mockWebhookEvent,
         error: 'Event already processed',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [duplicateEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/event already processed/i)).toBeInTheDocument()
-      expect(screen.getByText(/idempotency check/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/event already processed/i)).toBeInTheDocument();
+      expect(screen.getByText(/idempotency check/i)).toBeInTheDocument();
+    });
 
     it('should handle concurrent event processing', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock concurrent processing error
       const concurrentEvent = {
         ...mockWebhookEvent,
         error: 'Event being processed by another instance',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [concurrentEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/event being processed by another instance/i)).toBeInTheDocument()
-      expect(screen.getByText(/concurrent processing/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/event being processed by another instance/i)).toBeInTheDocument();
+      expect(screen.getByText(/concurrent processing/i)).toBeInTheDocument();
+    });
 
     it('should handle race conditions', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock race condition error
       const raceConditionEvent = {
         ...mockWebhookEvent,
         error: 'Race condition detected',
         processed: false,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [raceConditionEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/race condition detected/i)).toBeInTheDocument()
-      expect(screen.getByText(/timing issue/i)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(/race condition detected/i)).toBeInTheDocument();
+      expect(screen.getByText(/timing issue/i)).toBeInTheDocument();
+    });
+  });
 
   describe('Retry Mechanisms', () => {
     it('should retry failed webhook processing', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock retryable error
       const retryableEvent = {
@@ -483,32 +483,32 @@ describe('Webhook Error Scenarios and Recovery', () => {
         error: 'Temporary processing error',
         processed: false,
         retry_count: 1,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [retryableEvent],
-      })
+      });
 
       // Mock successful retry
       mockWebhookHook.retryWebhook.mockResolvedValue({
         success: true,
         orderUpdated: true,
         orderStatus: 'paid',
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Click retry button
-      await user.click(screen.getByText(/retry/i))
+      await user.click(screen.getByText(/retry/i));
 
       await waitFor(() => {
-        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledWith('evt_test_123')
-      })
-    })
+        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledWith('evt_test_123');
+      });
+    });
 
     it('should limit retry attempts', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock max retries reached
       const maxRetryEvent = {
@@ -516,22 +516,22 @@ describe('Webhook Error Scenarios and Recovery', () => {
         error: 'Max retries exceeded',
         processed: false,
         retry_count: 5,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [maxRetryEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/max retries exceeded/i)).toBeInTheDocument()
-      expect(screen.queryByText(/retry/i)).not.toBeInTheDocument()
-      expect(screen.getByText(/dead letter queue/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/max retries exceeded/i)).toBeInTheDocument();
+      expect(screen.queryByText(/retry/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/dead letter queue/i)).toBeInTheDocument();
+    });
 
     it('should implement exponential backoff', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock retry with backoff
       const backoffEvent = {
@@ -539,28 +539,28 @@ describe('Webhook Error Scenarios and Recovery', () => {
         error: 'Temporary error',
         processed: false,
         retry_count: 3,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [backoffEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Click retry button
-      await user.click(screen.getByText(/retry/i))
+      await user.click(screen.getByText(/retry/i));
 
       await waitFor(() => {
-        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledWith('evt_test_123')
-      })
+        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledWith('evt_test_123');
+      });
 
       // Should show backoff delay
-      expect(screen.getByText(/retry delay/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/retry delay/i)).toBeInTheDocument();
+    });
 
     it('should handle retry failures', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock retry failure
       const retryFailureEvent = {
@@ -568,33 +568,33 @@ describe('Webhook Error Scenarios and Recovery', () => {
         error: 'Retry failed',
         processed: false,
         retry_count: 2,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [retryFailureEvent],
-      })
+      });
 
       // Mock retry failure
       mockWebhookHook.retryWebhook.mockResolvedValue({
         success: false,
         error: 'Retry failed',
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Click retry button
-      await user.click(screen.getByText(/retry/i))
+      await user.click(screen.getByText(/retry/i));
 
       await waitFor(() => {
-        expect(screen.getByText(/retry failed/i)).toBeInTheDocument()
-      })
-    })
-  })
+        expect(screen.getByText(/retry failed/i)).toBeInTheDocument();
+      });
+    });
+  });
 
   describe('Dead Letter Queue Handling', () => {
     it('should move failed webhooks to dead letter queue', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock dead letter queue event
       const deadLetterEvent = {
@@ -603,21 +603,21 @@ describe('Webhook Error Scenarios and Recovery', () => {
         processed: false,
         retry_count: 5,
         status: 'dead_letter',
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [deadLetterEvent],
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/dead letter queue/i)).toBeInTheDocument()
-      expect(screen.getByText(/permanent failure/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/dead letter queue/i)).toBeInTheDocument();
+      expect(screen.getByText(/permanent failure/i)).toBeInTheDocument();
+    });
 
     it('should allow manual reprocessing from dead letter queue', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock dead letter queue event
       const deadLetterEvent = {
@@ -626,32 +626,32 @@ describe('Webhook Error Scenarios and Recovery', () => {
         processed: false,
         retry_count: 5,
         status: 'dead_letter',
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [deadLetterEvent],
-      })
+      });
 
       // Mock manual reprocessing
       mockWebhookHook.retryWebhook.mockResolvedValue({
         success: true,
         orderUpdated: true,
         orderStatus: 'paid',
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Click manual reprocess button
-      await user.click(screen.getByText(/manual reprocess/i))
+      await user.click(screen.getByText(/manual reprocess/i));
 
       await waitFor(() => {
-        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledWith('evt_test_123')
-      })
-    })
+        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledWith('evt_test_123');
+      });
+    });
 
     it('should allow deletion of dead letter queue items', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock dead letter queue event
       const deadLetterEvent = {
@@ -660,31 +660,31 @@ describe('Webhook Error Scenarios and Recovery', () => {
         processed: false,
         retry_count: 5,
         status: 'dead_letter',
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: [deadLetterEvent],
-      })
+      });
 
       // Mock deletion
       mockWebhookHook.deleteWebhook.mockResolvedValue({
         success: true,
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Click delete button
-      await user.click(screen.getByText(/delete/i))
+      await user.click(screen.getByText(/delete/i));
 
       // Confirm deletion
-      await user.click(screen.getByText(/confirm delete/i))
+      await user.click(screen.getByText(/confirm delete/i));
 
       await waitFor(() => {
-        expect(mockWebhookHook.deleteWebhook).toHaveBeenCalledWith('evt_test_123')
-      })
-    })
-  })
+        expect(mockWebhookHook.deleteWebhook).toHaveBeenCalledWith('evt_test_123');
+      });
+    });
+  });
 
   describe('Error Monitoring and Alerting', () => {
     it('should display error statistics', () => {
@@ -694,21 +694,21 @@ describe('Webhook Error Scenarios and Recovery', () => {
         failed: 10,
         dead_letter: 2,
         retryable: 8,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         stats: errorStats,
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText('100')).toBeInTheDocument()
-      expect(screen.getByText('90')).toBeInTheDocument()
-      expect(screen.getByText('10')).toBeInTheDocument()
-      expect(screen.getByText('2')).toBeInTheDocument()
-      expect(screen.getByText('8')).toBeInTheDocument()
-    })
+      expect(screen.getByText('100')).toBeInTheDocument();
+      expect(screen.getByText('90')).toBeInTheDocument();
+      expect(screen.getByText('10')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('8')).toBeInTheDocument();
+    });
 
     it('should show error trends over time', () => {
       const errorTrends = [
@@ -720,39 +720,39 @@ describe('Webhook Error Scenarios and Recovery', () => {
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         trends: errorTrends,
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/error trends/i)).toBeInTheDocument()
-      expect(screen.getByText('2024-01-01')).toBeInTheDocument()
-      expect(screen.getByText('2024-01-02')).toBeInTheDocument()
-      expect(screen.getByText('2024-01-03')).toBeInTheDocument()
-    })
+      expect(screen.getByText(/error trends/i)).toBeInTheDocument();
+      expect(screen.getByText('2024-01-01')).toBeInTheDocument();
+      expect(screen.getByText('2024-01-02')).toBeInTheDocument();
+      expect(screen.getByText('2024-01-03')).toBeInTheDocument();
+    });
 
     it('should alert on high error rates', () => {
       const highErrorRate = {
         error_rate: 0.15,
         threshold: 0.10,
         alert: true,
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         alert: highErrorRate,
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/high error rate/i)).toBeInTheDocument()
-      expect(screen.getByText(/15%/i)).toBeInTheDocument()
-      expect(screen.getByText(/threshold exceeded/i)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(/high error rate/i)).toBeInTheDocument();
+      expect(screen.getByText(/15%/i)).toBeInTheDocument();
+      expect(screen.getByText(/threshold exceeded/i)).toBeInTheDocument();
+    });
+  });
 
   describe('Recovery Actions', () => {
     it('should provide bulk retry functionality', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock multiple failed webhooks
       const failedWebhooks = [
@@ -764,30 +764,30 @@ describe('Webhook Error Scenarios and Recovery', () => {
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: failedWebhooks,
-      })
+      });
 
       // Mock bulk retry
       mockWebhookHook.retryWebhook.mockResolvedValue({
         success: true,
         processed: 3,
         failed: 0,
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Select all failed webhooks
-      await user.click(screen.getByText(/select all/i))
+      await user.click(screen.getByText(/select all/i));
 
       // Click bulk retry
-      await user.click(screen.getByText(/bulk retry/i))
+      await user.click(screen.getByText(/bulk retry/i));
 
       await waitFor(() => {
-        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledTimes(3)
-      })
-    })
+        expect(mockWebhookHook.retryWebhook).toHaveBeenCalledTimes(3);
+      });
+    });
 
     it('should provide bulk delete functionality', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock multiple dead letter webhooks
       const deadLetterWebhooks = [
@@ -799,29 +799,29 @@ describe('Webhook Error Scenarios and Recovery', () => {
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         webhooks: deadLetterWebhooks,
-      })
+      });
 
       // Mock bulk delete
       mockWebhookHook.deleteWebhook.mockResolvedValue({
         success: true,
         deleted: 3,
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
       // Select all dead letter webhooks
-      await user.click(screen.getByText(/select all/i))
+      await user.click(screen.getByText(/select all/i));
 
       // Click bulk delete
-      await user.click(screen.getByText(/bulk delete/i))
+      await user.click(screen.getByText(/bulk delete/i));
 
       // Confirm deletion
-      await user.click(screen.getByText(/confirm bulk delete/i))
+      await user.click(screen.getByText(/confirm bulk delete/i));
 
       await waitFor(() => {
-        expect(mockWebhookHook.deleteWebhook).toHaveBeenCalledTimes(3)
-      })
-    })
+        expect(mockWebhookHook.deleteWebhook).toHaveBeenCalledTimes(3);
+      });
+    });
 
     it('should provide error analysis and recommendations', () => {
       const errorAnalysis = {
@@ -835,20 +835,20 @@ describe('Webhook Error Scenarios and Recovery', () => {
           'Optimize database queries',
           'Verify webhook configuration',
         ],
-      }
+      };
 
       vi.mocked(useWebhooks).mockReturnValue({
         ...mockWebhookHook,
         analysis: errorAnalysis,
-      })
+      });
 
-      customRender(<WebhookLogs />)
+      customRender(<WebhookLogs />);
 
-      expect(screen.getByText(/error analysis/i)).toBeInTheDocument()
-      expect(screen.getByText(/order not found/i)).toBeInTheDocument()
-      expect(screen.getByText(/50%/i)).toBeInTheDocument()
-      expect(screen.getByText(/recommendations/i)).toBeInTheDocument()
-      expect(screen.getByText(/check order synchronization/i)).toBeInTheDocument()
-    })
-  })
-})
+      expect(screen.getByText(/error analysis/i)).toBeInTheDocument();
+      expect(screen.getByText(/order not found/i)).toBeInTheDocument();
+      expect(screen.getByText(/50%/i)).toBeInTheDocument();
+      expect(screen.getByText(/recommendations/i)).toBeInTheDocument();
+      expect(screen.getByText(/check order synchronization/i)).toBeInTheDocument();
+    });
+  });
+});

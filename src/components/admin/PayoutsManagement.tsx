@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -144,7 +144,7 @@ export function PayoutsManagement() {
     },
   ];
 
-  const fetchPayouts = async () => {
+  const fetchPayouts = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-payouts', {
@@ -169,7 +169,7 @@ export function PayoutsManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const handleExport = async () => {
     try {
@@ -260,7 +260,7 @@ export function PayoutsManagement() {
 
   useEffect(() => {
     fetchPayouts();
-  }, []);
+  }, [fetchPayouts]);
 
   const getActionDialogContent = () => {
     if (!actionDialog.action || !actionDialog.payout) return null;

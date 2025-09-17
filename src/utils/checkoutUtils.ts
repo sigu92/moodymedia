@@ -39,7 +39,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Phone validation - normalize and check digit count
 function validatePhoneNumber(phone: string): boolean {
   // Normalize: remove spaces, parentheses, hyphens, and dots
-  const normalized = phone.replace(/[\s\(\)\-\.]/g, '');
+  const normalized = phone.replace(/[\s().-]/g, '');
 
   // Must start with optional + and contain 7-15 digits
   const phoneRegex = /^\+?\d{7,15}$/;
@@ -424,8 +424,8 @@ const VAT_PATTERNS: Record<string, { pattern: RegExp; checkDigit?: (vat: string)
   'DE': { pattern: /^DE\d{9}$/ }, // Germany
   'GR': { pattern: /^GR\d{9}$/ }, // Greece
   'HU': { pattern: /^HU\d{8}$/ }, // Hungary
-  'IE': { 
-    pattern: /^IE\d[A-Z0-9\+\*]\d{5}[A-Z]$/,
+  'IE': {
+    pattern: /^IE\d[A-Z0-9+*]\d{5}[A-Z]$/,
     checkDigit: (vat: string) => {
       // Irish VAT check digit algorithm
       const digits = vat.substring(2).replace(/\D/g, '');

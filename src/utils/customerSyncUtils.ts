@@ -8,12 +8,19 @@
 import { supabase } from '@/integrations/supabase/client';
 import { customerManager } from '@/utils/customerUtils';
 
+// Type for Stripe customer updates
+interface StripeCustomerUpdates {
+  email?: string;
+  name?: string;
+  metadata?: Record<string, string>;
+}
+
 /**
  * Helper function for Stripe update operations with retry logic
  */
 const updateStripeWithRetry = async (
   customerId: string,
-  updates: any,
+  updates: StripeCustomerUpdates,
   maxRetries = 3
 ): Promise<{ success: boolean; error?: string }> => {
   let lastError: string = '';

@@ -24,11 +24,11 @@ import { render as customRender, mockUser } from '@/test/test-utils'
 // Mock all external dependencies
 vi.mock('@/hooks/useOrders', () => ({
   useOrders: vi.fn(),
-}))
+}));
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
-}))
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -54,11 +54,11 @@ vi.mock('@/integrations/supabase/client', () => ({
       })),
     })),
   },
-}))
+}));
 
 vi.mock('@/hooks/use-toast', () => ({
   toast: vi.fn(),
-}))
+}));
 
 describe('Order Management Flow E2E', () => {
   const mockUser = {
@@ -67,7 +67,7 @@ describe('Order Management Flow E2E', () => {
     user_metadata: {
       full_name: 'Test User',
     },
-  }
+  };
 
   const mockOrders = [
     {
@@ -131,7 +131,7 @@ describe('Order Management Flow E2E', () => {
   let mockAuthHook: any
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
     
     // Mock auth
     mockAuthHook = {
@@ -140,8 +140,8 @@ describe('Order Management Flow E2E', () => {
       signOut: vi.fn(),
       isLoading: false,
       isAuthenticated: true,
-    }
-    vi.mocked(useAuth).mockReturnValue(mockAuthHook)
+    };
+    vi.mocked(useAuth).mockReturnValue(mockAuthHook);
 
     // Mock order hook
     mockOrderHook = {
@@ -156,167 +156,167 @@ describe('Order Management Flow E2E', () => {
       refreshOrders: vi.fn(),
       searchOrders: vi.fn(),
       filterOrders: vi.fn(),
-    }
-    vi.mocked(useOrders).mockReturnValue(mockOrderHook)
-  })
+    };
+    vi.mocked(useOrders).mockReturnValue(mockOrderHook);
+  });
 
   afterEach(() => {
-    vi.resetAllMocks()
-  })
+    vi.resetAllMocks();
+  });
 
   describe('Order List Management', () => {
     it('should display list of orders', () => {
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
-      expect(screen.getByText('MO-123456')).toBeInTheDocument()
-      expect(screen.getByText('MO-789012')).toBeInTheDocument()
-      expect(screen.getByText('€360')).toBeInTheDocument()
-      expect(screen.getByText('€200')).toBeInTheDocument()
-      expect(screen.getByText('paid')).toBeInTheDocument()
-      expect(screen.getByText('pending')).toBeInTheDocument()
-    })
+      expect(screen.getByText('MO-123456')).toBeInTheDocument();
+      expect(screen.getByText('MO-789012')).toBeInTheDocument();
+      expect(screen.getByText('€360')).toBeInTheDocument();
+      expect(screen.getByText('€200')).toBeInTheDocument();
+      expect(screen.getByText('paid')).toBeInTheDocument();
+      expect(screen.getByText('pending')).toBeInTheDocument();
+    });
 
     it('should filter orders by status', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
       // Filter by paid status
-      await user.click(screen.getByText(/filter by status/i))
-      await user.click(screen.getByText(/paid/i))
+      await user.click(screen.getByText(/filter by status/i));
+      await user.click(screen.getByText(/paid/i));
 
       await waitFor(() => {
-        expect(mockOrderHook.filterOrders).toHaveBeenCalledWith('status', 'paid')
-      })
+        expect(mockOrderHook.filterOrders).toHaveBeenCalledWith('status', 'paid');
+      });
 
-      expect(screen.getByText('MO-123456')).toBeInTheDocument()
-      expect(screen.queryByText('MO-789012')).not.toBeInTheDocument()
-    })
+      expect(screen.getByText('MO-123456')).toBeInTheDocument();
+      expect(screen.queryByText('MO-789012')).not.toBeInTheDocument();
+    });
 
     it('should search orders by order number', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
       // Search for specific order
-      const searchInput = screen.getByPlaceholderText(/search orders/i)
-      await user.type(searchInput, 'MO-123456')
+      const searchInput = screen.getByPlaceholderText(/search orders/i);
+      await user.type(searchInput, 'MO-123456');
 
       await waitFor(() => {
-        expect(mockOrderHook.searchOrders).toHaveBeenCalledWith('MO-123456')
-      })
+        expect(mockOrderHook.searchOrders).toHaveBeenCalledWith('MO-123456');
+      });
 
-      expect(screen.getByText('MO-123456')).toBeInTheDocument()
-      expect(screen.queryByText('MO-789012')).not.toBeInTheDocument()
-    })
+      expect(screen.getByText('MO-123456')).toBeInTheDocument();
+      expect(screen.queryByText('MO-789012')).not.toBeInTheDocument();
+    });
 
     it('should sort orders by date', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
       // Sort by date
-      await user.click(screen.getByText(/sort by/i))
-      await user.click(screen.getByText(/date/i))
+      await user.click(screen.getByText(/sort by/i));
+      await user.click(screen.getByText(/date/i));
 
       await waitFor(() => {
-        expect(mockOrderHook.filterOrders).toHaveBeenCalledWith('sort', 'date')
-      })
-    })
+        expect(mockOrderHook.filterOrders).toHaveBeenCalledWith('sort', 'date');
+      });
+    });
 
     it('should show loading state', () => {
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         isLoading: true,
-      })
+      });
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
-      expect(screen.getByText(/loading orders/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/loading orders/i)).toBeInTheDocument();
+    });
 
     it('should handle empty order list', () => {
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         orders: [],
-      })
+      });
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
-      expect(screen.getByText(/no orders found/i)).toBeInTheDocument()
-      expect(screen.getByText(/start shopping/i)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(/no orders found/i)).toBeInTheDocument();
+      expect(screen.getByText(/start shopping/i)).toBeInTheDocument();
+    });
+  });
 
   describe('Order Details View', () => {
     it('should display order details', () => {
       const order = mockOrders[0]
 
-      customRender(<OrderDetails orderId={order.id} />)
+      customRender(<OrderDetails orderId={order.id} />);
 
-      expect(screen.getByText('MO-123456')).toBeInTheDocument()
-      expect(screen.getByText('€360')).toBeInTheDocument()
-      expect(screen.getByText('paid')).toBeInTheDocument()
-      expect(screen.getByText('example.com')).toBeInTheDocument()
-      expect(screen.getByText('test.com')).toBeInTheDocument()
-    })
+      expect(screen.getByText('MO-123456')).toBeInTheDocument();
+      expect(screen.getByText('€360')).toBeInTheDocument();
+      expect(screen.getByText('paid')).toBeInTheDocument();
+      expect(screen.getByText('example.com')).toBeInTheDocument();
+      expect(screen.getByText('test.com')).toBeInTheDocument();
+    });
 
     it('should show order items with details', () => {
       const order = mockOrders[0]
 
-      customRender(<OrderDetails orderId={order.id} />)
+      customRender(<OrderDetails orderId={order.id} />);
 
       // Check item details
-      expect(screen.getByText('Technology')).toBeInTheDocument()
-      expect(screen.getByText('Business')).toBeInTheDocument()
-      expect(screen.getByText('€90')).toBeInTheDocument()
-      expect(screen.getByText('€135')).toBeInTheDocument()
-      expect(screen.getByText('Qty: 1')).toBeInTheDocument()
-      expect(screen.getByText('Qty: 2')).toBeInTheDocument()
-    })
+      expect(screen.getByText('Technology')).toBeInTheDocument();
+      expect(screen.getByText('Business')).toBeInTheDocument();
+      expect(screen.getByText('€90')).toBeInTheDocument();
+      expect(screen.getByText('€135')).toBeInTheDocument();
+      expect(screen.getByText('Qty: 1')).toBeInTheDocument();
+      expect(screen.getByText('Qty: 2')).toBeInTheDocument();
+    });
 
     it('should display order timeline', () => {
       const order = mockOrders[0]
 
-      customRender(<OrderDetails orderId={order.id} />)
+      customRender(<OrderDetails orderId={order.id} />);
 
-      expect(screen.getByText(/order created/i)).toBeInTheDocument()
-      expect(screen.getByText(/payment completed/i)).toBeInTheDocument()
-      expect(screen.getByText('2024-01-01T10:00:00Z')).toBeInTheDocument()
-      expect(screen.getByText('2024-01-01T12:00:00Z')).toBeInTheDocument()
-    })
+      expect(screen.getByText(/order created/i)).toBeInTheDocument();
+      expect(screen.getByText(/payment completed/i)).toBeInTheDocument();
+      expect(screen.getByText('2024-01-01T10:00:00Z')).toBeInTheDocument();
+      expect(screen.getByText('2024-01-01T12:00:00Z')).toBeInTheDocument();
+    });
 
     it('should show payment information', () => {
       const order = mockOrders[0]
 
-      customRender(<OrderDetails orderId={order.id} />)
+      customRender(<OrderDetails orderId={order.id} />);
 
-      expect(screen.getByText('cs_test_123')).toBeInTheDocument()
-      expect(screen.getByText('pi_test_123')).toBeInTheDocument()
-      expect(screen.getByText(/payment method/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText('cs_test_123')).toBeInTheDocument();
+      expect(screen.getByText('pi_test_123')).toBeInTheDocument();
+      expect(screen.getByText(/payment method/i)).toBeInTheDocument();
+    });
 
     it('should handle order not found', () => {
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         orders: [],
-      })
+      });
 
-      customRender(<OrderDetails orderId="nonexistent" />)
+      customRender(<OrderDetails orderId="nonexistent" />);
 
-      expect(screen.getByText(/order not found/i)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(/order not found/i)).toBeInTheDocument();
+    });
+  });
 
   describe('Order Status Management', () => {
     it('should display current order status', () => {
       const order = mockOrders[0]
 
-      customRender(<OrderStatus orderId={order.id} />)
+      customRender(<OrderStatus orderId={order.id} />);
 
-      expect(screen.getByText('paid')).toBeInTheDocument()
-      expect(screen.getByText(/payment completed/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText('paid')).toBeInTheDocument();
+      expect(screen.getByText(/payment completed/i)).toBeInTheDocument();
+    });
 
     it('should show status history', () => {
       const orderWithHistory = {
@@ -333,23 +333,23 @@ describe('Order Management Flow E2E', () => {
             source: 'webhook',
           },
         ],
-      }
+      };
 
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         orders: [orderWithHistory],
-      })
+      });
 
-      customRender(<OrderStatus orderId={orderWithHistory.id} />)
+      customRender(<OrderStatus orderId={orderWithHistory.id} />);
 
-      expect(screen.getByText('pending')).toBeInTheDocument()
-      expect(screen.getByText('paid')).toBeInTheDocument()
-      expect(screen.getByText('order_created')).toBeInTheDocument()
-      expect(screen.getByText('webhook')).toBeInTheDocument()
-    })
+      expect(screen.getByText('pending')).toBeInTheDocument();
+      expect(screen.getByText('paid')).toBeInTheDocument();
+      expect(screen.getByText('order_created')).toBeInTheDocument();
+      expect(screen.getByText('webhook')).toBeInTheDocument();
+    });
 
     it('should update order status', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock successful status update
       mockOrderHook.updateOrderStatus.mockResolvedValue({
@@ -358,48 +358,48 @@ describe('Order Management Flow E2E', () => {
           ...mockOrders[0],
           status: 'shipped',
         },
-      })
+      });
 
-      customRender(<OrderStatus orderId={mockOrders[0].id} />)
+      customRender(<OrderStatus orderId={mockOrders[0].id} />);
 
       // Update status
-      await user.click(screen.getByText(/update status/i))
-      await user.selectOptions(screen.getByRole('combobox'), 'shipped')
-      await user.click(screen.getByText(/save/i))
+      await user.click(screen.getByText(/update status/i));
+      await user.selectOptions(screen.getByRole('combobox'), 'shipped');
+      await user.click(screen.getByText(/save/i));
 
       await waitFor(() => {
         expect(mockOrderHook.updateOrderStatus).toHaveBeenCalledWith(
           mockOrders[0].id,
           'shipped'
-        )
-      })
-    })
+        );
+      });
+    });
 
     it('should handle status update errors', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock status update failure
       mockOrderHook.updateOrderStatus.mockResolvedValue({
         success: false,
         error: 'Failed to update status',
-      })
+      });
 
-      customRender(<OrderStatus orderId={mockOrders[0].id} />)
+      customRender(<OrderStatus orderId={mockOrders[0].id} />);
 
       // Try to update status
-      await user.click(screen.getByText(/update status/i))
-      await user.selectOptions(screen.getByRole('combobox'), 'shipped')
-      await user.click(screen.getByText(/save/i))
+      await user.click(screen.getByText(/update status/i));
+      await user.selectOptions(screen.getByRole('combobox'), 'shipped');
+      await user.click(screen.getByText(/save/i));
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to update status/i)).toBeInTheDocument()
-      })
-    })
-  })
+        expect(screen.getByText(/failed to update status/i)).toBeInTheDocument();
+      });
+    });
+  });
 
   describe('Order Cancellation', () => {
     it('should cancel pending orders', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock successful cancellation
       mockOrderHook.cancelOrder.mockResolvedValue({
@@ -408,52 +408,52 @@ describe('Order Management Flow E2E', () => {
           ...mockOrders[1],
           status: 'cancelled',
         },
-      })
+      });
 
-      customRender(<OrderDetails orderId={mockOrders[1].id} />)
+      customRender(<OrderDetails orderId={mockOrders[1].id} />);
 
       // Cancel order
-      await user.click(screen.getByText(/cancel order/i))
-      await user.click(screen.getByText(/confirm cancellation/i))
+      await user.click(screen.getByText(/cancel order/i));
+      await user.click(screen.getByText(/confirm cancellation/i));
 
       await waitFor(() => {
-        expect(mockOrderHook.cancelOrder).toHaveBeenCalledWith(mockOrders[1].id)
-      })
+        expect(mockOrderHook.cancelOrder).toHaveBeenCalledWith(mockOrders[1].id);
+      });
 
-      expect(screen.getByText('cancelled')).toBeInTheDocument()
-    })
+      expect(screen.getByText('cancelled')).toBeInTheDocument();
+    });
 
     it('should not allow cancelling paid orders', () => {
-      customRender(<OrderDetails orderId={mockOrders[0].id} />)
+      customRender(<OrderDetails orderId={mockOrders[0].id} />);
 
-      expect(screen.queryByText(/cancel order/i)).not.toBeInTheDocument()
-      expect(screen.getByText(/order cannot be cancelled/i)).toBeInTheDocument()
-    })
+      expect(screen.queryByText(/cancel order/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/order cannot be cancelled/i)).toBeInTheDocument();
+    });
 
     it('should handle cancellation errors', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock cancellation failure
       mockOrderHook.cancelOrder.mockResolvedValue({
         success: false,
         error: 'Failed to cancel order',
-      })
+      });
 
-      customRender(<OrderDetails orderId={mockOrders[1].id} />)
+      customRender(<OrderDetails orderId={mockOrders[1].id} />);
 
       // Try to cancel order
-      await user.click(screen.getByText(/cancel order/i))
-      await user.click(screen.getByText(/confirm cancellation/i))
+      await user.click(screen.getByText(/cancel order/i));
+      await user.click(screen.getByText(/confirm cancellation/i));
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to cancel order/i)).toBeInTheDocument()
-      })
-    })
-  })
+        expect(screen.getByText(/failed to cancel order/i)).toBeInTheDocument();
+      });
+    });
+  });
 
   describe('Order Refunds', () => {
     it('should process refunds for paid orders', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock successful refund
       mockOrderHook.refundOrder.mockResolvedValue({
@@ -468,51 +468,51 @@ describe('Order Management Flow E2E', () => {
           currency: 'EUR',
           status: 'succeeded',
         },
-      })
+      });
 
-      customRender(<OrderDetails orderId={mockOrders[0].id} />)
+      customRender(<OrderDetails orderId={mockOrders[0].id} />);
 
       // Process refund
-      await user.click(screen.getByText(/process refund/i))
-      await user.click(screen.getByText(/confirm refund/i))
+      await user.click(screen.getByText(/process refund/i));
+      await user.click(screen.getByText(/confirm refund/i));
 
       await waitFor(() => {
-        expect(mockOrderHook.refundOrder).toHaveBeenCalledWith(mockOrders[0].id)
-      })
+        expect(mockOrderHook.refundOrder).toHaveBeenCalledWith(mockOrders[0].id);
+      });
 
-      expect(screen.getByText('refunded')).toBeInTheDocument()
-      expect(screen.getByText('re_test_123')).toBeInTheDocument()
-    })
+      expect(screen.getByText('refunded')).toBeInTheDocument();
+      expect(screen.getByText('re_test_123')).toBeInTheDocument();
+    });
 
     it('should not allow refunds for pending orders', () => {
-      customRender(<OrderDetails orderId={mockOrders[1].id} />)
+      customRender(<OrderDetails orderId={mockOrders[1].id} />);
 
-      expect(screen.queryByText(/process refund/i)).not.toBeInTheDocument()
-      expect(screen.getByText(/refund not available/i)).toBeInTheDocument()
-    })
+      expect(screen.queryByText(/process refund/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/refund not available/i)).toBeInTheDocument();
+    });
 
     it('should handle refund errors', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock refund failure
       mockOrderHook.refundOrder.mockResolvedValue({
         success: false,
         error: 'Failed to process refund',
-      })
+      });
 
-      customRender(<OrderDetails orderId={mockOrders[0].id} />)
+      customRender(<OrderDetails orderId={mockOrders[0].id} />);
 
       // Try to process refund
-      await user.click(screen.getByText(/process refund/i))
-      await user.click(screen.getByText(/confirm refund/i))
+      await user.click(screen.getByText(/process refund/i));
+      await user.click(screen.getByText(/confirm refund/i));
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to process refund/i)).toBeInTheDocument()
-      })
-    })
+        expect(screen.getByText(/failed to process refund/i)).toBeInTheDocument();
+      });
+    });
 
     it('should show partial refunds', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock partial refund
       mockOrderHook.refundOrder.mockResolvedValue({
@@ -527,128 +527,128 @@ describe('Order Management Flow E2E', () => {
           currency: 'EUR',
           status: 'succeeded',
         },
-      })
+      });
 
-      customRender(<OrderDetails orderId={mockOrders[0].id} />)
+      customRender(<OrderDetails orderId={mockOrders[0].id} />);
 
       // Process partial refund
-      await user.click(screen.getByText(/process refund/i))
-      await user.type(screen.getByLabelText(/refund amount/i), '180')
-      await user.click(screen.getByText(/confirm refund/i))
+      await user.click(screen.getByText(/process refund/i));
+      await user.type(screen.getByLabelText(/refund amount/i), '180');
+      await user.click(screen.getByText(/confirm refund/i));
 
       await waitFor(() => {
         expect(mockOrderHook.refundOrder).toHaveBeenCalledWith(
           mockOrders[0].id,
           180
-        )
-      })
+        );
+      });
 
-      expect(screen.getByText('partially_refunded')).toBeInTheDocument()
-      expect(screen.getByText('€180')).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText('partially_refunded')).toBeInTheDocument();
+      expect(screen.getByText('€180')).toBeInTheDocument();
+    });
+  });
 
   describe('Order Search and Filtering', () => {
     it('should search orders by multiple criteria', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
       // Search by order number
-      const searchInput = screen.getByPlaceholderText(/search orders/i)
-      await user.type(searchInput, 'MO-123456')
+      const searchInput = screen.getByPlaceholderText(/search orders/i);
+      await user.type(searchInput, 'MO-123456');
 
       await waitFor(() => {
-        expect(mockOrderHook.searchOrders).toHaveBeenCalledWith('MO-123456')
-      })
+        expect(mockOrderHook.searchOrders).toHaveBeenCalledWith('MO-123456');
+      });
 
       // Filter by date range
-      await user.click(screen.getByText(/filter by date/i))
-      await user.type(screen.getByLabelText(/from date/i), '2024-01-01')
-      await user.type(screen.getByLabelText(/to date/i), '2024-01-31')
-      await user.click(screen.getByText(/apply filter/i))
+      await user.click(screen.getByText(/filter by date/i));
+      await user.type(screen.getByLabelText(/from date/i), '2024-01-01');
+      await user.type(screen.getByLabelText(/to date/i), '2024-01-31');
+      await user.click(screen.getByText(/apply filter/i));
 
       await waitFor(() => {
         expect(mockOrderHook.filterOrders).toHaveBeenCalledWith('date_range', {
           from: '2024-01-01',
           to: '2024-01-31',
-        })
-      })
-    })
+        });
+      });
+    });
 
     it('should clear filters', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
       // Apply filter
-      await user.click(screen.getByText(/filter by status/i))
-      await user.click(screen.getByText(/paid/i))
+      await user.click(screen.getByText(/filter by status/i));
+      await user.click(screen.getByText(/paid/i));
 
       // Clear filters
-      await user.click(screen.getByText(/clear filters/i))
+      await user.click(screen.getByText(/clear filters/i));
 
       await waitFor(() => {
-        expect(mockOrderHook.filterOrders).toHaveBeenCalledWith('clear')
-      })
-    })
+        expect(mockOrderHook.filterOrders).toHaveBeenCalledWith('clear');
+      });
+    });
 
     it('should export order data', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup();
 
       // Mock export function
-      const mockExport = vi.fn()
+      const mockExport = vi.fn();
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         exportOrders: mockExport,
-      })
+      });
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
       // Export orders
-      await user.click(screen.getByText(/export orders/i))
+      await user.click(screen.getByText(/export orders/i));
 
       await waitFor(() => {
-        expect(mockExport).toHaveBeenCalled()
-      })
-    })
-  })
+        expect(mockExport).toHaveBeenCalled();
+      });
+    });
+  });
 
   describe('Order Error Handling', () => {
     it('should handle network errors', () => {
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         error: 'Network error',
-      })
+      });
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
-      expect(screen.getByText(/network error/i)).toBeInTheDocument()
-      expect(screen.getByText(/try again/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/network error/i)).toBeInTheDocument();
+      expect(screen.getByText(/try again/i)).toBeInTheDocument();
+    });
 
     it('should handle unauthorized access', () => {
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         error: 'Unauthorized',
-      })
+      });
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
-      expect(screen.getByText(/unauthorized/i)).toBeInTheDocument()
-      expect(screen.getByText(/please log in/i)).toBeInTheDocument()
-    })
+      expect(screen.getByText(/unauthorized/i)).toBeInTheDocument();
+      expect(screen.getByText(/please log in/i)).toBeInTheDocument();
+    });
 
     it('should handle server errors', () => {
       vi.mocked(useOrders).mockReturnValue({
         ...mockOrderHook,
         error: 'Internal server error',
-      })
+      });
 
-      customRender(<OrderList />)
+      customRender(<OrderList />);
 
-      expect(screen.getByText(/internal server error/i)).toBeInTheDocument()
-      expect(screen.getByText(/contact support/i)).toBeInTheDocument()
-    })
-  })
-})
+      expect(screen.getByText(/internal server error/i)).toBeInTheDocument();
+      expect(screen.getByText(/contact support/i)).toBeInTheDocument();
+    });
+  });
+});

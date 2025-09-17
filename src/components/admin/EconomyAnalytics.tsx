@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -87,7 +87,7 @@ export function EconomyAnalytics() {
     }
   };
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     if (!dateRange.from || !dateRange.to) return;
     
     setLoading(true);
@@ -136,7 +136,7 @@ export function EconomyAnalytics() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange, interval, currency, toast]);
 
   const handleExportCSV = async () => {
     try {
@@ -181,7 +181,7 @@ export function EconomyAnalytics() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [dateRange, interval, currency]);
+  }, [fetchAnalytics]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
