@@ -8,6 +8,11 @@
 import { supabase } from '@/integrations/supabase/client';
 import { stripeConfig } from '@/config/stripe';
 
+interface OrgSettings {
+  name?: string;
+  company_name?: string;
+}
+
 export interface CustomerProfile {
   id: string;
   user_id: string;
@@ -47,7 +52,7 @@ export const getOrCreateStripeCustomer = async (
   userId: string,
   userEmail: string,
   userName?: string,
-  orgSettings?: any
+  orgSettings?: OrgSettings
 ): Promise<{
   success: boolean;
   customerId?: string;
@@ -271,7 +276,7 @@ export const updateCustomerProfile = async (
     }
 
     // Update local database on success
-    const localUpdates: any = {};
+    const localUpdates: Record<string, unknown> = {};
     if (updates.email) {
       localUpdates.stripe_customer_email = updates.email;
     }
@@ -585,7 +590,7 @@ export const customerManager = {
 
 // Make customer manager available globally in development
 if (import.meta.env.DEV) {
-  (window as any).customerManager = customerManager;
+  (window as { customerManager?: typeof customerManager }).customerManager = customerManager;
   console.log('🔧 Customer manager available globally as: window.customerManager');
   console.log('📚 Usage examples:');
   console.log('  - customerManager.getOrCreate(userId, email) - Get/create customer');
