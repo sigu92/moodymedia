@@ -231,7 +231,7 @@ This email was sent to {{customerEmail}} regarding order {{orderNumber}}.
 /**
  * Processes template variables and renders final content
  */
-const processTemplate = (template: string, variables: Record<string, any>): string => {
+const processTemplate = (template: string, variables: Record<string, unknown>): string => {
   let processed = template;
 
   // Handle simple variable substitution

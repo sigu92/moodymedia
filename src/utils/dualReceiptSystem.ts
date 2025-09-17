@@ -406,7 +406,7 @@ export const dualReceiptSystem = {
 
 // Make dual receipt system available globally in development
 if (import.meta.env.DEV) {
-  (window as any).dualReceiptSystem = dualReceiptSystem;
+  (window as { dualReceiptSystem?: typeof dualReceiptSystem }).dualReceiptSystem = dualReceiptSystem;
   console.log('🔧 Dual receipt system available globally as: window.dualReceiptSystem');
   console.log('📚 Usage examples:');
   console.log('  - dualReceiptSystem.deliverAll(orderId, options) - Deliver all receipts');

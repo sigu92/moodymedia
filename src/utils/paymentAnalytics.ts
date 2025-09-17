@@ -10,7 +10,7 @@ export interface PaymentEvent {
   amount?: number;
   currency?: string;
   paymentMethod?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -40,7 +40,7 @@ class PaymentAnalyticsSystem {
       amount?: number;
       currency?: string;
       paymentMethod?: string;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     } = {}
   ): Promise<void> {
     const event: PaymentEvent = {
