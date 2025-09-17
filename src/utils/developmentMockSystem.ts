@@ -27,7 +27,7 @@ export interface MockPaymentScenario {
   errorCode?: string;
   errorMessage?: string;
   delay?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MockPaymentResult {
@@ -169,12 +169,12 @@ export const getDevelopmentStatus = (): {
  */
 export const mockCreateCheckoutSession = async (
   sessionData: {
-    lineItems: any[];
+    lineItems: unknown[];
     customerId: string;
     customerEmail: string;
     successUrl: string;
     cancelUrl: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   },
   scenario?: string
 ): Promise<MockPaymentResult> => {
@@ -285,8 +285,8 @@ const selectRandomScenario = (): MockPaymentScenario => {
  */
 export const mockVerifyPayment = async (sessionId: string): Promise<{
   success: boolean;
-  orderData?: any;
-  paymentDetails?: any;
+  orderData?: unknown;
+  paymentDetails?: unknown;
   error?: string;
 }> => {
   // Simulate verification delay
@@ -398,13 +398,14 @@ export const getMockStats = (): {
     };
   }
   
-  const successful = attempts.filter((a: any) => a.success).length;
-  const totalDelay = attempts.reduce((sum: number, a: any) => sum + (a.delay || 0), 0);
+  const successful = attempts.filter((a: unknown) => (a as { success?: boolean }).success === true).length;
+  const totalDelay = attempts.reduce((sum: number, a: unknown) => sum + ((a as { delay?: number }).delay || 0), 0);
   
   const scenarioUsage: Record<string, number> = {};
-  attempts.forEach((a: any) => {
-    if (a.scenario) {
-      scenarioUsage[a.scenario] = (scenarioUsage[a.scenario] || 0) + 1;
+  attempts.forEach((a: unknown) => {
+    const attempt = a as { scenario?: string };
+    if (attempt.scenario) {
+      scenarioUsage[attempt.scenario] = (scenarioUsage[attempt.scenario] || 0) + 1;
     }
   });
   
@@ -473,7 +474,7 @@ loadMockConfig();
 
 // Make development mock system available globally in development
 if (import.meta.env.DEV) {
-  (window as any).developmentMockSystem = developmentMockSystem;
+  (window as { developmentMockSystem?: typeof developmentMockSystem }).developmentMockSystem = developmentMockSystem;
   console.log('🔧 Development mock system available globally as: window.developmentMockSystem');
   console.log('📚 Usage examples:');
   console.log('  - developmentMockSystem.updateConfig({failureRate: 50}) - Set 50% failure rate');

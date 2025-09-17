@@ -117,6 +117,6 @@ export const fixDualRoleUser = async (userId: string) => {
 
 // Export for browser console
 if (typeof window !== 'undefined') {
-  (window as any).debugRoleAssignment = debugRoleAssignment;
-  (window as any).fixDualRoleUser = fixDualRoleUser;
+  (window as { debugRoleAssignment?: typeof debugRoleAssignment }).debugRoleAssignment = debugRoleAssignment;
+  (window as { fixDualRoleUser?: typeof fixDualRoleUser }).fixDualRoleUser = fixDualRoleUser;
 }
