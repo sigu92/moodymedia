@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { OutletNicheRule } from '@/types';
 
 export interface CartItem {
   id: string;
@@ -122,9 +123,9 @@ export const useCart = () => {
   // Helper function to safely map outlet niche rules
   const mapOutletNicheRules = (rules: unknown[]) => {
     if (!Array.isArray(rules)) return [];
-    
+
     return rules
-      .map((rule: any) => {
+      .map((rule: unknown) => {
         // Validate rule structure
         if (!rule || typeof rule !== 'object') return null;
         

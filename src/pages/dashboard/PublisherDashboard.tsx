@@ -52,7 +52,7 @@ interface AnalyticsData {
     target: number;
     trend: 'up' | 'down' | 'stable';
   }[];
-  recentOrders: any[];
+  recentOrders: Order[];
   recommendations: {
     type: 'success' | 'warning' | 'info';
     title: string;
