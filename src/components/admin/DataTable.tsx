@@ -172,7 +172,7 @@ export function DataTable<T>({
                     </TableCell>
                   )}
                   {columns.map((column) => {
-                    const cellValue = (row as any)[column.key as string] as T[keyof T];
+                    const cellValue = (row as Record<string, unknown>)[column.key as string] as T[keyof T];
                     return (
                       <TableCell key={String(column.key)}>
                         {column.render ? column.render(cellValue, row) : (cellValue as unknown as React.ReactNode)}

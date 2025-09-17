@@ -25,7 +25,7 @@ import { paymentRetry, RetrySession } from '@/utils/paymentRetry';
 import { stripeConfig } from '@/config/stripe';
 
 interface ErrorDisplayProps {
-  error: any;
+  error: Error | ErrorDetails | unknown;
   context: ErrorContext;
   errorDetails: ErrorDetails;
   retrySession?: RetrySession;

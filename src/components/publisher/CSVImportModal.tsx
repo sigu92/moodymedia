@@ -400,7 +400,7 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
 
       const data: ImportRow[] = lines.slice(1).map((line, index) => {
         const values = line; // line is already an array from parseCSV
-        const row: CSVRowData = {} as any;
+        const row: CSVRowData = {};
 
         headers.forEach((header, i) => {
           row[header] = values[i] || '';
@@ -417,13 +417,13 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
           lead_time_days: parseInt(row.lead_time_days as string) || 7,
           guidelines: (row.guidelines as string) || '',
           niches: typeof row.niches === 'string' ? row.niches : Array.isArray(row.niches) ? row.niches.join(', ') : '',
-          is_active: (row.is_active as any) === 'true' || (row.is_active as any) === '1',
-          accepts_no_license_status: (row.accepts_no_license_status as string) || 'no',
-          sponsor_tag_status: (row.sponsor_tag_status as string) || 'no',
-          sponsor_tag_type: (row.sponsor_tag_type as string) || 'text',
+          is_active: row.is_active === 'true' || row.is_active === '1' || row.is_active === true,
+          accepts_no_license_status: ((row.accepts_no_license_status as string) || 'no') as 'yes' | 'no' | 'depends',
+          sponsor_tag_status: ((row.sponsor_tag_status as string) || 'no') as 'yes' | 'no',
+          sponsor_tag_type: ((row.sponsor_tag_type as string) || 'text') as 'image' | 'text',
           sale_price: row.sale_price ? parseFloat(String(row.sale_price)) : undefined,
           sale_note: (row.sale_note as string) || ''
-        } as any;
+        };
       });
 
       setCsvData(data);
