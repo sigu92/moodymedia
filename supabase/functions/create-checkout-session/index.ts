@@ -92,7 +92,10 @@ serve(async (req) => {
 
     // Verify JWT token with Supabase
     console.log('🔐 Verifying JWT token with Supabase...');
-    console.log('🔑 Token preview:', token.substring(0, 20) + '...');
+    // SECURITY: Don't log token preview in production
+    if (Deno.env.get('NODE_ENV') === 'development') {
+      console.log('🔑 Token preview:', token.substring(0, 20) + '...');
+    }
     
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 

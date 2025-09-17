@@ -279,7 +279,7 @@ export const syncCustomerMetadata = async (userId: string): Promise<SyncResult> 
       } else {
         result.stripeUpdated = false;
       }
-      
+
       // Update local data regardless of Stripe status
       const updateResult = await customerManager.update(userId, {
         email: customerData.email,
@@ -287,10 +287,14 @@ export const syncCustomerMetadata = async (userId: string): Promise<SyncResult> 
         metadata,
         stripeUpdateFailed: !result.stripeUpdated
       });
-    
 
-    if (!updateResult.success) {
-      result.errors.push(updateResult.error || 'Failed to update customer');
+      if (!updateResult.success) {
+        result.errors.push(updateResult.error || 'Failed to update customer');
+        return result;
+      }
+    } catch (localUpdateError) {
+      console.error('Error updating local customer data:', localUpdateError);
+      result.errors.push('Failed to update local customer data');
       return result;
     }
 

@@ -100,7 +100,7 @@
     "vitest": "^3.2.4"
   },
   "description": "**URL**: https://lovable.dev/projects/133607b6-a444-4665-a3fa-672c6cb5b4f2",
-  "main": "eslint.config.js",
+  "main": "index.js",
   "keywords": [],
   "author": "",
   "license": "ISC"
