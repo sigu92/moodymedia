@@ -561,7 +561,7 @@ export const emailNotifications = {
 
 // Make email notifications available globally in development
 if (import.meta.env.DEV) {
-  (window as any).emailNotifications = emailNotifications;
+  (window as { emailNotifications?: typeof emailNotifications }).emailNotifications = emailNotifications;
   console.log('🔧 Email notifications available globally as: window.emailNotifications');
   console.log('📚 Usage examples:');
   console.log('  - emailNotifications.sendOrderConfirmation(orderId) - Send confirmation');

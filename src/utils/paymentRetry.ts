@@ -17,7 +17,7 @@ export interface RetrySession {
   lastAttemptAt?: number;
   nextRetryAt?: number;
   status: 'active' | 'exhausted' | 'cancelled';
-  errorContext?: any; // Store error context for debugging
+  errorContext?: unknown; // Store error context for debugging
   retryFunction?: string; // Store serialized function reference
 }
 
@@ -91,8 +91,8 @@ class PaymentRetrySystem {
    * Create a retry session (persistent)
    */
   async createSession(
-    error: any,
-    context: any,
+    error: unknown,
+    context: unknown,
     options: RetryOptions = {}
   ): Promise<RetrySession> {
     const {
@@ -161,7 +161,7 @@ class PaymentRetrySystem {
    */
   async scheduleAutoRetry(
     sessionId: string,
-    retryFunction: () => Promise<any>
+    retryFunction: () => Promise<unknown>
   ): Promise<void> {
     // Fetch session from database
     const session = await this.getSessionFromDB(sessionId);
@@ -405,7 +405,7 @@ class PaymentRetrySystem {
   /**
    * Check if an error is retryable
    */
-  private isRetryableError(error: any, retryableErrors: string[]): boolean {
+  private isRetryableError(error: unknown, retryableErrors: string[]): boolean {
     if (!error) return false;
 
     const errorMessage = error.message?.toLowerCase() || '';

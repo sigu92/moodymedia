@@ -77,7 +77,7 @@ class PaymentAnalyticsSystem {
     userId: string,
     amount: number,
     currency: string = 'EUR',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     await this.track('payment_initiated', {
       userId,
@@ -99,7 +99,7 @@ class PaymentAnalyticsSystem {
     amount: number,
     paymentMethod: string,
     currency: string = 'EUR',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     await this.track('payment_success', {
       userId,
@@ -123,7 +123,7 @@ class PaymentAnalyticsSystem {
     amount: number,
     error: string,
     currency: string = 'EUR',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     await this.track('payment_failed', {
       userId,
@@ -147,7 +147,7 @@ class PaymentAnalyticsSystem {
     amount: number,
     step: string,
     currency: string = 'EUR',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     await this.track('cart_abandonment', {
       userId,
@@ -170,7 +170,7 @@ class PaymentAnalyticsSystem {
     amount: number,
     itemCount: number,
     currency: string = 'EUR',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     await this.track('checkout_completed', {
       userId,
