@@ -280,7 +280,7 @@ export const useCheckout = (): UseCheckoutReturn => {
   }, [cartItems, user]);
 
   // Handle return from Stripe checkout
-  const handleStripeReturn = useCallback(async (sessionId: string): Promise<{ success: boolean; orderData?: any; sessionData?: any }> => {
+  const handleStripeReturn = useCallback(async (sessionId: string): Promise<{ success: boolean; orderData?: Order; sessionData?: Stripe.Checkout.Session }> => {
     try {
       // Verify payment completion
       const { verifyPaymentCompletion } = await import('@/utils/stripeUtils');

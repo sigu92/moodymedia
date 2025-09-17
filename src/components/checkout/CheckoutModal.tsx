@@ -87,7 +87,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         paymentMethodValid: stepValidation['payment-method']
       });
     }
-  }, [stepValidation['payment-method'], currentStep]); // Only depend on payment-method validation and currentStep
+  }, [stepValidation, currentStep]); // Only depend on step validation and current step
 
   const handleNext = async () => {
     console.log('[NEXT BUTTON CLICK]', {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { OrderItem } from '@/hooks/useOrders';
 
 // Billing information interface
 export interface BillingInfo {
@@ -31,7 +32,7 @@ export interface PaymentMethod {
   paymentId?: string;
   tokenId?: string;
   billingAddress?: BillingInfo['address'];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Order {
@@ -45,7 +46,7 @@ export interface Order {
   currency?: string;
   billing_info?: BillingInfo;
   payment_method?: PaymentMethod;
-  order_items?: any[];
+  order_items?: OrderItem[];
   stripe_customer_id?: string;
   stripe_session_id?: string;
   payment_status?: 'pending' | 'paid' | 'failed' | 'refunded';

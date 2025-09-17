@@ -91,6 +91,7 @@ export const Step1CartReview: React.FC<Step1CartReviewProps> = ({ onValidationCh
   }, [cartItems, updateFormData, formData.cartItems?.length]);
 
   // Clear selected items only when cart items array changes (not form data)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setSelectedItems(new Set());
   }, [cartItems.length]);

@@ -24,6 +24,7 @@ export interface FileUploadOptions {
   folder?: string;
   maxSize?: number; // in bytes
   allowedTypes?: string[];
+  concurrency?: number; // number of concurrent uploads
   onProgress?: (progress: UploadProgress) => void;
   onComplete?: (file: UploadedFile) => void;
   onError?: (error: string) => void;
@@ -191,7 +192,7 @@ export const useFileUpload = (): UseFileUploadReturn => {
     files: File[],
     options: FileUploadOptions = {}
   ): Promise<UploadedFile[]> => {
-    const concurrency = Math.max(1, (options as any).concurrency ?? 3);
+    const concurrency = Math.max(1, options.concurrency ?? 3);
     const queue = [...files];
     const results: UploadedFile[] = [];
 
