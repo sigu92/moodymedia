@@ -69,13 +69,13 @@ export const LazyWrapper: React.FC<LazyWrapperProps> = ({
 };
 
 // Utility function to create lazy-loaded components
-export function createLazyComponent<T extends ComponentType<any>>(
+export function createLazyComponent<T extends ComponentType<Record<string, unknown>>>(
   importFunc: () => Promise<{ default: T }>,
   fallback?: React.ReactNode
 ) {
   const LazyComponent = lazy(importFunc);
 
-  const Wrapped: React.FC<any> = (props) => (
+  const Wrapped: React.FC<Record<string, unknown>> = (props) => (
     <LazyWrapper fallback={fallback}>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <LazyComponent {...props} />

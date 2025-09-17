@@ -5,7 +5,9 @@ import { CheckoutValidator, CheckoutFormData, CheckoutValidationError, calculate
 import { stripeConfig, validateStripeEnvironment } from '@/config/stripe';
 import { useOrders, OrderItem } from '@/hooks/useOrders';
 import { generateOrderNumber } from '@/hooks/useOrders';
-import { 
+import { Order } from '@/types';
+import Stripe from 'stripe';
+import {
   createStripeSession, 
   createOrGetStripeCustomer,
   validateCartForStripe,
@@ -54,7 +56,7 @@ export interface UseCheckoutReturn {
 
   // Stripe-specific actions
   processStripePayment: (formData: CheckoutFormData) => Promise<StripePaymentResult>;
-  handleStripeReturn: (sessionId: string) => Promise<{ success: boolean; orderData?: any; sessionData?: any }>;
+  handleStripeReturn: (sessionId: string) => Promise<{ success: boolean; orderData?: Order; sessionData?: Stripe.Checkout.Session }>;
 
   // Validation
   validateCurrentStep: () => CheckoutValidationError[];
@@ -75,7 +77,7 @@ export const useCheckout = (): UseCheckoutReturn => {
   const { createOrder } = useOrders();
 
   // Logging system for payment processing - only log in development
-  const logPaymentProcess = (step: string, data?: any) => {
+  const logPaymentProcess = (step: string, data?: unknown) => {
     if (import.meta.env.DEV) {
       console.log(`[STRIPE-PAYMENT] ${step}`, data || '');
     }
@@ -312,12 +314,14 @@ export const useCheckout = (): UseCheckoutReturn => {
       // Build lookup map for O(1) access instead of O(n) find per cart item
       const formItemsLookup = new Map();
       if (storedFormData.cartItems) {
-        storedFormData.cartItems.forEach((fi: any) => {
-          formItemsLookup.set(fi.id, fi);
+        storedFormData.cartItems.forEach((fi: unknown) => {
+          if (fi && typeof fi === 'object' && 'id' in fi) {
+            formItemsLookup.set((fi as { id: string }).id, fi);
+          }
         });
       }
 
-      const orderItems: OrderItem[] = storedCartItems.map((cartItem: any) => {
+      const orderItems: OrderItem[] = storedCartItems.map((cartItem: CartItem) => {
         const formItem = formItemsLookup.get(cartItem.id);
         
         // Log warning if domain is missing to surface data issues
