@@ -67,10 +67,10 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
     category: editingSite?.category || '',
     niches: editingSite?.niches?.join(', ') || '',
     guidelines: editingSite?.guidelines || '',
-    lead_time_days: editingSite?.lead_time_days || 7,
-    acceptsNoLicenseStatus: editingSite?.accepts_no_license_status || 'no',
-    sponsorTagStatus: editingSite?.sponsor_tag_status || 'no',
-    sponsorTagType: editingSite?.sponsor_tag_type || 'text',
+    lead_time_days: editingSite?.leadTimeDays || 7,
+    acceptsNoLicenseStatus: editingSite?.acceptsNoLicenseStatus || 'no',
+    sponsorTagStatus: editingSite?.sponsorTagStatus || 'no',
+    sponsorTagType: editingSite?.sponsorTagType || 'text',
     // SEO metrics fields (default to 0 if not available)
     ahrefs_dr: 0,
     moz_da: 0,
@@ -259,7 +259,7 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
       // Prepare outlet data for direct insertion
       const outletData = {
         domain: submissionData.domain.trim(),
-        price: submissionData.price,
+        price: submissionData.price || 0,
         purchase_price: submissionData.purchase_price,
         currency: submissionData.currency || 'EUR',
         country: submissionData.country.trim(),
@@ -267,11 +267,11 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         category: submissionData.category.trim(),
         niches: submissionData.niches,
         guidelines: submissionData.guidelines,
-        lead_time_days: submissionData.lead_time_days,
-        accepts_no_license: submissionData.accepts_no_license,
-        accepts_no_license_status: submissionData.accepts_no_license_status,
-        sponsor_tag_status: submissionData.sponsor_tag_status,
-        sponsor_tag_type: submissionData.sponsor_tag_type,
+        leadTimeDays: submissionData.lead_time_days,
+        acceptsNoLicense: submissionData.accepts_no_license,
+        acceptsNoLicenseStatus: submissionData.accepts_no_license_status,
+        sponsorTagStatus: submissionData.sponsor_tag_status,
+        sponsorTagType: submissionData.sponsor_tag_type,
         source: 'publisher_submit',
         publisher_id: user!.id,
         status: 'pending' as const,
@@ -343,13 +343,13 @@ export function CreateSiteModal({ open, onOpenChange, onSiteCreated, editingSite
         id: outletResult.id,
         domain: outletResult.domain,
         status: outletResult.status,
-        submitted_at: outletResult.submitted_at
+        submitted_at: new Date().toISOString()
       });
 
       // Success - show confirmation and update UI
       setSubmittedSite({
         domain: outletResult.domain,
-        submitted_at: outletResult.submitted_at
+        submitted_at: new Date().toISOString()
       });
       setShowSuccess(true);
 

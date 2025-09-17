@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { OrderItem } from '@/hooks/useOrders';
+import { OrderStatus } from '@/types';
 
 // Billing information interface
 export interface BillingInfo {
@@ -39,7 +40,7 @@ export interface Order {
   id: string;
   order_number?: string;
   buyer_id: string;
-  status: 'requested' | 'accepted' | 'content_received' | 'published' | 'verified' | 'cancelled';
+  status: OrderStatus;
   total_amount?: number;
   subtotal?: number;
   vat_amount?: number;
@@ -103,7 +104,13 @@ export const useOrderManagement = (): OrderManagementStatus => {
 
       if (fetchError) throw fetchError;
 
-      setOrders(data || []);
+      // Convert null values to undefined to match the Order interface
+      const transformedData = (data || []).map(order => ({
+        ...order,
+        anchor: order.anchor || undefined,
+        briefing: order.briefing || undefined,
+      }));
+      setOrders(transformedData);
     } catch (err) {
       console.error('Error loading orders:', err);
       setError(err instanceof Error ? err.message : 'Failed to load orders');
@@ -125,7 +132,12 @@ export const useOrderManagement = (): OrderManagementStatus => {
         .single();
 
       if (fetchError) throw fetchError;
-      return data;
+      // Convert null values to undefined to match the Order interface
+      return {
+        ...data,
+        anchor: data.anchor || undefined,
+        briefing: data.briefing || undefined,
+      };
     } catch (err) {
       console.error('Error fetching order:', err);
       return null;
@@ -145,7 +157,12 @@ export const useOrderManagement = (): OrderManagementStatus => {
         .single();
 
       if (fetchError) throw fetchError;
-      return data;
+      // Convert null values to undefined to match the Order interface
+      return {
+        ...data,
+        anchor: data.anchor || undefined,
+        briefing: data.briefing || undefined,
+      };
     } catch (err) {
       console.error('Error fetching order by session ID:', err);
       return null;
@@ -153,14 +170,14 @@ export const useOrderManagement = (): OrderManagementStatus => {
   }, [user?.id]);
 
   // Update order status
-  const updateOrderStatus = useCallback(async (orderId: string, status: 'requested' | 'accepted' | 'content_received' | 'published' | 'verified' | 'cancelled'): Promise<boolean> => {
+  const updateOrderStatus = useCallback(async (orderId: string, status: Order['status']): Promise<boolean> => {
     if (!user?.id) return false;
 
     try {
       const { error: updateError } = await supabase
         .from('orders')
-        .update({ 
-          status,
+        .update({
+          status: status as any,
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId)
@@ -199,8 +216,8 @@ export const useOrderManagement = (): OrderManagementStatus => {
     try {
       const { error: updateError } = await supabase
         .from('orders')
-        .update({ 
-          status: 'cancelled',
+        .update({
+          status: 'cancelled' as any,
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId)

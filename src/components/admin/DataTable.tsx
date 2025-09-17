@@ -83,7 +83,6 @@ export function DataTable<T>({
   };
 
   const isAllSelected = data.length > 0 && selectedRows.length === data.length;
-  const isPartiallySelected = selectedRows.length > 0 && selectedRows.length < data.length;
 
   return (
     <div className="space-y-4">

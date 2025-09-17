@@ -27,6 +27,12 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 vi.mock('@/config/stripe', () => ({
   stripeConfig: {
+    mode: 'test',
+    getWarnings: vi.fn(() => []),
+    isConfigured: vi.fn(() => false),
+    getPublishableKey: vi.fn(() => ''),
+    getSecretKey: vi.fn(() => ''),
+    isTestMode: vi.fn(() => true),
     shouldUseMockPayments: vi.fn(() => false),
   },
 }));

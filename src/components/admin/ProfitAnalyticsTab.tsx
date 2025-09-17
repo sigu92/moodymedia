@@ -9,8 +9,6 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
-  PieChart,
-  Calendar,
   Target,
   AlertTriangle,
   CheckCircle
@@ -97,7 +95,7 @@ export function ProfitAnalyticsTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange, toast]);
 
   const calculateProfitAnalytics = (listings: MediaOutlet[], range: string): ProfitData => {
     // Filter by time range if needed
@@ -220,7 +218,7 @@ export function ProfitAnalyticsTab() {
       ),
       monthlyTrends: monthlyTrendsArray
     };
-  }, [toast]);
+  };
 
   useEffect(() => {
     fetchProfitAnalytics();

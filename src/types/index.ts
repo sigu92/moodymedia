@@ -87,12 +87,13 @@ export interface CartItem {
   addedAt: string;
 }
 
-export type OrderStatus = 
-  | 'requested' 
-  | 'accepted' 
-  | 'content_received' 
-  | 'published' 
-  | 'verified';
+export type OrderStatus =
+  | 'requested'
+  | 'accepted'
+  | 'content_received'
+  | 'published'
+  | 'verified'
+  | 'cancelled';
 
 export interface Order {
   id: string;

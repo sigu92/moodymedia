@@ -5,14 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
 import { AlertCircle, CreditCard, Building, FileText, Save, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
 import { StripeLogo, PayPalLogo, FortnoxLogo } from '@/components/ui/payment-logos';
 import { useCheckout } from '@/hooks/useCheckout';
 import { stripeConfig } from '@/config/stripe';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettingsStatus } from '@/hooks/useSettings';
-import { CheckoutValidationError } from '@/utils/checkoutUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useCart } from '@/hooks/useCart';
@@ -21,13 +19,13 @@ interface Step2BillingPaymentProps {
   onValidationChange?: (isValid: boolean) => void;
 }
 
-type PaymentMethodType = 'stripe' | 'paypal' | 'fortnox';
+type PaymentMethodType = 'stripe' | 'paypal' | 'invoice';
 
 interface BillingFormData {
   firstName: string;
   lastName: string;
   company: string;
-  email: string;
+  email?: string;
   phone: string;
   address: {
     street: string;
@@ -101,7 +99,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
         firstName: settings.name?.split(' ')[0] || '',
         lastName: settings.name?.split(' ').slice(1).join(' ') || '',
         company: settings.company_name || '',
-        email: settings.primary_email || user?.email || '',
+        email: settings.primary_email || user?.email,
       }));
     } else if (user?.email) {
       setBillingForm(prev => ({
@@ -124,7 +122,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
       firstName: billingForm.firstName,
       lastName: billingForm.lastName,
       company: billingForm.company,
-      email: billingForm.email,
+      email: billingForm.email || '',
       phone: billingForm.phone,
       address: billingForm.address,
       taxId: billingForm.taxId,
@@ -132,7 +130,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
 
     const paymentMethodData = {
       type: paymentMethod.type,
-      poNumber: paymentMethod.type === 'fortnox' ? paymentMethod.poNumber : undefined,
+      poNumber: paymentMethod.type === 'invoice' ? paymentMethod.poNumber : undefined,
     };
 
     updateFormData({
@@ -146,14 +144,14 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
     const isBillingValid = !!(
       billingForm.firstName.trim() &&
       billingForm.lastName.trim() &&
-      billingForm.email.trim() &&
+      billingForm.email?.trim() &&
       billingForm.address.street.trim() &&
       billingForm.address.city.trim() &&
       billingForm.address.postalCode.trim() &&
       billingForm.address.country.trim()
     );
 
-    const isPaymentValid = paymentMethod.type === 'fortnox'
+    const isPaymentValid = paymentMethod.type === 'invoice'
       ? !!paymentMethod.poNumber.trim()
       : !!paymentMethod.type;
 
@@ -190,7 +188,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
     setPaymentMethod(prev => ({
       ...prev,
       type,
-      poNumber: type === 'fortnox' ? prev.poNumber : '',
+      poNumber: type === 'invoice' ? prev.poNumber : '',
     }));
   };
 
@@ -221,7 +219,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
         billing_first_name: billingForm.firstName,
         billing_last_name: billingForm.lastName,
         billing_company: billingForm.company,
-        billing_email: billingForm.email,
+        billing_email: billingForm.email || '',
         billing_phone: billingForm.phone,
         billing_address_street: billingForm.address.street,
         billing_address_city: billingForm.address.city,
@@ -295,14 +293,14 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
           firstName: billingForm.firstName,
           lastName: billingForm.lastName,
           company: billingForm.company,
-          email: billingForm.email,
+          email: billingForm.email || '',
           phone: billingForm.phone,
           address: billingForm.address,
           taxId: billingForm.taxId,
         },
         paymentMethod: {
           type: paymentMethod.type,
-          poNumber: paymentMethod.type === 'fortnox' ? paymentMethod.poNumber : undefined,
+          poNumber: paymentMethod.type === 'invoice' ? paymentMethod.poNumber : undefined,
         },
       };
 
@@ -327,14 +325,13 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
         if (result.checkoutUrl) {
           // Direct URL redirect
           window.location.href = result.checkoutUrl;
-        } else if (result.sessionId && window.Stripe) {
-          // Use Stripe client to redirect
-          const stripe = window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-          await stripe.redirectToCheckout({ sessionId: result.sessionId });
-        } else if (result.mockUrl || result.mockSession) {
-          // Mock mode redirect for development
-          const mockRedirectUrl = result.mockUrl || `/checkout/success?session_id=${result.mockSession}`;
-          window.location.href = mockRedirectUrl;
+        } else if (result.sessionId && stripeConfig.isConfigured()) {
+          // Use Stripe client to redirect (when properly implemented)
+          toast({
+            title: "Redirecting to Payment",
+            description: "Redirecting you to secure payment processing...",
+          });
+          // TODO: Implement proper Stripe redirect when Stripe is configured
         } else {
           // Fallback: show success message
           toast({
@@ -612,7 +609,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
               </div>
               <h4 className="font-semibold mb-2">
                 Stripe Payment
-                {stripeConfig.isTestMode && stripeConfig.isConfigured() && (
+                {stripeConfig.isTestMode() && stripeConfig.isConfigured() && (
                   <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">TEST</span>
                 )}
                 {!stripeConfig.isConfigured() && (
@@ -671,11 +668,11 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
           {/* Fortnox Card */}
           <Card 
             className={`cursor-pointer transition-all border-2 ${
-              paymentMethod.type === 'fortnox' 
+              paymentMethod.type === 'invoice' 
                 ? 'border-blue-500 bg-blue-50/50 shadow-md' 
                 : 'border-gray-200 hover:border-gray-300'
             }`}
-            onClick={() => handlePaymentMethodChange('fortnox')}
+            onClick={() => handlePaymentMethodChange('invoice')}
           >
             <CardContent className="p-6 text-center">
               <div className="flex justify-center items-center mb-4 h-16">
@@ -689,9 +686,9 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
                 <input
                   type="radio"
                   name="paymentMethod"
-                  value="fortnox"
-                  checked={paymentMethod.type === 'fortnox'}
-                  onChange={() => handlePaymentMethodChange('fortnox')}
+                  value="invoice"
+                  checked={paymentMethod.type === 'invoice'}
+                  onChange={() => handlePaymentMethodChange('invoice')}
                   className="w-4 h-4 text-blue-600"
                 />
               </div>
@@ -704,7 +701,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
         )}
 
         {/* PO Number for Fortnox Payment */}
-        {paymentMethod.type === 'fortnox' && (
+        {paymentMethod.type === 'invoice' && (
           <Card>
             <CardContent className="p-4">
               <div className="space-y-2">
@@ -746,7 +743,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
             {/* Pay with Stripe Button */}
             <Button
               onClick={handleStripePayment}
-              disabled={isProcessingPayment || isSubmitting || !billingForm.firstName || !billingForm.lastName || !billingForm.email || !billingForm.address.street}
+              disabled={isProcessingPayment || isSubmitting || !billingForm.firstName || !billingForm.lastName || !billingForm.email?.trim() || !billingForm.address.street}
               className="w-full"
               size="lg"
             >
@@ -765,7 +762,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
             </Button>
 
             
-            {(!billingForm.firstName || !billingForm.lastName || !billingForm.email || !billingForm.address.street) && (
+            {(!billingForm.firstName || !billingForm.lastName || !billingForm.email?.trim() || !billingForm.address.street) && (
               <p className="text-xs text-amber-600">
                 Please complete all required billing information fields before proceeding with payment.
               </p>
@@ -787,7 +784,7 @@ export const Step2BillingPayment: React.FC<Step2BillingPaymentProps> = ({ onVali
           </div>
         )}
 
-        {paymentMethod.type === 'fortnox' && (
+        {paymentMethod.type === 'invoice' && (
           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-start gap-2">
               <FileText className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />

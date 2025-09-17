@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -15,8 +15,7 @@ import {
   X,
   Save,
   RefreshCw,
-  Database,
-  FileX
+  Database
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,6 +90,19 @@ const performDirectBatchImport = async (rows: CSVRowData[], source: string, user
     const rowNumber = i + 1;
 
     try {
+      // Check if domain exists
+      if (!row.domain || typeof row.domain !== 'string') {
+        results.results.push({
+          row: rowNumber,
+          domain: 'N/A',
+          success: false,
+          error: 'Domain is missing or invalid',
+          skipped: false
+        });
+        results.failed++;
+        continue;
+      }
+
       // Normalize domain
       const normalizedDomain = row.domain
         .replace(/^https?:\/\//, '')
@@ -135,7 +147,7 @@ const performDirectBatchImport = async (rows: CSVRowData[], source: string, user
       // Final selling price (price) will be set later by admins adding margins
       const outletData = {
         domain: normalizedDomain,
-        price: null, // Will be set by admin when adding margins
+        price: 0, // Will be set by admin when adding margins
         purchase_price: parseFloat(String(row.price)) || 0, // Publisher's asking price = platform cost
         currency: row.currency || 'EUR',
         country: row.country?.trim() || '',
@@ -145,15 +157,15 @@ const performDirectBatchImport = async (rows: CSVRowData[], source: string, user
           ? (row.niches as string[]).map((n: string) => n.trim()).filter(Boolean)
           : (row.niches ? (row.niches as string).split(',').map((n: string) => n.trim()).filter(Boolean) : []),
         guidelines: row.guidelines?.trim() || null,
-        lead_time_days: row.lead_time_days ? parseInt(row.lead_time_days.toString()) : 7,
-        accepts_no_license: row.accepts_no_license === 'yes' || row.accepts_no_license === true,
-        accepts_no_license_status: ['yes', 'no', 'depends'].includes((row.accepts_no_license_status || '').toString().toLowerCase())
+        leadTimeDays: row.lead_time_days ? parseInt(row.lead_time_days.toString()) : 7,
+        acceptsNoLicense: row.accepts_no_license === 'yes' || row.accepts_no_license === true,
+        acceptsNoLicenseStatus: ['yes', 'no', 'depends'].includes((row.accepts_no_license_status || '').toString().toLowerCase())
           ? (row.accepts_no_license_status || '').toString().toLowerCase()
           : 'no',
-        sponsor_tag_status: ['yes', 'no'].includes((row.sponsor_tag_status || '').toString().toLowerCase())
+        sponsorTagStatus: ['yes', 'no'].includes((row.sponsor_tag_status || '').toString().toLowerCase())
           ? (row.sponsor_tag_status || '').toString().toLowerCase()
           : 'no',
-        sponsor_tag_type: ['text', 'image'].includes((row.sponsor_tag_type || '').toString().toLowerCase())
+        sponsorTagType: ['text', 'image'].includes((row.sponsor_tag_type || '').toString().toLowerCase())
           ? (row.sponsor_tag_type || '').toString().toLowerCase()
           : 'text',
         source: source,
@@ -323,7 +335,7 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
 
       const csvContent = [
         'domain,category,price,currency,country,language,lead_time_days,guidelines,niches,is_active,accepts_no_license_status,sponsor_tag_status,sponsor_tag_type,sale_price,sale_note',
-        ...data.map(site => 
+        ...data.map((site: any) =>
           `${site.domain},${site.category},${site.price},${site.currency},${site.country},${site.language},${site.lead_time_days},"${site.guidelines || ''}","${(site.niches || []).join(';')}",${site.is_active},${site.accepts_no_license_status || 'no'},${site.sponsor_tag_status || 'no'},${site.sponsor_tag_type || 'text'},${site.sale_price || ''},${site.sale_note || ''}`
         )
       ].join('\n');
@@ -398,9 +410,9 @@ example2.com,News,300,EUR,NO,Norwegian,5,"Follow editorial guidelines","Business
         return;
       }
 
-      const data: ImportRow[] = lines.slice(1).map((line, index) => {
+      const data: ImportRow[] = lines.slice(1).map((line) => {
         const values = line; // line is already an array from parseCSV
-        const row: CSVRowData = {};
+        const row: any = {};
 
         headers.forEach((header, i) => {
           row[header] = values[i] || '';

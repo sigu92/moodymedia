@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
-import { TrendingUp, TrendingDown, DollarSign, Clock, Target, Calendar, Download, Trophy, FileText, BarChart3, AlertTriangle, CheckCircle, Star, Activity, Zap, Package, PlusCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Clock, Target, Trophy, FileText, CheckCircle, Star, Package } from "lucide-react";
+import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line } from "recharts";
 import { Link } from "react-router-dom";
 import { useDashboard } from "@/hooks/useDashboard";
 import { toast } from "sonner";
@@ -64,15 +61,12 @@ interface AnalyticsData {
 const PublisherDashboard = () => {
   const {
     stats,
-    recentOrders,
     loading: dashboardLoading
   } = useDashboard();
   
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [pendingSubmissions, setPendingSubmissions] = useState(0);
-  const [timeRange, setTimeRange] = useState("6months");
-  const [focusMetric, setFocusMetric] = useState("earnings");
   const { user } = useAuth();
   const loadAnalytics = async () => {
     if (!user) return;
@@ -148,7 +142,7 @@ const PublisherDashboard = () => {
       const avgCompletionTime = completedOrdersData.length > 0 
         ? completedOrdersData.reduce((sum, order) => {
             const created = new Date(order.created_at);
-            const published = new Date(order.publication_date);
+            const published = order.publication_date ? new Date(order.publication_date) : created;
             return sum + (published.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
           }, 0) / completedOrdersData.length
         : 0;
@@ -290,7 +284,7 @@ const PublisherDashboard = () => {
         monthlyEarnings,
         ordersByStatus,
         performanceMetrics,
-        recentOrders: recentAnalyticsOrders,
+        recentOrders: recentAnalyticsOrders as unknown as Order[],
         recommendations
       });
     } catch (error) {
@@ -303,53 +297,8 @@ const PublisherDashboard = () => {
 
   useEffect(() => {
     loadAnalytics();
-  }, [user, timeRange]);
+  }, [user]);
 
-  const exportReport = () => {
-    if (!analytics) return;
-    
-    const csvData = [
-      ['Metric', 'Value'],
-      ['Total Earnings', `€${analytics.totalEarnings}`],
-      ['This Month Earnings', `€${analytics.thisMonthEarnings}`],
-      ['Monthly Growth', `${analytics.monthlyGrowth.toFixed(1)}%`],
-      ['Total Orders', analytics.totalOrders],
-      ['Completed Orders', analytics.completedOrders],
-      ['Average Order Value', `€${analytics.avgOrderValue.toFixed(2)}`],
-      ['Average Completion Time', `${analytics.avgCompletionTime.toFixed(1)} days`],
-      ['Response Rate', `${analytics.responseRate.toFixed(1)}%`],
-      ['Customer Satisfaction', `${analytics.customerSatisfaction.toFixed(1)}/5`],
-      [''],
-      ['Top Sites', ''],
-      ...analytics.topSites.map(site => [site.domain, `€${site.revenue} (${site.orders} orders)`])
-    ];
-
-    const csvContent = csvData.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `publisher-analytics-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'requested':
-        return <Badge variant="secondary">New Request</Badge>;
-      case 'accepted':
-        return <Badge variant="default">Accepted</Badge>;
-      case 'content_received':
-        return <Badge className="bg-warning text-warning-foreground">Content Ready</Badge>;
-      case 'published':
-        return <Badge className="bg-success text-success-foreground">Published</Badge>;
-      case 'verified':
-        return <Badge className="bg-success text-success-foreground">Verified</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
   if (dashboardLoading || analyticsLoading) {
     return <div className="min-h-screen bg-background">
         <main className="container mx-auto px-4 py-8">

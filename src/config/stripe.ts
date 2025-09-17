@@ -5,6 +5,8 @@ export const stripeConfig = {
   isConfigured: () => false,
   getPublishableKey: () => '',
   getSecretKey: () => '',
+  isTestMode: () => true,
+  shouldUseMockPayments: () => true,
 };
 
 /**

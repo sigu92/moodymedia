@@ -65,22 +65,22 @@ const IconGlobe = (props: React.SVGProps<SVGSVGElement>) => (
 // 6 icons: Google, X/Twitter, Facebook, LinkedIn, YouTube, Globe - positioned closer to edges
 const marketplaceIcons = [
   // Top-Left dot - Google (closer to edge, not at 5% grid line)
-  { id: 1, icon: IconGoogle, className: 'top-[0.3%] left-[25%]' },
+  { id: 1, icon: IconGoogle, className: 'top-[1%] left-[25%]' },
   
   // Top-Right dot - X/Twitter (closer to edge, not at 5% grid line)
-  { id: 2, icon: IconTwitter, className: 'top-[0.3%] right-[25%]' },
+  { id: 2, icon: IconTwitter, className: 'top-[1%] right-[25%]' },
   
   // Mid-Left dot - Facebook (closer to edge, not at 5% grid line)
-  { id: 3, icon: IconFacebook, className: 'top-[3%] left-[20%]' },
+  { id: 3, icon: IconFacebook, className: 'top-[15%] left-[20%]' },
   
   // Mid-Right dot - LinkedIn (closer to edge, not at 5% grid line)
-  { id: 4, icon: IconLinkedIn, className: 'top-[3%] right-[20%]' },
+  { id: 4, icon: IconLinkedIn, className: 'top-[15%] right-[20%]' },
   
   // Bottom-Left dot - YouTube (closer to edge, not at 5% grid line)
-  { id: 5, icon: IconYouTube, className: 'top-[1%] left-[17%]' },
+  { id: 5, icon: IconYouTube, className: 'top-[6%] left-[17%]' },
   
   // Bottom-Right dot - Globe (closer to edge, not at 5% grid line)
-  { id: 6, icon: IconGlobe, className: 'top-[1%] right-[17%]' },
+  { id: 6, icon: IconGlobe, className: 'top-[6%] right-[17%]' },
 ];
 
 interface MarketplaceFilterState {

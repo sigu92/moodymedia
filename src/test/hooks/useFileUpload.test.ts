@@ -259,11 +259,15 @@ describe('useFileUpload', () => {
 
     it('should handle partial upload failures in batch uploads', async () => {
       mockSupabase.storage.from.mockReturnValue({
-        upload: vi.fn();
+        upload: vi.fn()
           .mockResolvedValueOnce({
             data: { path: 'file1.docx' },
             error: null,
-          });
+          })
+          .mockResolvedValueOnce({
+            data: null,
+            error: { message: 'Upload failed' },
+          }),
           .mockResolvedValueOnce({
             data: null,
             error: { message: 'Upload failed' },
@@ -583,6 +587,9 @@ describe('useFileUpload', () => {
           expect(error.message).toContain('Invalid file');
         };
       });
+    });
+  });
+});
     });
   });
 });
